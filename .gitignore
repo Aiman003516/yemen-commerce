@@ -1,0 +1,29 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Build and tool outputs
+.dart_tool/
+build/
+.pub-cache/
+node_modules/
+dist/
+coverage/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local archives and temporary files
+*.zip
+*.tar
+*.tar.gz
+.tmp/
+tmp/

@@ -9,7 +9,9 @@ class CreatorRepository {
 
   Future<CreatorAccess> loadAccess() async {
     final user = _client.auth.currentUser;
-    if (user == null) throw const CreatorRepositoryException('AUTH_REQUIRED');
+    if (user == null) {
+      throw const CreatorRepositoryException('AUTH_REQUIRED');
+    }
     final result = await _client.rpc('creator_current_access');
     final json = Map<String, dynamic>.from(result as Map);
     return CreatorAccess(
@@ -130,6 +132,164 @@ class CreatorRepository {
         'p_capability': capability.value,
         'p_market_id': marketId,
         'p_expires_at': expiresAt?.toUtc().toIso8601String(),
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<List<CreatorMerchant>> listMerchants({String? status}) async {
+    final result = await _client.rpc(
+      'creator_list_merchants',
+      params: {'p_status': status, 'p_limit': 100, 'p_offset': 0},
+    );
+    return (result as List<dynamic>)
+        .map(
+          (row) =>
+              CreatorMerchant.fromJson(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CreatorMutationResult> setMerchantVerification({
+    required String merchantId,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'creator_set_merchant_verification',
+      params: {
+        'p_merchant_id': merchantId,
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<List<CreatorShop>> listShops({String? status}) async {
+    final result = await _client.rpc(
+      'creator_list_shops',
+      params: {'p_status': status, 'p_limit': 100, 'p_offset': 0},
+    );
+    return (result as List<dynamic>)
+        .map(
+          (row) => CreatorShop.fromJson(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CreatorMutationResult> setShopStatus({
+    required String shopId,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'creator_set_shop_status',
+      params: {
+        'p_shop_id': shopId,
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<List<CreatorMarket>> listMarkets() async {
+    final result = await _client.rpc('creator_list_markets');
+    return (result as List<dynamic>)
+        .map(
+          (row) =>
+              CreatorMarket.fromJson(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CreatorMutationResult> setMarketStatus({
+    required String marketId,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'creator_set_market_status',
+      params: {
+        'p_market_id': marketId,
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<List<CreatorPolicy>> listPolicies(String marketId) async {
+    final result = await _client.rpc(
+      'creator_list_policies',
+      params: {'p_market_id': marketId},
+    );
+    return (result as List<dynamic>)
+        .map(
+          (row) =>
+              CreatorPolicy.fromJson(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CreatorMutationResult> upsertPolicy({
+    required String marketId,
+    required String key,
+    required Map<String, dynamic> value,
+    required String reason,
+    DateTime? effectiveFrom,
+  }) async {
+    final result = await _client.rpc(
+      'creator_upsert_policy',
+      params: {
+        'p_market_id': marketId,
+        'p_key': key.trim(),
+        'p_value': value,
+        'p_effective_from': effectiveFrom?.toUtc().toIso8601String(),
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<List<CreatorCapabilityState>> listCapabilities(String marketId) async {
+    final result = await _client.rpc(
+      'creator_list_capabilities',
+      params: {'p_market_id': marketId},
+    );
+    return (result as List<dynamic>)
+        .map(
+          (row) => CreatorCapabilityState.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CreatorMutationResult> setMarketCapability({
+    required String marketId,
+    required String capabilityId,
+    required bool enabled,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'creator_set_market_capability',
+      params: {
+        'p_market_id': marketId,
+        'p_capability_id': capabilityId,
+        'p_enabled': enabled,
         'p_reason': reason.trim(),
       },
     );

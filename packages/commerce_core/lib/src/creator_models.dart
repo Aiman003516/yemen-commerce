@@ -107,3 +107,162 @@ class CreatorMutationResult {
             ?.toString(),
       );
 }
+
+class CreatorMerchant {
+  const CreatorMerchant({
+    required this.id,
+    required this.ownerName,
+    required this.phone,
+    required this.marketId,
+    required this.verificationStatus,
+    this.phoneVerificationStatus,
+    this.createdAt,
+  });
+  final String id;
+  final String ownerName;
+  final String phone;
+  final String marketId;
+  final String verificationStatus;
+  final String? phoneVerificationStatus;
+  final DateTime? createdAt;
+
+  factory CreatorMerchant.fromJson(
+    Map<String, dynamic> json,
+  ) => CreatorMerchant(
+    id: (json['id'] ?? '').toString(),
+    ownerName: (json['owner_name'] ?? json['ownerName'] ?? '').toString(),
+    phone: (json['phone'] ?? '').toString(),
+    marketId: (json['market_id'] ?? json['marketId'] ?? '').toString(),
+    verificationStatus:
+        (json['verification_status'] ?? json['verificationStatus'] ?? 'pending')
+            .toString(),
+    phoneVerificationStatus:
+        (json['phone_verification_status'] ?? json['phoneVerificationStatus'])
+            ?.toString(),
+    createdAt: DateTime.tryParse(
+      (json['created_at'] ?? json['createdAt'] ?? '').toString(),
+    ),
+  );
+}
+
+class CreatorShop {
+  const CreatorShop({
+    required this.id,
+    required this.name,
+    required this.slug,
+    required this.merchantId,
+    required this.marketId,
+    required this.status,
+    this.areaLabel,
+  });
+  final String id;
+  final String name;
+  final String slug;
+  final String merchantId;
+  final String marketId;
+  final String status;
+  final String? areaLabel;
+
+  factory CreatorShop.fromJson(Map<String, dynamic> json) => CreatorShop(
+    id: (json['id'] ?? '').toString(),
+    name: (json['name'] ?? '').toString(),
+    slug: (json['slug'] ?? '').toString(),
+    merchantId: (json['merchant_id'] ?? json['merchantId'] ?? '').toString(),
+    marketId: (json['market_id'] ?? json['marketId'] ?? '').toString(),
+    status: (json['status'] ?? 'pending').toString(),
+    areaLabel: (json['area_label'] ?? json['areaLabel'])?.toString(),
+  );
+}
+
+class CreatorMarket {
+  const CreatorMarket({
+    required this.id,
+    required this.governorate,
+    required this.city,
+    required this.status,
+    required this.currency,
+    required this.isPilot,
+    this.district,
+    this.serviceArea,
+  });
+  final String id;
+  final String governorate;
+  final String city;
+  final String status;
+  final String currency;
+  final bool isPilot;
+  final String? district;
+  final String? serviceArea;
+
+  factory CreatorMarket.fromJson(Map<String, dynamic> json) => CreatorMarket(
+    id: (json['id'] ?? '').toString(),
+    governorate: (json['governorate'] ?? '').toString(),
+    city: (json['city'] ?? '').toString(),
+    status: (json['status'] ?? 'draft').toString(),
+    currency: (json['currency'] ?? 'YER').toString(),
+    isPilot: json['is_pilot'] as bool? ?? json['isPilot'] as bool? ?? false,
+    district: (json['district'])?.toString(),
+    serviceArea: (json['service_area'] ?? json['serviceArea'])?.toString(),
+  );
+}
+
+class CreatorPolicy {
+  const CreatorPolicy({
+    required this.id,
+    required this.marketId,
+    required this.key,
+    required this.version,
+    required this.value,
+    required this.isActive,
+    this.effectiveFrom,
+  });
+  final String id;
+  final String marketId;
+  final String key;
+  final int version;
+  final Map<String, dynamic> value;
+  final bool isActive;
+  final DateTime? effectiveFrom;
+
+  factory CreatorPolicy.fromJson(Map<String, dynamic> json) => CreatorPolicy(
+    id: (json['id'] ?? '').toString(),
+    marketId: (json['market_id'] ?? json['marketId'] ?? '').toString(),
+    key: (json['key'] ?? '').toString(),
+    version: int.tryParse((json['version'] ?? 0).toString()) ?? 0,
+    value: Map<String, dynamic>.from((json['value'] as Map?) ?? const {}),
+    isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? false,
+    effectiveFrom: DateTime.tryParse(
+      (json['effective_from'] ?? json['effectiveFrom'] ?? '').toString(),
+    ),
+  );
+}
+
+class CreatorCapabilityState {
+  const CreatorCapabilityState({
+    required this.id,
+    required this.key,
+    required this.marketId,
+    required this.enabled,
+    required this.defaultEnabled,
+    this.reasonAr,
+  });
+  final String id;
+  final String key;
+  final String marketId;
+  final bool enabled;
+  final bool defaultEnabled;
+  final String? reasonAr;
+
+  factory CreatorCapabilityState.fromJson(Map<String, dynamic> json) =>
+      CreatorCapabilityState(
+        id: (json['id'] ?? '').toString(),
+        key: (json['key'] ?? '').toString(),
+        marketId: (json['market_id'] ?? json['marketId'] ?? '').toString(),
+        enabled: json['enabled'] as bool? ?? false,
+        defaultEnabled:
+            json['default_enabled'] as bool? ??
+            json['defaultEnabled'] as bool? ??
+            false,
+        reasonAr: (json['reason_ar'] ?? json['reasonAr'])?.toString(),
+      );
+}

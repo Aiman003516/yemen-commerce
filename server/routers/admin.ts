@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { auditEvents, capabilities, categories, marketCapabilities, merchants, reports, shops } from "../../drizzle/schema";
+import { auditEvents, capabilities, categories, marketCapabilities, merchants, otpProviderConfigurations, reports, shops } from "../../drizzle/schema";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { ensureIbbMarket, requireAdmin, writeAuditEvent } from "../marketplace/access";
@@ -14,13 +14,14 @@ export const adminRouter = router({
     const db = await getDb();
     if (!db) throw unavailable();
     const market = await ensureIbbMarket();
-    const [pendingMerchants, pendingShops, openReports, recentAudit] = await Promise.all([
+    const [pendingMerchants, pendingShops, openReports, otpProviders, recentAudit] = await Promise.all([
       db.select().from(merchants).where(eq(merchants.verificationStatus, "pending")),
       db.select().from(shops).where(eq(shops.status, "pending")),
       db.select().from(reports).where(eq(reports.status, "open")),
+      db.select().from(otpProviderConfigurations).where(eq(otpProviderConfigurations.marketId, market.id)),
       db.select().from(auditEvents).orderBy(desc(auditEvents.createdAt)).limit(60),
     ]);
-    return { market, pendingMerchants, pendingShops, openReports, recentAudit };
+    return { market, pendingMerchants, pendingShops, openReports, otpProviders, recentAudit };
   }),
   approveMerchant: protectedProcedure.input(z.object({ merchantId: z.number().int().positive(), approved: z.boolean() })).mutation(async ({ ctx, input }) => {
     await requireAdmin(ctx.user);
@@ -59,5 +60,25 @@ export const adminRouter = router({
     else await db.insert(marketCapabilities).values({ marketId: market.id, capabilityId: capability.id, enabled: input.enabled, reasonAr: input.reasonAr ?? null });
     await writeAuditEvent({ actorUserId: ctx.user.id, action: "capability.updated", resourceType: "capability", resourceId: capability.id, metadata: { enabled: input.enabled } });
     return { success: true };
+  }),
+  configureOtpProvider: protectedProcedure.input(z.object({
+    providerKey: z.string().trim().regex(/^[a-z0-9-]+$/).min(2).max(80),
+    providerType: z.enum(["carrier", "aggregator"]),
+    displayName: z.string().trim().min(2).max(160),
+    status: z.enum(["disabled", "pending_activation"]),
+    senderId: z.string().trim().max(32).optional(),
+    deliveryReportsEnabled: z.boolean().default(false),
+    rateLimitPerMinute: z.number().int().min(0).max(10000).default(0),
+  })).mutation(async ({ ctx, input }) => {
+    await requireAdmin(ctx.user);
+    const db = await getDb();
+    if (!db) throw unavailable();
+    const market = await ensureIbbMarket();
+    const [existing] = await db.select().from(otpProviderConfigurations).where(eq(otpProviderConfigurations.providerKey, input.providerKey)).limit(1);
+    const values = { ...input, marketId: market.id, senderId: input.senderId ?? null };
+    if (existing) await db.update(otpProviderConfigurations).set(values).where(eq(otpProviderConfigurations.id, existing.id));
+    else await db.insert(otpProviderConfigurations).values(values);
+    await writeAuditEvent({ actorUserId: ctx.user.id, action: "otp_provider.configured", resourceType: "otp_provider", metadata: { providerKey: input.providerKey, status: input.status } });
+    return { success: true, activationBlocked: true };
   }),
 });

@@ -31,4 +31,4 @@
 - [x] Document the implemented shared contract subset and extend it as additional marketplace flows are connected in Flutter.
 - [x] Add regression tests for market-policy active/inactive availability, version resolution, and safe fallback behavior.
 - [x] Keep mobile phone numbers collected but explicitly unverified during the Ibb pilot; do not block onboarding or customer flows on OTP until a provider is approved.
-- [ ] Add a disabled, adapter-based carrier OTP module for future Yemen Mobile, Sabafon, YOU, or local-aggregator activation, including provider configuration, delivery reports, rate limits, and audit events.
+- [x] Add a disabled, adapter-based carrier OTP module for future Yemen Mobile, Sabafon, YOU, or local-aggregator activation, including provider configuration, delivery reports, rate limits, and audit events.

@@ -47,3 +47,7 @@
 - [x] Expose selectable manual-payment proof requirements and existing-method edits in the merchant workspace rather than hardcoding a reference-only choice.
 - [x] Add explicit merchant-role denial and non-leak tests for admin-only identity evidence access and another merchant’s evidence case.
 - [x] Add a no-client-input router test showing that a merchant cannot request another merchant’s identity case or evidence metadata by identifier.
+- [ ] Define and validate a dedicated Supabase project/account migration plan, including separate credentials, database migration, authentication strategy, storage privacy, and rollback safeguards.
+- [x] Prepare a portable project handover package so the source repository, architecture documentation, migrations, and operating instructions can be moved to a different Manus account without relying on this task’s connector state.
+- [x] Create a new-Manus-account onboarding guide that explains how to import the private GitHub repository, restore the portable project files, configure a fresh Supabase project, and keep all credentials outside Git.
+- [x] Add schema and migration artifacts to the portable handover archive, then verify its contents are complete and credential-free.

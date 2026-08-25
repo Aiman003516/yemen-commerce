@@ -11,7 +11,12 @@ import '../core/supabase_config.dart';
 import '../core/supabase_marketplace_client.dart';
 
 class MarketplaceShell extends StatefulWidget {
-  const MarketplaceShell({super.key, this.market, this.marketLoading = false, this.user});
+  const MarketplaceShell({
+    super.key,
+    this.market,
+    this.marketLoading = false,
+    this.user,
+  });
 
   final MarketConfig? market;
   final bool marketLoading;
@@ -28,8 +33,16 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
     _Destination('الرئيسية', Icons.storefront_outlined, Icons.storefront),
     _Destination('السلة', Icons.shopping_bag_outlined, Icons.shopping_bag),
     _Destination('طلباتي', Icons.receipt_long_outlined, Icons.receipt_long),
-    _Destination('للتجار', Icons.store_mall_directory_outlined, Icons.store_mall_directory),
-    _Destination('الإدارة', Icons.admin_panel_settings_outlined, Icons.admin_panel_settings),
+    _Destination(
+      'للتجار',
+      Icons.store_mall_directory_outlined,
+      Icons.store_mall_directory,
+    ),
+    _Destination(
+      'الإدارة',
+      Icons.admin_panel_settings_outlined,
+      Icons.admin_panel_settings,
+    ),
   ];
 
   @override
@@ -44,9 +57,16 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
             body: page,
             bottomNavigationBar: NavigationBar(
               selectedIndex: _selectedIndex,
-              onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+              onDestinationSelected: (index) =>
+                  setState(() => _selectedIndex = index),
               destinations: _destinations
-                  .map((destination) => NavigationDestination(icon: Icon(destination.outlined), selectedIcon: Icon(destination.filled), label: destination.label))
+                  .map(
+                    (destination) => NavigationDestination(
+                      icon: Icon(destination.outlined),
+                      selectedIcon: Icon(destination.filled),
+                      label: destination.label,
+                    ),
+                  )
                   .toList(),
             ),
           );
@@ -58,15 +78,30 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
                 minWidth: 94,
                 extended: constraints.maxWidth >= 1180,
                 selectedIndex: _selectedIndex,
-                onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-                leading: const Padding(padding: EdgeInsets.only(top: 28, bottom: 26), child: _BrandMark()),
+                onDestinationSelected: (index) =>
+                    setState(() => _selectedIndex = index),
+                leading: const Padding(
+                  padding: EdgeInsets.only(top: 28, bottom: 26),
+                  child: _BrandMark(),
+                ),
                 destinations: _destinations
-                    .map((destination) => NavigationRailDestination(icon: Icon(destination.outlined), selectedIcon: Icon(destination.filled), label: Text(destination.label)))
+                    .map(
+                      (destination) => NavigationRailDestination(
+                        icon: Icon(destination.outlined),
+                        selectedIcon: Icon(destination.filled),
+                        label: Text(destination.label),
+                      ),
+                    )
                     .toList(),
               ),
               const VerticalDivider(width: 1),
               Expanded(
-                child: Column(children: [_topBar(), Expanded(child: page)]),
+                child: Column(
+                  children: [
+                    _topBar(),
+                    Expanded(child: page),
+                  ],
+                ),
               ),
             ],
           ),
@@ -76,34 +111,58 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
   }
 
   PreferredSizeWidget _topBar({bool compact = false}) => AppBar(
-        titleSpacing: compact ? 20 : 36,
-        title: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: AlignmentDirectional.centerStart,
-          child: Row(children: [if (compact) const _BrandMark(compact: true), if (compact) const SizedBox(width: 10), const Text('يمن كومرس')]),
-        ),
-        actions: [
-          if (widget.user == null)
-            TextButton.icon(onPressed: _startLogin, icon: const Icon(Icons.login_rounded), label: const Text('تسجيل الدخول'))
-          else ...[
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('مرحباً ${widget.user!.name ?? 'بك'}')),
-            IconButton(onPressed: _signOut, tooltip: 'تسجيل الخروج', icon: const Icon(Icons.logout_rounded)),
-          ],
-          const SizedBox(width: 14),
+    titleSpacing: compact ? 20 : 36,
+    title: FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Row(
+        children: [
+          if (compact) const _BrandMark(compact: true),
+          if (compact) const SizedBox(width: 10),
+          const Text('يمن كومرس'),
         ],
-      );
+      ),
+    ),
+    actions: [
+      if (widget.user == null)
+        TextButton.icon(
+          onPressed: _startLogin,
+          icon: const Icon(Icons.login_rounded),
+          label: const Text('تسجيل الدخول'),
+        )
+      else ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text('مرحباً ${widget.user!.name ?? 'بك'}'),
+        ),
+        IconButton(
+          onPressed: _signOut,
+          tooltip: 'تسجيل الخروج',
+          icon: const Icon(Icons.logout_rounded),
+        ),
+      ],
+      const SizedBox(width: 14),
+    ],
+  );
 
   Widget _pageFor(int index) => switch (index) {
-        0 => _HomePage(market: widget.market, marketLoading: widget.marketLoading, user: widget.user, onNavigate: (index) => setState(() => _selectedIndex = index)),
-        1 => _CartPage(user: widget.user),
-        2 => _OrdersPage(user: widget.user),
-        3 => _MerchantPage(user: widget.user),
-        _ => _AdminPage(user: widget.user),
-      };
+    0 => _HomePage(
+      market: widget.market,
+      marketLoading: widget.marketLoading,
+      user: widget.user,
+      onNavigate: (index) => setState(() => _selectedIndex = index),
+    ),
+    1 => _CartPage(user: widget.user),
+    2 => _OrdersPage(user: widget.user),
+    3 => _MerchantPage(user: widget.user),
+    _ => _AdminPage(user: widget.user),
+  };
 
   Future<void> _startLogin() async {
     if (!SupabaseConfig.isConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(SupabaseConfig.missingConfigurationMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(SupabaseConfig.missingConfigurationMessage)),
+      );
       return;
     }
     final emailController = TextEditingController();
@@ -111,10 +170,22 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('تسجيل الدخول'),
-        content: TextField(controller: emailController, keyboardType: TextInputType.emailAddress, autofocus: true, decoration: const InputDecoration(labelText: 'البريد الإلكتروني')),
+        content: TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'البريد الإلكتروني'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, emailController.text.trim()), child: const Text('إرسال الرابط')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, emailController.text.trim()),
+            child: const Text('إرسال الرابط'),
+          ),
         ],
       ),
     );
@@ -122,14 +193,30 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
     if (email == null || email.isEmpty || !mounted) return;
     try {
       await SupabaseMarketplaceClient().signInWithMagicLink(email);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال رابط تسجيل الدخول إلى بريدك الإلكتروني.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إرسال رابط تسجيل الدخول إلى بريدك الإلكتروني.'),
+          ),
+        );
+      }
     } on AuthException {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إرسال رابط تسجيل الدخول. تحقق من البريد وإعدادات المصادقة.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تعذر إرسال رابط تسجيل الدخول. تحقق من البريد وإعدادات المصادقة.',
+            ),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _signOut() async {
-    if (SupabaseConfig.isConfigured) await SupabaseMarketplaceClient().signOut();
+    if (SupabaseConfig.isConfigured) {
+      await SupabaseMarketplaceClient().signOut();
+    }
   }
 }
 
@@ -139,15 +226,23 @@ class _BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: compact ? 34 : 48,
-        height: compact ? 34 : 48,
-        decoration: BoxDecoration(color: const Color(0xFF006A63), borderRadius: BorderRadius.circular(compact ? 12 : 16)),
-        child: const Icon(Icons.storefront_rounded, color: Colors.white),
-      );
+    width: compact ? 34 : 48,
+    height: compact ? 34 : 48,
+    decoration: BoxDecoration(
+      color: const Color(0xFF006A63),
+      borderRadius: BorderRadius.circular(compact ? 12 : 16),
+    ),
+    child: const Icon(Icons.storefront_rounded, color: Colors.white),
+  );
 }
 
 class _HomePage extends StatelessWidget {
-  const _HomePage({required this.onNavigate, this.market, required this.marketLoading, this.user});
+  const _HomePage({
+    required this.onNavigate,
+    this.market,
+    required this.marketLoading,
+    this.user,
+  });
   final ValueChanged<int> onNavigate;
   final MarketConfig? market;
   final bool marketLoading;
@@ -160,22 +255,51 @@ class _HomePage extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1220),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _Hero(city: market?.city ?? 'إب', onBrowse: () => onNavigate(1)),
-            if (marketLoading) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator(minHeight: 2)),
-            const SizedBox(height: 30),
-            const _SectionHeader(title: 'كيف يعمل السوق؟', subtitle: 'تجربة محلية واضحة تحفظ استقلال كل متجر ومدفوعاته.'),
-            const SizedBox(height: 14),
-            const Wrap(spacing: 16, runSpacing: 16, children: [
-              _PrincipleCard(icon: Icons.travel_explore_rounded, title: 'اكتشف متاجر إب', detail: 'تظهر المتاجر بعد اعتماد الإدارة فقط.'),
-              _PrincipleCard(icon: Icons.shopping_bag_rounded, title: 'سلة واحدة، طلبات منفصلة', detail: 'تُجمع المنتجات حسب التاجر قبل إتمام الطلب.'),
-              _PrincipleCard(icon: Icons.account_balance_wallet_rounded, title: 'دفع لصاحب المتجر', detail: 'تُراجع إثباتات الدفع يدوياً وبشكل آمن.'),
-            ]),
-            const SizedBox(height: 34),
-            const _SectionHeader(title: 'المتاجر والمنتجات المعتمدة', subtitle: 'ستظهر هنا بعد اكتمال الاعتماد ونشر الكتالوج.'),
-            const SizedBox(height: 14),
-            _CatalogSection(user: user),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Hero(city: market?.city ?? 'إب', onBrowse: () => onNavigate(1)),
+              if (marketLoading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+              const SizedBox(height: 30),
+              const _SectionHeader(
+                title: 'كيف يعمل السوق؟',
+                subtitle: 'تجربة محلية واضحة تحفظ استقلال كل متجر ومدفوعاته.',
+              ),
+              const SizedBox(height: 14),
+              const Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  _PrincipleCard(
+                    icon: Icons.travel_explore_rounded,
+                    title: 'اكتشف متاجر إب',
+                    detail: 'تظهر المتاجر بعد اعتماد الإدارة فقط.',
+                  ),
+                  _PrincipleCard(
+                    icon: Icons.shopping_bag_rounded,
+                    title: 'سلة واحدة، طلبات منفصلة',
+                    detail: 'تُجمع المنتجات حسب التاجر قبل إتمام الطلب.',
+                  ),
+                  _PrincipleCard(
+                    icon: Icons.account_balance_wallet_rounded,
+                    title: 'دفع لصاحب المتجر',
+                    detail: 'تُراجع إثباتات الدفع يدوياً وبشكل آمن.',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 34),
+              const _SectionHeader(
+                title: 'المتاجر والمنتجات المعتمدة',
+                subtitle: 'ستظهر هنا بعد اكتمال الاعتماد ونشر الكتالوج.',
+              ),
+              const SizedBox(height: 14),
+              _CatalogSection(user: user),
+            ],
+          ),
         ),
       ),
     );
@@ -189,35 +313,61 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          gradient: const LinearGradient(colors: [Color(0xFF006A63), Color(0xFF024B4B)], begin: Alignment.topRight, end: Alignment.bottomLeft),
+    padding: const EdgeInsets.all(28),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(32),
+      gradient: const LinearGradient(
+        colors: [Color(0xFF006A63), Color(0xFF024B4B)],
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+      ),
+    ),
+    child: Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: 26,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Pill(label: '$city · السوق التجريبي الأول'),
+              const SizedBox(height: 18),
+              const Text(
+                'تسوّق محلياً، بثقة ووضوح.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'منصة متعددة المتاجر، مصممة للعربية أولاً. كل متجر يستقبل مدفوعاته بنفسه وكل طلب يُتابع بشكل مستقل.',
+                style: TextStyle(
+                  color: Color(0xFFD7F0E9),
+                  fontSize: 16,
+                  height: 1.7,
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          runSpacing: 26,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _Pill(label: '$city · السوق التجريبي الأول'),
-                const SizedBox(height: 18),
-                const Text('تسوّق محلياً، بثقة ووضوح.', style: TextStyle(color: Colors.white, fontSize: 36, height: 1.15, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 12),
-                const Text('منصة متعددة المتاجر، مصممة للعربية أولاً. كل متجر يستقبل مدفوعاته بنفسه وكل طلب يُتابع بشكل مستقل.', style: TextStyle(color: Color(0xFFD7F0E9), fontSize: 16, height: 1.7)),
-              ]),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD39A2C), foregroundColor: const Color(0xFF1F1605), padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18)),
-              onPressed: onBrowse,
-              icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text('ابدأ التسوق'),
-            ),
-          ],
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFD39A2C),
+            foregroundColor: const Color(0xFF1F1605),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+          ),
+          onPressed: onBrowse,
+          icon: const Icon(Icons.arrow_back_rounded),
+          label: const Text('ابدأ التسوق'),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _Pill extends StatelessWidget {
@@ -225,10 +375,17 @@ class _Pill extends StatelessWidget {
   final String label;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(99), border: Border.all(color: Colors.white.withValues(alpha: .2))),
-        child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .14),
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: Colors.white.withValues(alpha: .2)),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -236,30 +393,63 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 5), Text(subtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF68655F)))]);
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: Theme.of(context).textTheme.headlineSmall
+            ?.copyWith(fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 5),
+      Text(
+        subtitle,
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: const Color(0xFF68655F)),
+      ),
+    ],
+  );
 }
 
 class _PrincipleCard extends StatelessWidget {
-  const _PrincipleCard({required this.icon, required this.title, required this.detail});
+  const _PrincipleCard({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
   final IconData icon;
   final String title;
   final String detail;
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 310,
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              CircleAvatar(backgroundColor: const Color(0xFFE2F2EC), foregroundColor: const Color(0xFF006A63), child: Icon(icon)),
-              const SizedBox(height: 18),
-              Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 7),
-              Text(detail, style: const TextStyle(color: Color(0xFF68655F), height: 1.55)),
-            ]),
-          ),
+    width: 310,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: const Color(0xFFE2F2EC),
+              foregroundColor: const Color(0xFF006A63),
+              child: Icon(icon),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              detail,
+              style: const TextStyle(color: Color(0xFF68655F), height: 1.55),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _CatalogSection extends StatefulWidget {
@@ -272,7 +462,8 @@ class _CatalogSection extends StatefulWidget {
 
 class _CatalogSectionState extends State<_CatalogSection> {
   final _search = TextEditingController();
-  late Future<List<MarketplaceProduct>> _products = MarketplaceApiClient().products();
+  late Future<List<MarketplaceProduct>> _products = MarketplaceApiClient()
+      .products();
 
   @override
   void dispose() {
@@ -280,42 +471,109 @@ class _CatalogSectionState extends State<_CatalogSection> {
     super.dispose();
   }
 
-  void _runSearch() => setState(() => _products = MarketplaceApiClient().products(query: _search.text));
+  void _runSearch() => setState(
+    () => _products = MarketplaceApiClient().products(query: _search.text),
+  );
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        Row(children: [
-          Expanded(child: TextField(controller: _search, onSubmitted: (_) => _runSearch(), decoration: const InputDecoration(hintText: 'ابحث في المنتجات المعتمدة'))),
+  Widget build(BuildContext context) => Column(
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _search,
+              onSubmitted: (_) => _runSearch(),
+              decoration: const InputDecoration(
+                hintText: 'ابحث في المنتجات المعتمدة',
+              ),
+            ),
+          ),
           const SizedBox(width: 10),
           FilledButton(onPressed: _runSearch, child: const Text('بحث')),
-        ]),
-        const SizedBox(height: 14),
-        FutureBuilder<List<MarketplaceProduct>>(
-          future: _products,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const Padding(padding: EdgeInsets.all(28), child: CircularProgressIndicator());
-            if (snapshot.hasError) return _CatalogNotice(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل الكتالوج', detail: 'تحقق من الاتصال ثم حاول البحث مرة أخرى.');
-            final products = snapshot.data ?? [];
-            if (products.isEmpty) return const _CatalogNotice(icon: Icons.storefront_outlined, title: 'نستعد لاستقبال المتاجر المعتمدة في إب', detail: 'لا نعرض متاجر أو منتجات تجريبية. يظهر الكتالوج فقط بعد إدخاله واعتماده من التاجر والإدارة.');
-            return Wrap(spacing: 14, runSpacing: 14, children: products.map((product) => _ProductCard(product: product, canAdd: widget.user != null)).toList());
-          },
-        ),
-      ]);
+        ],
+      ),
+      const SizedBox(height: 14),
+      FutureBuilder<List<MarketplaceProduct>>(
+        future: _products,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(28),
+              child: CircularProgressIndicator(),
+            );
+          }
+          if (snapshot.hasError) {
+            return _CatalogNotice(
+              icon: Icons.cloud_off_outlined,
+              title: 'تعذر تحميل الكتالوج',
+              detail: 'تحقق من الاتصال ثم حاول البحث مرة أخرى.',
+            );
+          }
+          final products = snapshot.data ?? [];
+          if (products.isEmpty) {
+            return const _CatalogNotice(
+              icon: Icons.storefront_outlined,
+              title: 'نستعد لاستقبال المتاجر المعتمدة في إب',
+              detail: 'لا نعرض متاجر أو منتجات تجريبية. يظهر الكتالوج فقط بعد إدخاله واعتماده من التاجر والإدارة.',
+            );
+          }
+          return Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            children: products
+                .map(
+                  (product) => _ProductCard(
+                    product: product,
+                    canAdd: widget.user != null,
+                  ),
+                )
+                .toList(),
+          );
+        },
+      ),
+    ],
+  );
 }
 
 class _CatalogNotice extends StatelessWidget {
-  const _CatalogNotice({required this.icon, required this.title, required this.detail});
+  const _CatalogNotice({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
   final IconData icon;
   final String title;
   final String detail;
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34), child: Column(children: [
-        CircleAvatar(radius: 28, backgroundColor: const Color(0xFFF5ECD8), foregroundColor: const Color(0xFFD39A2C), child: Icon(icon, size: 30)),
-        const SizedBox(height: 14),
-        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800), textAlign: TextAlign.center),
-        const SizedBox(height: 6),
-        Text(detail, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF68655F), height: 1.6)),
-      ])));
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: const Color(0xFFF5ECD8),
+            foregroundColor: const Color(0xFFD39A2C),
+            child: Icon(icon, size: 30),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF68655F), height: 1.6),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ProductCard extends StatelessWidget {
@@ -323,19 +581,68 @@ class _ProductCard extends StatelessWidget {
   final MarketplaceProduct product;
   final bool canAdd;
   @override
-  Widget build(BuildContext context) => SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(product.shopName, style: const TextStyle(color: Color(0xFF006A63), fontWeight: FontWeight.w700)),
-        const SizedBox(height: 10),
-        Text(product.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        Text('${product.priceMinor} ${product.currency}', style: const TextStyle(color: Color(0xFF68655F))),
-        const SizedBox(height: 14),
-        FilledButton.tonal(onPressed: () async {
-          if (!canAdd) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سجّل الدخول أولاً لإضافة المنتجات إلى السلة.'))); return; }
-          try { await MarketplaceApiClient().addToCart(product.id); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة المنتج إلى السلة.'))); }
-          on ApiException catch (error) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); }
-        }, child: const Text('أضف إلى السلة')),
-      ]))));
+  Widget build(BuildContext context) => SizedBox(
+    width: 280,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              product.shopName,
+              style: const TextStyle(
+                color: Color(0xFF006A63),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              product.name,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${product.priceMinor} ${product.currency}',
+              style: const TextStyle(color: Color(0xFF68655F)),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.tonal(
+              onPressed: () async {
+                if (!canAdd) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'سجّل الدخول أولاً لإضافة المنتجات إلى السلة.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().addToCart(product.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تمت إضافة المنتج إلى السلة.'),
+                      ),
+                    );
+                  }
+                } on ApiException catch (error) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('أضف إلى السلة'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _CartPage extends StatefulWidget {
@@ -352,63 +659,235 @@ class _CartPageState extends State<_CartPage> {
   bool _checkingOut = false;
   @override
   Widget build(BuildContext context) {
-    if (widget.user == null) return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لاستخدام السلة', detail: 'ستُحفظ منتجاتك في سلة واحدة وتُقسم بوضوح حسب المتجر قبل الدفع.');
-    return FutureBuilder<List<CartGroup>>(future: _cart, builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-      if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل السلة', detail: 'تحقق من الاتصال ثم حاول مرة أخرى.');
-      final groups = snapshot.data ?? [];
-      if (groups.isEmpty) return const _CenteredPage(icon: Icons.shopping_bag_outlined, title: 'سلتك فارغة', detail: 'تُعرض المنتجات في مجموعات منفصلة لكل متجر عند إضافتها.');
-      return ListView(padding: const EdgeInsets.all(24), children: [
-        Text('سلة واحدة، طلبات ودفع منفصلان', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        const Text('اختر طريقة التنفيذ وطريقة الدفع يدوياً لكل متجر. سيُنشأ طلب مستقل لكل مجموعة.'),
-        const SizedBox(height: 14),
-        ...groups.map((group) {
-          final fulfilment = _fulfilmentByShop[group.shopId] ?? (group.fulfilmentMethods.isEmpty ? null : group.fulfilmentMethods.first);
-          final payment = _paymentByMerchant[group.merchantId] ?? (group.paymentMethods.isEmpty ? null : group.paymentMethods.first.id);
-          return Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(group.shopName, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            ...group.items.map((item) => ListTile(contentPadding: EdgeInsets.zero, title: Text(item.name), trailing: Text('${item.priceMinor} ${item.currency}'))),
-            const Divider(),
-            Text('إجمالي هذا المتجر: ${group.totalMinor} YER', style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            if (group.fulfilmentMethods.isEmpty) const _InlineWarning('لا توجد طريقة تنفيذ مفعلة لهذا المتجر حالياً.') else DropdownButtonFormField<String>(key: ValueKey('fulfilment-${group.shopId}-$fulfilment'), initialValue: fulfilment, decoration: const InputDecoration(labelText: 'طريقة التنفيذ'), items: group.fulfilmentMethods.map((method) => DropdownMenuItem(value: method, child: Text(_fulfilmentLabel(method)))).toList(), onChanged: (value) => setState(() => _fulfilmentByShop[group.shopId] = value ?? group.fulfilmentMethods.first)),
-            const SizedBox(height: 10),
-            if (group.paymentMethods.isEmpty) const _InlineWarning('لا توجد طريقة دفع يدوية مفعلة لهذا التاجر حالياً.') else DropdownButtonFormField<String>(key: ValueKey('payment-${group.merchantId}-$payment'), initialValue: payment, decoration: const InputDecoration(labelText: 'طريقة الدفع لهذا المتجر'), items: group.paymentMethods.map((method) => DropdownMenuItem(value: method.id, child: Text(method.name))).toList(), onChanged: (value) => setState(() => _paymentByMerchant[group.merchantId] = value ?? group.paymentMethods.first.id)),
-          ])));
-        }),
-        const SizedBox(height: 18),
-        FilledButton.icon(onPressed: _checkingOut ? null : () => _checkout(groups), icon: _checkingOut ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.call_split_outlined), label: Text(_checkingOut ? 'جارٍ إنشاء الطلبات' : 'إنشاء الطلبات المنفصلة')),
-      ]);
-    });
+    if (widget.user == null) {
+      return const _CenteredPage(
+        icon: Icons.lock_outline,
+        title: 'سجّل الدخول لاستخدام السلة',
+        detail:
+            'ستُحفظ منتجاتك في سلة واحدة وتُقسم بوضوح حسب المتجر قبل الدفع.',
+      );
+    }
+    return FutureBuilder<List<CartGroup>>(
+      future: _cart,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const _CenteredPage(
+            icon: Icons.cloud_off_outlined,
+            title: 'تعذر تحميل السلة',
+            detail: 'تحقق من الاتصال ثم حاول مرة أخرى.',
+          );
+        }
+        final groups = snapshot.data ?? [];
+        if (groups.isEmpty) {
+          return const _CenteredPage(
+            icon: Icons.shopping_bag_outlined,
+            title: 'سلتك فارغة',
+            detail: 'تُعرض المنتجات في مجموعات منفصلة لكل متجر عند إضافتها.',
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              'سلة واحدة، طلبات ودفع منفصلان',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'اختر طريقة التنفيذ وطريقة الدفع يدوياً لكل متجر. سيُنشأ طلب مستقل لكل مجموعة.',
+            ),
+            const SizedBox(height: 14),
+            ...groups.map((group) {
+              final fulfilment =
+                  _fulfilmentByShop[group.shopId] ??
+                  (group.fulfilmentMethods.isEmpty
+                      ? null
+                      : group.fulfilmentMethods.first);
+              final payment =
+                  _paymentByMerchant[group.merchantId] ??
+                  (group.paymentMethods.isEmpty
+                      ? null
+                      : group.paymentMethods.first.id);
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.shopName,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      ...group.items.map(
+                        (item) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(item.name),
+                          trailing: Text('${item.priceMinor} ${item.currency}'),
+                        ),
+                      ),
+                      const Divider(),
+                      Text(
+                        'إجمالي هذا المتجر: ${group.totalMinor} YER',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 12),
+                      if (group.fulfilmentMethods.isEmpty)
+                        const _InlineWarning(
+                          'لا توجد طريقة تنفيذ مفعلة لهذا المتجر حالياً.',
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          key: ValueKey(
+                            'fulfilment-${group.shopId}-$fulfilment',
+                          ),
+                          initialValue: fulfilment,
+                          decoration: const InputDecoration(
+                            labelText: 'طريقة التنفيذ',
+                          ),
+                          items: group.fulfilmentMethods
+                              .map(
+                                (method) => DropdownMenuItem(
+                                  value: method,
+                                  child: Text(_fulfilmentLabel(method)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) => setState(
+                            () => _fulfilmentByShop[group.shopId] =
+                                value ?? group.fulfilmentMethods.first,
+                          ),
+                        ),
+                      const SizedBox(height: 10),
+                      if (group.paymentMethods.isEmpty)
+                        const _InlineWarning(
+                          'لا توجد طريقة دفع يدوية مفعلة لهذا التاجر حالياً.',
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('payment-${group.merchantId}-$payment'),
+                          initialValue: payment,
+                          decoration: const InputDecoration(
+                            labelText: 'طريقة الدفع لهذا المتجر',
+                          ),
+                          items: group.paymentMethods
+                              .map(
+                                (method) => DropdownMenuItem(
+                                  value: method.id,
+                                  child: Text(method.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) => setState(
+                            () => _paymentByMerchant[group.merchantId] =
+                                value ?? group.paymentMethods.first.id,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _checkingOut ? null : () => _checkout(groups),
+              icon: _checkingOut
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.call_split_outlined),
+              label: Text(
+                _checkingOut ? 'جارٍ إنشاء الطلبات' : 'إنشاء الطلبات المنفصلة',
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  static String _fulfilmentLabel(String value) => switch (value) { 'collection' => 'استلام من المتجر', 'digital' => 'تسليم رقمي', _ => 'تسليم يرتبه التاجر' };
+  static String _fulfilmentLabel(String value) => switch (value) {
+    'collection' => 'استلام من المتجر',
+    'digital' => 'تسليم رقمي',
+    _ => 'تسليم يرتبه التاجر',
+  };
 
   Future<void> _checkout(List<CartGroup> groups) async {
     final fulfilment = <Map<String, dynamic>>[];
     final payments = <Map<String, dynamic>>[];
     for (final group in groups) {
-      final selectedFulfilment = _fulfilmentByShop[group.shopId] ?? (group.fulfilmentMethods.isEmpty ? null : group.fulfilmentMethods.first);
-      final selectedPayment = _paymentByMerchant[group.merchantId] ?? (group.paymentMethods.isEmpty ? null : group.paymentMethods.first.id);
+      final selectedFulfilment =
+          _fulfilmentByShop[group.shopId] ??
+          (group.fulfilmentMethods.isEmpty
+              ? null
+              : group.fulfilmentMethods.first);
+      final selectedPayment =
+          _paymentByMerchant[group.merchantId] ??
+          (group.paymentMethods.isEmpty ? null : group.paymentMethods.first.id);
       if (selectedFulfilment == null || selectedPayment == null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('اختر التنفيذ والدفع لمتجر ${group.shopName}.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('اختر التنفيذ والدفع لمتجر ${group.shopName}.'),
+          ),
+        );
         return;
       }
       fulfilment.add({'shopId': group.shopId, 'method': selectedFulfilment});
-      payments.add({'merchantId': group.merchantId, 'paymentMethodId': selectedPayment});
+      payments.add({
+        'merchantId': group.merchantId,
+        'paymentMethodId': selectedPayment,
+      });
     }
-    final confirmed = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(title: const Text('تأكيد الطلبات المنفصلة'), content: Text('سيُنشأ ${groups.length} طلب/طلبات منفصلة، مع تعليمات دفع مستقلة لكل متجر.'), actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('رجوع')), FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('تأكيد'))]));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('تأكيد الطلبات المنفصلة'),
+        content: Text(
+          'سيُنشأ ${groups.length} طلب/طلبات منفصلة، مع تعليمات دفع مستقلة لكل متجر.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('رجوع'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true) return;
     setState(() => _checkingOut = true);
     try {
-      await MarketplaceApiClient().checkoutCart(fulfilmentByShop: fulfilment, paymentMethodByMerchant: payments);
+      await MarketplaceApiClient().checkoutCart(
+        fulfilmentByShop: fulfilment,
+        paymentMethodByMerchant: payments,
+      );
       if (mounted) setState(() => _cart = MarketplaceApiClient().cartGroups());
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إنشاء طلبات منفصلة لكل متجر. راجع صفحة طلباتي لإتمام الدفع.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم إنشاء طلبات منفصلة لكل متجر. راجع صفحة طلباتي لإتمام الدفع.',
+            ),
+          ),
+        );
+      }
     } on ApiException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
-    } finally { if (mounted) setState(() => _checkingOut = false); }
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _checkingOut = false);
+    }
   }
 }
 
@@ -416,7 +895,13 @@ class _InlineWarning extends StatelessWidget {
   const _InlineWarning(this.message);
   final String message;
   @override
-  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(message, style: const TextStyle(color: Color(0xFF9A4E00), height: 1.45)));
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Text(
+      message,
+      style: const TextStyle(color: Color(0xFF9A4E00), height: 1.45),
+    ),
+  );
 }
 
 class _OrdersPage extends StatefulWidget {
@@ -427,45 +912,128 @@ class _OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<_OrdersPage> {
-  late final Future<List<MerchantOrderSummary>> _orders = MarketplaceApiClient().myOrders();
+  late final Future<List<MerchantOrderSummary>> _orders = MarketplaceApiClient()
+      .myOrders();
   @override
   Widget build(BuildContext context) {
-    if (widget.user == null) return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لمتابعة طلباتك', detail: 'ستظهر كل مجموعة تاجر كطلب مستقل مع حالة الدفع والتنفيذ الخاصة بها.');
+    if (widget.user == null) {
+      return const _CenteredPage(
+        icon: Icons.lock_outline,
+        title: 'سجّل الدخول لمتابعة طلباتك',
+        detail: 'ستظهر كل مجموعة تاجر كطلب مستقل مع حالة الدفع والتنفيذ الخاصة بها.',
+      );
+    }
     return FutureBuilder<List<MerchantOrderSummary>>(
       future: _orders,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل الطلبات', detail: 'تحقق من الاتصال ثم حاول مرة أخرى.');
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const _CenteredPage(
+            icon: Icons.cloud_off_outlined,
+            title: 'تعذر تحميل الطلبات',
+            detail: 'تحقق من الاتصال ثم حاول مرة أخرى.',
+          );
+        }
         final orders = snapshot.data ?? [];
-        if (orders.isEmpty) return const _CenteredPage(icon: Icons.receipt_long_outlined, title: 'لا توجد طلبات بعد', detail: 'عند إتمام الدفع، سيُنشأ طلب مستقل لكل متجر في السلة.');
-        return ListView(padding: const EdgeInsets.all(24), children: orders.map((order) => Card(child: ListTile(
-          title: Text('طلب #${order.id}'),
-          subtitle: Text('الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}'),
-          trailing: Column(mainAxisSize: MainAxisSize.min, children: [Text('${order.totalMinor} ${order.currency}'), if (order.paymentStatus == 'awaiting_payment') TextButton(onPressed: () => _showPayment(order), child: const Text('تعليمات الدفع'))]),
-        ))).toList());
+        if (orders.isEmpty) {
+          return const _CenteredPage(
+            icon: Icons.receipt_long_outlined,
+            title: 'لا توجد طلبات بعد',
+            detail: 'عند إتمام الدفع، سيُنشأ طلب مستقل لكل متجر في السلة.',
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(24),
+          children: orders
+              .map(
+                (order) => Card(
+                  child: ListTile(
+                    title: Text('طلب #${order.id}'),
+                    subtitle: Text(
+                      'الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}',
+                    ),
+                    trailing: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${order.totalMinor} ${order.currency}'),
+                        if (order.paymentStatus == 'awaiting_payment')
+                          TextButton(
+                            onPressed: () => _showPayment(order),
+                            child: const Text('تعليمات الدفع'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        );
       },
     );
   }
 
   Future<void> _showPayment(MerchantOrderSummary order) async {
     final reference = TextEditingController();
-    await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('تعليمات الدفع لهذا المتجر'),
-      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (order.accountHolderName != null) Text('اسم المستلم: ${order.accountHolderName}'),
-        if (order.receivingIdentifier != null) Text('الحساب/المحفظة: ${order.receivingIdentifier}'),
-        if (order.paymentInstructions != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(order.paymentInstructions!)),
-        const SizedBox(height: 14),
-        TextField(controller: reference, decoration: const InputDecoration(labelText: 'مرجع التحويل')),
-      ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () async {
-        final value = reference.text.trim();
-        if (value.isEmpty) return;
-        Navigator.pop(dialogContext);
-        try { await MarketplaceApiClient().submitPaymentReference(merchantOrderId: order.id, reference: value); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أُرسل مرجع التحويل للمراجعة.'))); }
-        on ApiException catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); }
-      }, child: const Text('إرسال للمراجعة'))],
-    ));
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تعليمات الدفع لهذا المتجر'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (order.accountHolderName != null)
+              Text('اسم المستلم: ${order.accountHolderName}'),
+            if (order.receivingIdentifier != null)
+              Text('الحساب/المحفظة: ${order.receivingIdentifier}'),
+            if (order.paymentInstructions != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(order.paymentInstructions!),
+              ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: reference,
+              decoration: const InputDecoration(labelText: 'مرجع التحويل'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final value = reference.text.trim();
+              if (value.isEmpty) return;
+              Navigator.pop(dialogContext);
+              try {
+                await MarketplaceApiClient().submitPaymentReference(
+                  merchantOrderId: order.id,
+                  reference: value,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('أُرسل مرجع التحويل للمراجعة.'),
+                    ),
+                  );
+                }
+              } on ApiException catch (error) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error.message)));
+                }
+              }
+            },
+            child: const Text('إرسال للمراجعة'),
+          ),
+        ],
+      ),
+    );
     reference.dispose();
   }
 }
@@ -484,7 +1052,8 @@ class _MerchantPageState extends State<_MerchantPage> {
   final _ownerName = TextEditingController();
   bool _submitting = false;
   bool _applicationSubmitted = false;
-  late final Future<bool> _hasMerchant = MarketplaceApiClient().hasMerchantContext();
+  late final Future<bool> _hasMerchant = MarketplaceApiClient()
+      .hasMerchantContext();
 
   @override
   void dispose() {
@@ -497,11 +1066,21 @@ class _MerchantPageState extends State<_MerchantPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      await MarketplaceApiClient().submitMerchantApplication(phone: _phone.text.trim(), ownerName: _ownerName.text.trim());
+      await MarketplaceApiClient().submitMerchantApplication(
+        phone: _phone.text.trim(),
+        ownerName: _ownerName.text.trim(),
+      );
       if (mounted) setState(() => _applicationSubmitted = true);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب التاجر للمراجعة.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إرسال طلب التاجر للمراجعة.')),
+        );
+      }
     } on ApiException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -510,34 +1089,99 @@ class _MerchantPageState extends State<_MerchantPage> {
   @override
   Widget build(BuildContext context) {
     if (widget.user == null) {
-      return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لبدء طلب التاجر', detail: 'يُحفظ حساب التاجر وبيانات متجره بشكل منفصل وآمن بعد تسجيل الدخول.');
+      return const _CenteredPage(
+        icon: Icons.lock_outline,
+        title: 'سجّل الدخول لبدء طلب التاجر',
+        detail:
+            'يُحفظ حساب التاجر وبيانات متجره بشكل منفصل وآمن بعد تسجيل الدخول.',
+      );
     }
     if (_applicationSubmitted) return const _MerchantHub();
-    return FutureBuilder<bool>(future: _hasMerchant, builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-      if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل حالة حساب التاجر', detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.');
-      if (snapshot.data == true) return const _MerchantHub();
-      return _applicationForm(context);
-    });
+    return FutureBuilder<bool>(
+      future: _hasMerchant,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const _CenteredPage(
+            icon: Icons.cloud_off_outlined,
+            title: 'تعذر تحميل حالة حساب التاجر',
+            detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.',
+          );
+        }
+        if (snapshot.data == true) return const _MerchantHub();
+        return _applicationForm(context);
+      },
+    );
   }
 
   Widget _applicationForm(BuildContext context) {
-    return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: Card(child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('طلب الانضمام كتاجر', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        const Text('سيُراجع الطلب قبل ظهور المتجر أو منتجاته في السوق العام.'),
-        const SizedBox(height: 20),
-        TextFormField(controller: _ownerName, decoration: const InputDecoration(labelText: 'اسم صاحب النشاط'), validator: (value) => value == null || value.trim().length < 3 ? 'أدخل اسماً صحيحاً.' : null),
-        const SizedBox(height: 12),
-        TextFormField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف'), validator: (value) => value == null || value.trim().length < 7 ? 'أدخل رقم هاتف صحيحاً.' : null),
-        const SizedBox(height: 8),
-        const Text('سيُحفظ الرقم كغير مُتحقق منه خلال المرحلة التجريبية. سيتاح التحقق برسالة عند اعتماد مزود رسائل محلي.', style: TextStyle(color: Color(0xFF68655F), height: 1.5)),
-        const SizedBox(height: 20),
-        FilledButton.icon(onPressed: _submitting ? null : _submit, icon: _submitting ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded), label: Text(_submitting ? 'جارٍ الإرسال' : 'إرسال الطلب')),
-      ])),
-    ))));
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'طلب الانضمام كتاجر',
+                    style: Theme.of(context).textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'سيُراجع الطلب قبل ظهور المتجر أو منتجاته في السوق العام.',
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _ownerName,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم صاحب النشاط',
+                    ),
+                    validator: (value) =>
+                        value == null || value.trim().length < 3
+                        ? 'أدخل اسماً صحيحاً.'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'رقم الهاتف'),
+                    validator: (value) =>
+                        value == null || value.trim().length < 7
+                        ? 'أدخل رقم هاتف صحيحاً.'
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'سيُحفظ الرقم كغير مُتحقق منه خلال المرحلة التجريبية. سيتاح التحقق برسالة عند اعتماد مزود رسائل محلي.',
+                    style: TextStyle(color: Color(0xFF68655F), height: 1.5),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _submitting ? null : _submit,
+                    icon: _submitting
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    label: Text(_submitting ? 'جارٍ الإرسال' : 'إرسال الطلب'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -545,10 +1189,24 @@ class _MerchantHub extends StatelessWidget {
   const _MerchantHub();
 
   @override
-  Widget build(BuildContext context) => DefaultTabController(length: 2, child: Column(children: [
-    const TabBar(tabs: [Tab(text: 'الهوية والمراجعة'), Tab(text: 'إدارة المتجر')]),
-    const Expanded(child: TabBarView(children: [_IdentityMerchantPanel(), _MerchantOperationsPanel()])),
-  ]));
+  Widget build(BuildContext context) => DefaultTabController(
+    length: 2,
+    child: Column(
+      children: [
+        const TabBar(
+          tabs: [
+            Tab(text: 'الهوية والمراجعة'),
+            Tab(text: 'إدارة المتجر'),
+          ],
+        ),
+        const Expanded(
+          child: TabBarView(
+            children: [_IdentityMerchantPanel(), _MerchantOperationsPanel()],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _IdentityMerchantPanel extends StatefulWidget {
@@ -563,14 +1221,25 @@ class _IdentityMerchantPanelState extends State<_IdentityMerchantPanel> {
   PlatformFile? _selfie;
   bool _consent = false;
   bool _submitting = false;
-  late Future<IdentityVerificationSummary> _summary = MarketplaceApiClient().identityMine();
+  late Future<IdentityVerificationSummary> _summary = MarketplaceApiClient()
+      .identityMine();
 
   Future<void> _pick(bool passport) async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'], withData: true);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'],
+      withData: true,
+    );
     final file = result?.files.single;
     if (file == null) return;
     if (file.bytes == null || file.size > 3 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اختر صورة JPEG أو PNG أو WebP أصغر من 3 ميغابايت.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('اختر صورة JPEG أو PNG أو WebP أصغر من 3 ميغابايت.'),
+          ),
+        );
+      }
       return;
     }
     setState(() {
@@ -582,99 +1251,517 @@ class _IdentityMerchantPanelState extends State<_IdentityMerchantPanel> {
     });
   }
 
-  String _mime(PlatformFile file) => file.name.toLowerCase().endsWith('.png') ? 'image/png' : file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+  String _mime(PlatformFile file) => file.name.toLowerCase().endsWith('.png')
+      ? 'image/png'
+      : file.name.toLowerCase().endsWith('.webp')
+      ? 'image/webp'
+      : 'image/jpeg';
 
   Future<void> _submit() async {
     if (!_consent || _passport?.bytes == null || _selfie?.bytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أقرّ بالموافقة واختر صورة جواز وصورة سيلفي أولاً.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('أقرّ بالموافقة واختر صورة جواز وصورة سيلفي أولاً.'),
+        ),
+      );
       return;
     }
     setState(() => _submitting = true);
     try {
-      await MarketplaceApiClient().submitIdentityEvidence(passportBase64: base64Encode(_passport!.bytes!), passportName: _passport!.name, passportMimeType: _mime(_passport!), selfieBase64: base64Encode(_selfie!.bytes!), selfieName: _selfie!.name, selfieMimeType: _mime(_selfie!));
-      if (mounted) setState(() => _summary = MarketplaceApiClient().identityMine());
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الوثائق للمراجعة اليدوية. لن يتم اتخاذ قرار تلقائي.')));
+      await MarketplaceApiClient().submitIdentityEvidence(
+        passportBase64: base64Encode(_passport!.bytes!),
+        passportName: _passport!.name,
+        passportMimeType: _mime(_passport!),
+        selfieBase64: base64Encode(_selfie!.bytes!),
+        selfieName: _selfie!.name,
+        selfieMimeType: _mime(_selfie!),
+      );
+      if (mounted) {
+        setState(() => _summary = MarketplaceApiClient().identityMine());
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم إرسال الوثائق للمراجعة اليدوية. لن يتم اتخاذ قرار تلقائي.',
+            ),
+          ),
+        );
+      }
     } on ApiException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
-    } finally { if (mounted) setState(() => _submitting = false); }
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(padding: const EdgeInsets.all(24), child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 620), child: FutureBuilder<IdentityVerificationSummary>(future: _summary, builder: (context, snapshot) {
-    if (snapshot.connectionState == ConnectionState.waiting) return const Padding(padding: EdgeInsets.all(36), child: CircularProgressIndicator());
-    if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل حالة التحقق', detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.');
-    final status = snapshot.data?.status;
-    final note = snapshot.data?.decisionNote;
-    return Card(child: Padding(padding: const EdgeInsets.all(28), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('التحقق من هوية التاجر', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 10),
-      const Text('ترسل صورة الجواز وصورة السيلفي لموظفي الإدارة المخوّلين للمراجعة اليدوية فقط. لا تُعرض علناً ولا تُستخدم لمطابقة الوجه أو لقرار آلي.', style: TextStyle(height: 1.65)),
-      const SizedBox(height: 16),
-      Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFEAF5F1), borderRadius: BorderRadius.circular(14)), child: Text(status == null ? 'لم تُرسل وثائق تحقق بعد.' : 'حالة المراجعة: $status${note == null ? '' : '\nملاحظة الإدارة: $note'}', style: const TextStyle(height: 1.6))),
-      const SizedBox(height: 20),
-      OutlinedButton.icon(onPressed: _submitting ? null : () => _pick(true), icon: const Icon(Icons.badge_outlined), label: Text(_passport == null ? 'اختر صورة جواز السفر' : 'تم اختيار: ${_passport!.name}')),
-      const SizedBox(height: 10),
-      OutlinedButton.icon(onPressed: _submitting ? null : () => _pick(false), icon: const Icon(Icons.face_retouching_natural_outlined), label: Text(_selfie == null ? 'اختر صورة سيلفي للوجه' : 'تم اختيار: ${_selfie!.name}')),
-      CheckboxListTile(contentPadding: EdgeInsets.zero, value: _consent, onChanged: _submitting ? null : (value) => setState(() => _consent = value ?? false), title: const Text('أوافق على إرسال الوثيقتين للمراجعة اليدوية من الإدارة المخوّلة.'), controlAffinity: ListTileControlAffinity.leading),
-      const SizedBox(height: 8),
-      FilledButton.icon(onPressed: _submitting ? null : _submit, icon: _submitting ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.verified_user_outlined), label: Text(_submitting ? 'جارٍ الإرسال' : 'إرسال للمراجعة اليدوية')),
-    ])));
-  }))));
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.all(24),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: FutureBuilder<IdentityVerificationSummary>(
+          future: _summary,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(36),
+                child: CircularProgressIndicator(),
+              );
+            }
+            if (snapshot.hasError) {
+              return const _CenteredPage(
+                icon: Icons.cloud_off_outlined,
+                title: 'تعذر تحميل حالة التحقق',
+                detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.',
+              );
+            }
+            final status = snapshot.data?.status;
+            final note = snapshot.data?.decisionNote;
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'التحقق من هوية التاجر',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'ترسل صورة الجواز وصورة السيلفي لموظفي الإدارة المخوّلين للمراجعة اليدوية فقط. لا تُعرض علناً ولا تُستخدم لمطابقة الوجه أو لقرار آلي.',
+                      style: TextStyle(height: 1.65),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF5F1),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        status == null
+                            ? 'لم تُرسل وثائق تحقق بعد.'
+                            : 'حالة المراجعة: $status${note == null ? '' : '\nملاحظة الإدارة: $note'}',
+                        style: const TextStyle(height: 1.6),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      onPressed: _submitting ? null : () => _pick(true),
+                      icon: const Icon(Icons.badge_outlined),
+                      label: Text(
+                        _passport == null
+                            ? 'اختر صورة جواز السفر'
+                            : 'تم اختيار: ${_passport!.name}',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _submitting ? null : () => _pick(false),
+                      icon: const Icon(Icons.face_retouching_natural_outlined),
+                      label: Text(
+                        _selfie == null
+                            ? 'اختر صورة سيلفي للوجه'
+                            : 'تم اختيار: ${_selfie!.name}',
+                      ),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _consent,
+                      onChanged: _submitting
+                          ? null
+                          : (value) =>
+                                setState(() => _consent = value ?? false),
+                      title: const Text(
+                        'أوافق على إرسال الوثيقتين للمراجعة اليدوية من الإدارة المخوّلة.',
+                      ),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: _submitting ? null : _submit,
+                      icon: _submitting
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.verified_user_outlined),
+                      label: Text(
+                        _submitting ? 'جارٍ الإرسال' : 'إرسال للمراجعة اليدوية',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+  );
 }
 
 class _MerchantOperationsPanel extends StatefulWidget {
   const _MerchantOperationsPanel();
 
   @override
-  State<_MerchantOperationsPanel> createState() => _MerchantOperationsPanelState();
+  State<_MerchantOperationsPanel> createState() =>
+      _MerchantOperationsPanelState();
 }
 
 class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
-  late Future<MerchantWorkspace> _workspace = MarketplaceApiClient().merchantWorkspace();
+  late Future<MerchantWorkspace> _workspace = MarketplaceApiClient()
+      .merchantWorkspace();
   final Set<String> _updatingOrders = <String>{};
 
-  void _reload() => setState(() => _workspace = MarketplaceApiClient().merchantWorkspace());
+  void _reload() =>
+      setState(() => _workspace = MarketplaceApiClient().merchantWorkspace());
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<MerchantWorkspace>(future: _workspace, builder: (context, snapshot) {
-    if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-    if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل مساحة المتجر', detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.');
-    final workspace = snapshot.data ?? const MerchantWorkspace();
-    if (!workspace.exists) return const _CenteredPage(icon: Icons.store_mall_directory_outlined, title: 'يُجهز حساب التاجر', detail: 'أرسل طلب الانضمام أولاً، ثم أكمل خطوات التحقق والإعداد من هذه المساحة.');
-    return ListView(padding: const EdgeInsets.all(24), children: [
-      Text('إدارة المتجر', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 6),
-      Text('حالة حساب التاجر: ${workspace.verificationStatus ?? 'قيد المراجعة'} · لا يصبح المتجر عاماً إلا بعد اعتماد الإدارة.'),
-      const SizedBox(height: 18),
-      Row(children: [Expanded(child: _OperationsCard(title: 'المتاجر', detail: workspace.shops.isEmpty ? 'لم تُنشئ متجراً بعد.' : '${workspace.shops.length} متجر/متاجر محفوظة', icon: Icons.storefront_outlined, action: 'إضافة متجر', onAction: _createShop)), const SizedBox(width: 12), Expanded(child: _OperationsCard(title: 'طرق الدفع اليدوية', detail: workspace.paymentMethods.isEmpty ? 'لم تُضف حساب استقبال بعد.' : '${workspace.paymentMethods.length} طريقة دفع مفعلة', icon: Icons.account_balance_wallet_outlined, action: 'إضافة طريقة دفع', onAction: _createPaymentMethod))]),
-      const SizedBox(height: 20),
-      Text('متاجرك', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      if (workspace.shops.isEmpty) const _CatalogNotice(icon: Icons.storefront_outlined, title: 'لا توجد متاجر بعد', detail: 'أنشئ متجراً وأرسله للمراجعة قبل إضافة الكتالوج والظهور للعملاء.') else ...workspace.shops.map((shop) => Card(child: ListTile(title: Text(shop.name), subtitle: Text('الحالة: ${shop.status}${shop.areaLabel == null ? '' : ' · ${shop.areaLabel}'}'), trailing: TextButton(onPressed: () => _configureFulfilment(shop), child: const Text('إعداد التنفيذ'))))),
-      const SizedBox(height: 20),
-      Text('طرق الدفع', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      if (workspace.paymentMethods.isEmpty) const _CatalogNotice(icon: Icons.account_balance_wallet_outlined, title: 'لا توجد طريقة دفع', detail: 'أضف حساب الاستقبال وتعليمات واضحة. تظل المدفوعات في المرحلة التجريبية يدوية ويمتلك التاجر حسابه.') else ...workspace.paymentMethods.map((method) => Card(child: ListTile(title: Text(method.name), subtitle: Text('${method.accountHolderName} · إثبات: ${method.proofRequirement}'), trailing: Wrap(spacing: 4, children: [Icon(method.isActive ? Icons.check_circle_outline : Icons.pause_circle_outline, color: method.isActive ? const Color(0xFF006A63) : null), IconButton(onPressed: () => _editPaymentMethod(method), icon: const Icon(Icons.edit_outlined), tooltip: 'تعديل طريقة الدفع')])))),
-      const SizedBox(height: 20),
-      Text('طلبات المتجر', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      if (workspace.orders.isEmpty) const _CatalogNotice(icon: Icons.receipt_long_outlined, title: 'لا توجد طلبات للتاجر بعد', detail: 'تظهر هنا فقط الطلبات الخاصة بمتجرك بعد قيام العملاء بإتمام طلباتهم المنفصلة.') else ...workspace.orders.map((order) => Card(child: ListTile(title: Text('طلب #${order.id} · ${order.totalMinor} YER'), subtitle: Text('الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}'), trailing: order.paymentStatus == 'paid' ? _orderActions(order) : null))),
-    ]);
-  });
+  Widget build(BuildContext context) => FutureBuilder<MerchantWorkspace>(
+    future: _workspace,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return const _CenteredPage(
+          icon: Icons.cloud_off_outlined,
+          title: 'تعذر تحميل مساحة المتجر',
+          detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.',
+        );
+      }
+      final workspace = snapshot.data ?? const MerchantWorkspace();
+      if (!workspace.exists) {
+        return const _CenteredPage(
+          icon: Icons.store_mall_directory_outlined,
+          title: 'يُجهز حساب التاجر',
+          detail: 'أرسل طلب الانضمام أولاً، ثم أكمل خطوات التحقق والإعداد من هذه المساحة.',
+        );
+      }
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'إدارة المتجر',
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'حالة حساب التاجر: ${workspace.verificationStatus ?? 'قيد المراجعة'} · لا يصبح المتجر عاماً إلا بعد اعتماد الإدارة.',
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _OperationsCard(
+                  title: 'المتاجر',
+                  detail: workspace.shops.isEmpty
+                      ? 'لم تُنشئ متجراً بعد.'
+                      : '${workspace.shops.length} متجر/متاجر محفوظة',
+                  icon: Icons.storefront_outlined,
+                  action: 'إضافة متجر',
+                  onAction: _createShop,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _OperationsCard(
+                  title: 'طرق الدفع اليدوية',
+                  detail: workspace.paymentMethods.isEmpty
+                      ? 'لم تُضف حساب استقبال بعد.'
+                      : '${workspace.paymentMethods.length} طريقة دفع مفعلة',
+                  icon: Icons.account_balance_wallet_outlined,
+                  action: 'إضافة طريقة دفع',
+                  onAction: _createPaymentMethod,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'متاجرك',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          if (workspace.shops.isEmpty)
+            const _CatalogNotice(
+              icon: Icons.storefront_outlined,
+              title: 'لا توجد متاجر بعد',
+              detail: 'أنشئ متجراً وأرسله للمراجعة قبل إضافة الكتالوج والظهور للعملاء.',
+            )
+          else
+            ...workspace.shops.map(
+              (shop) => Card(
+                child: ListTile(
+                  title: Text(shop.name),
+                  subtitle: Text(
+                    'الحالة: ${shop.status}${shop.areaLabel == null ? '' : ' · ${shop.areaLabel}'}',
+                  ),
+                  trailing: TextButton(
+                    onPressed: () => _configureFulfilment(shop),
+                    child: const Text('إعداد التنفيذ'),
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 20),
+          Text(
+            'طرق الدفع',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          if (workspace.paymentMethods.isEmpty)
+            const _CatalogNotice(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'لا توجد طريقة دفع',
+              detail: 'أضف حساب الاستقبال وتعليمات واضحة. تظل المدفوعات في المرحلة التجريبية يدوية ويمتلك التاجر حسابه.',
+            )
+          else
+            ...workspace.paymentMethods.map(
+              (method) => Card(
+                child: ListTile(
+                  title: Text(method.name),
+                  subtitle: Text(
+                    '${method.accountHolderName} · إثبات: ${method.proofRequirement}',
+                  ),
+                  trailing: Wrap(
+                    spacing: 4,
+                    children: [
+                      Icon(
+                        method.isActive
+                            ? Icons.check_circle_outline
+                            : Icons.pause_circle_outline,
+                        color: method.isActive ? const Color(0xFF006A63) : null,
+                      ),
+                      IconButton(
+                        onPressed: () => _editPaymentMethod(method),
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'تعديل طريقة الدفع',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 20),
+          Text(
+            'طلبات المتجر',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          if (workspace.orders.isEmpty)
+            const _CatalogNotice(
+              icon: Icons.receipt_long_outlined,
+              title: 'لا توجد طلبات للتاجر بعد',
+              detail: 'تظهر هنا فقط الطلبات الخاصة بمتجرك بعد قيام العملاء بإتمام طلباتهم المنفصلة.',
+            )
+          else
+            ...workspace.orders.map(
+              (order) => Card(
+                child: ListTile(
+                  title: Text('طلب #${order.id} · ${order.totalMinor} YER'),
+                  subtitle: Text(
+                    'الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}',
+                  ),
+                  trailing: order.paymentStatus == 'paid'
+                      ? _orderActions(order)
+                      : null,
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
 
   Future<void> _createShop() async {
     final name = TextEditingController();
     final slug = TextEditingController();
     final area = TextEditingController();
-    await showDialog<void>(context: context, builder: (dialog) => AlertDialog(title: const Text('إضافة متجر'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم المتجر')), TextField(controller: slug, decoration: const InputDecoration(labelText: 'رابط مختصر بالإنجليزية')), TextField(controller: area, decoration: const InputDecoration(labelText: 'المنطقة'))]), actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('إلغاء')), FilledButton(onPressed: () async { if (name.text.trim().length < 3 || !RegExp(r'^[a-z0-9-]{3,180}$').hasMatch(slug.text.trim()) || area.text.trim().isEmpty) return; try { await MarketplaceApiClient().createShop(name: name.text.trim(), slug: slug.text.trim(), areaLabel: area.text.trim()); if (dialog.mounted) Navigator.pop(dialog); _reload(); } on ApiException catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); } }, child: const Text('إرسال للمراجعة'))]));
-    name.dispose(); slug.dispose(); area.dispose();
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('إضافة متجر'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'اسم المتجر'),
+            ),
+            TextField(
+              controller: slug,
+              decoration: const InputDecoration(
+                labelText: 'رابط مختصر بالإنجليزية',
+              ),
+            ),
+            TextField(
+              controller: area,
+              decoration: const InputDecoration(labelText: 'المنطقة'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (name.text.trim().length < 3 ||
+                  !RegExp(r'^[a-z0-9-]{3,180}$').hasMatch(slug.text.trim()) ||
+                  area.text.trim().isEmpty) {
+                return;
+              }
+              try {
+                await MarketplaceApiClient().createShop(
+                  name: name.text.trim(),
+                  slug: slug.text.trim(),
+                  areaLabel: area.text.trim(),
+                );
+                if (dialog.mounted) Navigator.pop(dialog);
+                _reload();
+              } on ApiException catch (error) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error.message)));
+                }
+              }
+            },
+            child: const Text('إرسال للمراجعة'),
+          ),
+        ],
+      ),
+    );
+    name.dispose();
+    slug.dispose();
+    area.dispose();
   }
 
   Future<void> _createPaymentMethod() async {
-    final name = TextEditingController(); final holder = TextEditingController(); final identifier = TextEditingController(); final instructions = TextEditingController();
+    final name = TextEditingController();
+    final holder = TextEditingController();
+    final identifier = TextEditingController();
+    final instructions = TextEditingController();
     var proofRequirement = 'reference';
-    await showDialog<void>(context: context, builder: (dialog) => StatefulBuilder(builder: (dialogContext, setDialogState) => AlertDialog(title: const Text('إضافة طريقة دفع يدوية'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الطريقة، مثال: محفظة أو نقد')), TextField(controller: holder, decoration: const InputDecoration(labelText: 'اسم صاحب الحساب')), TextField(controller: identifier, decoration: const InputDecoration(labelText: 'رقم الحساب أو المحفظة')), TextField(controller: instructions, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'تعليمات للعميل')), const SizedBox(height: 12), DropdownButtonFormField<String>(initialValue: proofRequirement, decoration: const InputDecoration(labelText: 'ما يقدمه العميل للمراجعة'), items: const [DropdownMenuItem(value: 'none', child: Text('لا شيء إضافي')), DropdownMenuItem(value: 'reference', child: Text('مرجع التحويل')), DropdownMenuItem(value: 'screenshot', child: Text('صورة إثبات')), DropdownMenuItem(value: 'both', child: Text('المرجع وصورة الإثبات'))], onChanged: (value) => setDialogState(() => proofRequirement = value ?? 'reference'))])), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () async { if (name.text.trim().length < 2 || holder.text.trim().length < 2 || identifier.text.trim().length < 3 || instructions.text.trim().length < 10) return; try { await MarketplaceApiClient().saveMerchantPaymentMethod(name: name.text.trim(), accountHolderName: holder.text.trim(), receivingIdentifier: identifier.text.trim(), instructions: instructions.text.trim(), proofRequirement: proofRequirement); if (dialogContext.mounted) Navigator.pop(dialogContext); _reload(); } on ApiException catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); } }, child: const Text('حفظ'))])));
-    name.dispose(); holder.dispose(); identifier.dispose(); instructions.dispose();
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إضافة طريقة دفع يدوية'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الطريقة، مثال: محفظة أو نقد',
+                  ),
+                ),
+                TextField(
+                  controller: holder,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم صاحب الحساب',
+                  ),
+                ),
+                TextField(
+                  controller: identifier,
+                  decoration: const InputDecoration(
+                    labelText: 'رقم الحساب أو المحفظة',
+                  ),
+                ),
+                TextField(
+                  controller: instructions,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'تعليمات للعميل',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: proofRequirement,
+                  decoration: const InputDecoration(
+                    labelText: 'ما يقدمه العميل للمراجعة',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'none',
+                      child: Text('لا شيء إضافي'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'reference',
+                      child: Text('مرجع التحويل'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'screenshot',
+                      child: Text('صورة إثبات'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'both',
+                      child: Text('المرجع وصورة الإثبات'),
+                    ),
+                  ],
+                  onChanged: (value) => setDialogState(
+                    () => proofRequirement = value ?? 'reference',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.trim().length < 2 ||
+                    holder.text.trim().length < 2 ||
+                    identifier.text.trim().length < 3 ||
+                    instructions.text.trim().length < 10) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveMerchantPaymentMethod(
+                    name: name.text.trim(),
+                    accountHolderName: holder.text.trim(),
+                    receivingIdentifier: identifier.text.trim(),
+                    instructions: instructions.text.trim(),
+                    proofRequirement: proofRequirement,
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _reload();
+                } on ApiException catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    holder.dispose();
+    identifier.dispose();
+    instructions.dispose();
   }
 
   Future<void> _editPaymentMethod(MerchantPaymentMethodSummary method) async {
@@ -682,19 +1769,187 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     final identifier = TextEditingController(text: method.receivingIdentifier);
     final instructions = TextEditingController(text: method.instructions);
     var proofRequirement = method.proofRequirement;
-    await showDialog<void>(context: context, builder: (dialog) => StatefulBuilder(builder: (dialogContext, setDialogState) => AlertDialog(title: Text('تعديل ${method.name}'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: holder, decoration: const InputDecoration(labelText: 'اسم صاحب الحساب')), TextField(controller: identifier, decoration: const InputDecoration(labelText: 'رقم الحساب أو المحفظة')), TextField(controller: instructions, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'تعليمات للعميل')), const SizedBox(height: 12), DropdownButtonFormField<String>(initialValue: proofRequirement, decoration: const InputDecoration(labelText: 'ما يقدمه العميل للمراجعة'), items: const [DropdownMenuItem(value: 'none', child: Text('لا شيء إضافي')), DropdownMenuItem(value: 'reference', child: Text('مرجع التحويل')), DropdownMenuItem(value: 'screenshot', child: Text('صورة إثبات')), DropdownMenuItem(value: 'both', child: Text('المرجع وصورة الإثبات'))], onChanged: (value) => setDialogState(() => proofRequirement = value ?? method.proofRequirement))])), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () async { if (holder.text.trim().length < 2 || identifier.text.trim().length < 3 || instructions.text.trim().length < 10) return; try { await MarketplaceApiClient().saveMerchantPaymentMethod(id: method.id, name: method.name, accountHolderName: holder.text.trim(), receivingIdentifier: identifier.text.trim(), instructions: instructions.text.trim(), proofRequirement: proofRequirement); if (dialogContext.mounted) Navigator.pop(dialogContext); _reload(); } on ApiException catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); } }, child: const Text('حفظ التعديلات'))])));
-    holder.dispose(); identifier.dispose(); instructions.dispose();
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text('تعديل ${method.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: holder,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم صاحب الحساب',
+                  ),
+                ),
+                TextField(
+                  controller: identifier,
+                  decoration: const InputDecoration(
+                    labelText: 'رقم الحساب أو المحفظة',
+                  ),
+                ),
+                TextField(
+                  controller: instructions,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'تعليمات للعميل',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: proofRequirement,
+                  decoration: const InputDecoration(
+                    labelText: 'ما يقدمه العميل للمراجعة',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'none',
+                      child: Text('لا شيء إضافي'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'reference',
+                      child: Text('مرجع التحويل'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'screenshot',
+                      child: Text('صورة إثبات'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'both',
+                      child: Text('المرجع وصورة الإثبات'),
+                    ),
+                  ],
+                  onChanged: (value) => setDialogState(
+                    () => proofRequirement = value ?? method.proofRequirement,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (holder.text.trim().length < 2 ||
+                    identifier.text.trim().length < 3 ||
+                    instructions.text.trim().length < 10) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveMerchantPaymentMethod(
+                    id: method.id,
+                    name: method.name,
+                    accountHolderName: holder.text.trim(),
+                    receivingIdentifier: identifier.text.trim(),
+                    instructions: instructions.text.trim(),
+                    proofRequirement: proofRequirement,
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _reload();
+                } on ApiException catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ التعديلات'),
+            ),
+          ],
+        ),
+      ),
+    );
+    holder.dispose();
+    identifier.dispose();
+    instructions.dispose();
   }
 
   Future<void> _configureFulfilment(MerchantShopSummary shop) async {
     final instructions = TextEditingController();
     var method = 'collection';
-    await showDialog<void>(context: context, builder: (dialog) => StatefulBuilder(builder: (dialogContext, setDialogState) => AlertDialog(title: Text('إعداد التنفيذ — ${shop.name}'), content: Column(mainAxisSize: MainAxisSize.min, children: [DropdownButtonFormField<String>(initialValue: method, decoration: const InputDecoration(labelText: 'نوع التنفيذ'), items: const [DropdownMenuItem(value: 'collection', child: Text('استلام من المتجر')), DropdownMenuItem(value: 'digital', child: Text('تسليم رقمي')), DropdownMenuItem(value: 'seller_arranged', child: Text('تسليم يرتبه التاجر'))], onChanged: (value) => setDialogState(() => method = value ?? 'collection')), const SizedBox(height: 12), TextField(controller: instructions, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'تعليمات العميل'))]), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () async { try { await MarketplaceApiClient().setMerchantFulfilment(shopId: shop.id, method: method, instructions: instructions.text.trim(), isActive: true); if (dialogContext.mounted) Navigator.pop(dialogContext); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ إعداد التنفيذ.'))); } on ApiException catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); } }, child: const Text('حفظ'))])));
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text('إعداد التنفيذ — ${shop.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                decoration: const InputDecoration(labelText: 'نوع التنفيذ'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'collection',
+                    child: Text('استلام من المتجر'),
+                  ),
+                  DropdownMenuItem(value: 'digital', child: Text('تسليم رقمي')),
+                  DropdownMenuItem(
+                    value: 'seller_arranged',
+                    child: Text('تسليم يرتبه التاجر'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => method = value ?? 'collection'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: instructions,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(labelText: 'تعليمات العميل'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await MarketplaceApiClient().setMerchantFulfilment(
+                    shopId: shop.id,
+                    method: method,
+                    instructions: instructions.text.trim(),
+                    isActive: true,
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم حفظ إعداد التنفيذ.')),
+                    );
+                  }
+                } on ApiException catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
     instructions.dispose();
   }
 
   Widget _orderActions(MerchantManagedOrder order) {
-    if (_updatingOrders.contains(order.id)) return const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2));
+    if (_updatingOrders.contains(order.id)) {
+      return const SizedBox.square(
+        dimension: 22,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
     final transitions = <String, String>{
       'pending': 'جاهز للاستلام',
       'ready': 'تسليم مرتّب',
@@ -702,17 +1957,48 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
       'completed': 'إلغاء الطلب',
     };
     if (order.fulfilmentStatus == 'cancelled') return const SizedBox.shrink();
-    return PopupMenuButton<String>(onSelected: (status) => _updateOrderFulfilment(order, status), itemBuilder: (context) => [if (transitions.containsKey(order.fulfilmentStatus)) PopupMenuItem(value: order.fulfilmentStatus == 'pending' ? 'ready' : order.fulfilmentStatus == 'ready' ? 'arranged' : order.fulfilmentStatus == 'arranged' ? 'completed' : 'cancelled', child: Text(transitions[order.fulfilmentStatus]!)), if (order.fulfilmentStatus != 'completed') const PopupMenuItem(value: 'cancelled', child: Text('إلغاء الطلب'))], child: const Icon(Icons.more_vert));
+    return PopupMenuButton<String>(
+      onSelected: (status) => _updateOrderFulfilment(order, status),
+      itemBuilder: (context) => [
+        if (transitions.containsKey(order.fulfilmentStatus))
+          PopupMenuItem(
+            value: order.fulfilmentStatus == 'pending'
+                ? 'ready'
+                : order.fulfilmentStatus == 'ready'
+                ? 'arranged'
+                : order.fulfilmentStatus == 'arranged'
+                ? 'completed'
+                : 'cancelled',
+            child: Text(transitions[order.fulfilmentStatus]!),
+          ),
+        if (order.fulfilmentStatus != 'completed')
+          const PopupMenuItem(value: 'cancelled', child: Text('إلغاء الطلب')),
+      ],
+      child: const Icon(Icons.more_vert),
+    );
   }
 
-  Future<void> _updateOrderFulfilment(MerchantManagedOrder order, String status) async {
+  Future<void> _updateOrderFulfilment(
+    MerchantManagedOrder order,
+    String status,
+  ) async {
     setState(() => _updatingOrders.add(order.id));
     try {
-      await MarketplaceApiClient().updateMerchantFulfilment(merchantOrderId: order.id, fulfilmentStatus: status);
+      await MarketplaceApiClient().updateMerchantFulfilment(
+        merchantOrderId: order.id,
+        fulfilmentStatus: status,
+      );
       _reload();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث حالة تنفيذ الطلب.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تحديث حالة تنفيذ الطلب.')),
+        );
+      }
     } on ApiException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } finally {
       if (mounted) setState(() => _updatingOrders.remove(order.id));
     }
@@ -720,14 +2006,43 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
 }
 
 class _OperationsCard extends StatelessWidget {
-  const _OperationsCard({required this.title, required this.detail, required this.icon, required this.action, required this.onAction});
+  const _OperationsCard({
+    required this.title,
+    required this.detail,
+    required this.icon,
+    required this.action,
+    required this.onAction,
+  });
   final String title;
   final String detail;
   final IconData icon;
   final String action;
   final VoidCallback onAction;
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, color: const Color(0xFF006A63)), const SizedBox(height: 12), Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 6), Text(detail, style: const TextStyle(color: Color(0xFF68655F), height: 1.45)), const SizedBox(height: 12), OutlinedButton(onPressed: onAction, child: Text(action))])));
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFF006A63)),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: const TextStyle(color: Color(0xFF68655F), height: 1.45),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: onAction, child: Text(action)),
+        ],
+      ),
+    ),
+  );
 }
 
 class _AdminPage extends StatefulWidget {
@@ -738,85 +2053,248 @@ class _AdminPage extends StatefulWidget {
 }
 
 class _AdminPageState extends State<_AdminPage> {
-  late Future<List<AdminIdentityCase>> _queue = MarketplaceApiClient().adminIdentityQueue();
+  late Future<List<AdminIdentityCase>> _queue = MarketplaceApiClient()
+      .adminIdentityQueue();
   @override
   Widget build(BuildContext context) {
-    if (widget.user?.role != 'admin') return const _CenteredPage(icon: Icons.lock_outline, title: 'صلاحية الإدارة مطلوبة', detail: 'تقتصر مراجعة وثائق الهوية على موظفي الإدارة المخوّلين.');
-    return FutureBuilder<List<AdminIdentityCase>>(future: _queue, builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-      if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل المراجعات', detail: 'تحقق من الصلاحية والاتصال ثم حاول مجدداً.');
-      final queue = snapshot.data ?? [];
-      if (queue.isEmpty) return const _CenteredPage(icon: Icons.fact_check_outlined, title: 'لا توجد وثائق بانتظار المراجعة', detail: 'لا يظهر هنا سوى طلبات التحقق التي أرسلها التجار للمراجعة اليدوية.');
-      return ListView(padding: const EdgeInsets.all(24), children: [
-        Text('مراجعة هوية التجار', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        const Text('لا توجد مطابقة وجه آلية. القرار هنا لا يعتمد المتجر أو ينشره تلقائياً.'),
-        const SizedBox(height: 14),
-        ...queue.map((item) => Card(child: ListTile(title: Text('طلب تاجر #${item.merchantId}'), subtitle: Text('الحالة: ${item.status}'), trailing: Wrap(spacing: 8, children: [OutlinedButton(onPressed: () => _openEvidence(item), child: const Text('عرض الوثائق')), FilledButton(onPressed: () => _review(item), child: const Text('اتخاذ قرار'))])))),
-      ]);
-    });
+    if (widget.user?.role != 'admin') {
+      return const _CenteredPage(
+        icon: Icons.lock_outline,
+        title: 'صلاحية الإدارة مطلوبة',
+        detail: 'تقتصر مراجعة وثائق الهوية على موظفي الإدارة المخوّلين.',
+      );
+    }
+    return FutureBuilder<List<AdminIdentityCase>>(
+      future: _queue,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const _CenteredPage(
+            icon: Icons.cloud_off_outlined,
+            title: 'تعذر تحميل المراجعات',
+            detail: 'تحقق من الصلاحية والاتصال ثم حاول مجدداً.',
+          );
+        }
+        final queue = snapshot.data ?? [];
+        if (queue.isEmpty) {
+          return const _CenteredPage(
+            icon: Icons.fact_check_outlined,
+            title: 'لا توجد وثائق بانتظار المراجعة',
+            detail: 'لا يظهر هنا سوى طلبات التحقق التي أرسلها التجار للمراجعة اليدوية.',
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              'مراجعة هوية التجار',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'لا توجد مطابقة وجه آلية. القرار هنا لا يعتمد المتجر أو ينشره تلقائياً.',
+            ),
+            const SizedBox(height: 14),
+            ...queue.map(
+              (item) => Card(
+                child: ListTile(
+                  title: Text('طلب تاجر #${item.merchantId}'),
+                  subtitle: Text('الحالة: ${item.status}'),
+                  trailing: Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => _openEvidence(item),
+                        child: const Text('عرض الوثائق'),
+                      ),
+                      FilledButton(
+                        onPressed: () => _review(item),
+                        child: const Text('اتخاذ قرار'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _review(AdminIdentityCase item) async {
     final note = TextEditingController();
     var submitting = false;
-    await showDialog<void>(context: context, builder: (dialog) => StatefulBuilder(builder: (dialogContext, setDialogState) {
-      Future<void> decide(bool approve) async {
-        if (note.text.trim().length < 3) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب ملاحظة من ثلاثة أحرف على الأقل قبل اتخاذ القرار.')));
-          return;
-        }
-        setDialogState(() => submitting = true);
-        try {
-          await MarketplaceApiClient().reviewIdentityCase(identityCaseId: item.id, approve: approve, note: note.text.trim());
-          if (mounted) setState(() => _queue = MarketplaceApiClient().adminIdentityQueue());
-          if (dialogContext.mounted) Navigator.pop(dialogContext);
-        } on ApiException catch (error) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
-        } finally {
-          if (dialogContext.mounted) setDialogState(() => submitting = false);
-        }
-      }
-      return AlertDialog(title: const Text('قرار مراجعة يدوي'), content: TextField(controller: note, enabled: !submitting, minLines: 2, maxLines: 5, decoration: const InputDecoration(labelText: 'ملاحظة القرار المطلوبة')), actions: [TextButton(onPressed: submitting ? null : () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton.tonal(onPressed: submitting ? null : () => decide(false), child: Text(submitting ? 'جارٍ الحفظ' : 'رفض')), FilledButton(onPressed: submitting ? null : () => decide(true), child: Text(submitting ? 'جارٍ الحفظ' : 'اعتماد'))]);
-    }));
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> decide(bool approve) async {
+            if (note.text.trim().length < 3) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'اكتب ملاحظة من ثلاثة أحرف على الأقل قبل اتخاذ القرار.',
+                  ),
+                ),
+              );
+              return;
+            }
+            setDialogState(() => submitting = true);
+            try {
+              await MarketplaceApiClient().reviewIdentityCase(
+                identityCaseId: item.id,
+                approve: approve,
+                note: note.text.trim(),
+              );
+              if (mounted) {
+                setState(
+                  () => _queue = MarketplaceApiClient().adminIdentityQueue(),
+                );
+              }
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            } on ApiException catch (error) {
+              if (mounted) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(error.message)));
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => submitting = false);
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('قرار مراجعة يدوي'),
+            content: TextField(
+              controller: note,
+              enabled: !submitting,
+              minLines: 2,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'ملاحظة القرار المطلوبة',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: submitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton.tonal(
+                onPressed: submitting ? null : () => decide(false),
+                child: Text(submitting ? 'جارٍ الحفظ' : 'رفض'),
+              ),
+              FilledButton(
+                onPressed: submitting ? null : () => decide(true),
+                child: Text(submitting ? 'جارٍ الحفظ' : 'اعتماد'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
     note.dispose();
   }
 
   Future<void> _openEvidence(AdminIdentityCase item) async {
     try {
-      final evidence = await MarketplaceApiClient().adminIdentityEvidence(item.id);
+      final evidence = await MarketplaceApiClient().adminIdentityEvidence(
+        item.id,
+      );
       if (!mounted) return;
-      await showDialog<void>(context: context, builder: (dialog) => AlertDialog(title: const Text('وثائق المراجعة المصرح بها'), content: Column(mainAxisSize: MainAxisSize.min, children: evidence.map((document) => ListTile(title: Text(document.kind == 'passport' ? 'صورة جواز السفر' : 'صورة السيلفي'), trailing: const Icon(Icons.open_in_new), onTap: () async { await launchUrl(Uri.parse(document.signedUrl), mode: LaunchMode.externalApplication); })).toList()), actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('إغلاق'))]));
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('وثائق المراجعة المصرح بها'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: evidence
+                .map(
+                  (document) => ListTile(
+                    title: Text(
+                      document.kind == 'passport'
+                          ? 'صورة جواز السفر'
+                          : 'صورة السيلفي',
+                    ),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: () async {
+                      await launchUrl(
+                        Uri.parse(document.signedUrl),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
     } on ApiException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     }
   }
 }
 
 class _CenteredPage extends StatelessWidget {
-  const _CenteredPage({required this.icon, required this.title, required this.detail});
+  const _CenteredPage({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
   final IconData icon;
   final String title;
   final String detail;
   @override
   Widget build(BuildContext context) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Card(
-            margin: const EdgeInsets.all(24),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                CircleAvatar(radius: 32, backgroundColor: const Color(0xFFE2F2EC), foregroundColor: const Color(0xFF006A63), child: Icon(icon, size: 32)),
-                const SizedBox(height: 18),
-                Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800), textAlign: TextAlign.center),
-                const SizedBox(height: 10),
-                Text(detail, style: const TextStyle(color: Color(0xFF68655F), height: 1.7), textAlign: TextAlign.center),
-              ]),
-            ),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 520),
+      child: Card(
+        margin: const EdgeInsets.all(24),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: const Color(0xFFE2F2EC),
+                foregroundColor: const Color(0xFF006A63),
+                child: Icon(icon, size: 32),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                detail,
+                style: const TextStyle(color: Color(0xFF68655F), height: 1.7),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _Destination {

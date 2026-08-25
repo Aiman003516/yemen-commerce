@@ -1,0 +1,13 @@
+name: commerce_core
+description: Shared Flutter/Dart primitives for Yemen Commerce applications.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.1
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.17.2

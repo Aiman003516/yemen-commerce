@@ -19,7 +19,8 @@ class YemenCommerceApp extends StatelessWidget {
         future: api.activeMarket(),
         builder: (context, marketSnapshot) => MarketplaceShell(
           market: marketSnapshot.data,
-          marketLoading: marketSnapshot.connectionState == ConnectionState.waiting,
+          marketLoading:
+              marketSnapshot.connectionState == ConnectionState.waiting,
           user: sessionSnapshot.data,
         ),
       ),
@@ -55,16 +56,24 @@ class YemenCommerceApp extends StatelessWidget {
           surface: const Color(0xFFFFFCF7),
         ),
         scaffoldBackgroundColor: const Color(0xFFFFFCF7),
-        appBarTheme: const AppBarTheme(centerTitle: false, surfaceTintColor: Colors.transparent),
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          surfaceTintColor: Colors.transparent,
+        ),
         cardTheme: CardThemeData(
           elevation: 0,
           color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color(0xFFF6F4EE),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
       home: home,

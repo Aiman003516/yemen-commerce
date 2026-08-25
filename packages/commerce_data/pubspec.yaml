@@ -1,0 +1,15 @@
+name: commerce_data
+description: Shared Supabase repositories for Yemen Commerce Flutter applications.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.1
+  flutter: '>=3.35.0'
+
+dependencies:
+  commerce_core:
+    path: ../commerce_core
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.17.2

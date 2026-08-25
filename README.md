@@ -51,3 +51,9 @@ The documentation follows the master plan's sequence: product and policy sign-of
 ## References
 
 [1]: master-plan-mobile-web.md "Master Plan: Ibb Commerce Platform for Mobile and Web"
+
+## Flutter applications
+
+The repository now contains the canonical customer/merchant Flutter application in `flutter_app/` and a separate creator-management Flutter application in `creator_app/`. Shared Supabase runtime, creator capability models, and creator data repositories are under `packages/commerce_core/` and `packages/commerce_data/`.
+
+The Creator Console uses the same public Supabase client boundary but relies on creator-only RPCs and capabilities for people management. See [`creator_app/README.md`](creator_app/README.md), [`supabase/migrations/20260825_0005_creator_authorization.sql`](supabase/migrations/20260825_0005_creator_authorization.sql), [`supabase/migrations/20260825_0006_creator_control_rpc.sql`](supabase/migrations/20260825_0006_creator_control_rpc.sql), and [`docs/PRODUCTION_COMPLETION_AND_CREATOR_APP_PLAN.md`](docs/PRODUCTION_COMPLETION_AND_CREATOR_APP_PLAN.md).

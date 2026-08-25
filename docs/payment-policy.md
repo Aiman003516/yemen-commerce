@@ -51,3 +51,10 @@ A provider adapter may be activated only after formal commercial and technical a
 [1]: ../master-plan-mobile-web.md "Master Plan: Ibb Commerce Platform for Mobile and Web"
 [2]: https://kuraimibank.com/en/services/50 "Al Kuraimi Islamic Microfinance Bank — API Link Service"
 [3]: https://e-jaib.com/ar "Jaib Digital Wallet — Official Website"
+
+
+## Implemented provider boundary
+
+Migration `20260825_0008_payment_provider_boundary.sql` now persists `provider_code` and customer-safe `provider_metadata` on payment methods and copies them into immutable merchant-order snapshots as `payment_provider_code` and `payment_provider_metadata`. The supported launch labels are `manual`, `jaib`, `kuraimi`, `cash`, and `other`. All remain `mode = 'manual'` and `provider_verification = 'manual_only'` until a provider integration passes the formal gate below.
+
+The customer/merchant Flutter app shares a provider catalog through `packages/commerce_core/lib/src/payment_providers.dart`. Jaib is presented as a manual QR/POS-capable method: the customer completes payment in Jaib, submits the transaction reference, and waits for merchant review. This is not an automatic Jaib API integration. No credentials, provider secrets, or assumptions about a public Jaib API are embedded in the clients.

@@ -104,7 +104,7 @@ class SupabaseMarketplaceClient {
     final rows = await _client
         .from('merchant_orders')
         .select(
-          'id,total_minor,currency,payment_status,fulfilment_status,account_holder_name,receiving_identifier,payment_instructions',
+          'id,total_minor,currency,payment_status,fulfilment_status,account_holder_name,receiving_identifier,payment_instructions,payment_provider_code',
         )
         .eq('customer_user_id', user.id)
         .order('created_at', ascending: false);
@@ -198,7 +198,7 @@ class SupabaseMarketplaceClient {
           .eq('is_active', true);
       final payments = await _client
           .from('payment_methods')
-          .select('id,name')
+          .select('id,name,provider_code')
           .eq('merchant_id', group['merchant_id'])
           .eq('is_active', true)
           .eq('mode', 'manual');
@@ -268,7 +268,7 @@ class SupabaseMarketplaceClient {
     final paymentMethods = await _client
         .from('payment_methods')
         .select(
-          'id,name,account_holder_name,receiving_identifier,customer_instructions,proof_requirement,is_active',
+          'id,name,account_holder_name,receiving_identifier,customer_instructions,proof_requirement,is_active,provider_code,provider_metadata',
         )
         .eq('merchant_id', merchantId)
         .order('created_at');
@@ -352,6 +352,8 @@ class SupabaseMarketplaceClient {
     required String receivingIdentifier,
     required String instructions,
     required String proofRequirement,
+    String providerCode = 'manual',
+    Map<String, dynamic> providerMetadata = const {},
   }) async {
     final result = await _client.rpc(
       'save_merchant_payment_method',
@@ -362,6 +364,8 @@ class SupabaseMarketplaceClient {
         'p_receiving_identifier': receivingIdentifier,
         'p_instructions': instructions,
         'p_proof_requirement': proofRequirement,
+        'p_provider_code': providerCode,
+        'p_provider_metadata': providerMetadata,
       },
     );
     return Map<String, dynamic>.from(result as Map);

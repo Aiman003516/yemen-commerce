@@ -52,6 +52,7 @@ assert_anon_denied creator_list_policies '{"p_market_id":"00000000-0000-0000-000
 assert_anon_denied creator_upsert_policy '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_key":"test","p_value":{},"p_effective_from":null,"p_reason":"test"}'
 assert_anon_denied creator_list_capabilities '{"p_market_id":"00000000-0000-0000-0000-000000000000"}'
 assert_anon_denied creator_set_market_capability '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_capability_id":"00000000-0000-0000-0000-000000000000","p_enabled":true,"p_reason":"test"}'
+assert_anon_denied save_merchant_payment_method '{"p_id":null,"p_name":"Jaib","p_account_holder_name":"Test Merchant","p_receiving_identifier":"0000000000","p_instructions":"Use the Jaib QR or POS reference and submit the transaction reference.","p_proof_requirement":"reference","p_provider_code":"jaib","p_provider_metadata":{"payment_channel":"qr_or_pos","integration_mode":"manual","verification_state":"manual_only"}}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

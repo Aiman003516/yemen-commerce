@@ -273,6 +273,8 @@ class MarketplaceApiClient {
     required String receivingIdentifier,
     required String instructions,
     required String proofRequirement,
+    String providerCode = 'manual',
+    Map<String, dynamic> providerMetadata = const {},
   }) async {
     final supabase = _supabase;
     if (supabase != null) {
@@ -283,6 +285,8 @@ class MarketplaceApiClient {
         receivingIdentifier: receivingIdentifier,
         instructions: instructions,
         proofRequirement: proofRequirement,
+        providerCode: providerCode,
+        providerMetadata: providerMetadata,
       );
       return;
     }
@@ -297,6 +301,8 @@ class MarketplaceApiClient {
           'receivingIdentifier': receivingIdentifier,
           'customerInstructions': instructions,
           'proofRequirement': proofRequirement,
+          'providerCode': providerCode,
+          'providerMetadata': providerMetadata,
         },
       }),
     );

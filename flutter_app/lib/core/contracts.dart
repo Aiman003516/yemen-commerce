@@ -85,6 +85,8 @@ class MerchantPaymentMethodSummary {
     required this.instructions,
     required this.proofRequirement,
     required this.isActive,
+    required this.providerCode,
+    this.providerMetadata = const {},
   });
   final String id;
   final String name;
@@ -93,6 +95,8 @@ class MerchantPaymentMethodSummary {
   final String instructions;
   final String proofRequirement;
   final bool isActive;
+  final String providerCode;
+  final Map<String, dynamic> providerMetadata;
   factory MerchantPaymentMethodSummary.fromJson(Map<String, dynamic> json) =>
       MerchantPaymentMethodSummary(
         id: _stringValue(json['id']),
@@ -110,6 +114,14 @@ class MerchantPaymentMethodSummary {
             json['proofRequirement'] as String? ??
             json['proof_requirement'] as String,
         isActive: json['isActive'] as bool? ?? json['is_active'] as bool,
+        providerCode:
+            json['providerCode'] as String? ??
+            json['provider_code'] as String? ??
+            'manual',
+        providerMetadata: Map<String, dynamic>.from(
+          (json['providerMetadata'] ?? json['provider_metadata'] ?? const {})
+              as Map,
+        ),
       );
 }
 
@@ -285,6 +297,7 @@ class MerchantOrderSummary {
     this.accountHolderName,
     this.receivingIdentifier,
     this.paymentInstructions,
+    this.providerCode = 'manual',
   });
   final String id;
   final int totalMinor;
@@ -294,6 +307,7 @@ class MerchantOrderSummary {
   final String? accountHolderName;
   final String? receivingIdentifier;
   final String? paymentInstructions;
+  final String providerCode;
   factory MerchantOrderSummary.fromJson(Map<String, dynamic> json) =>
       MerchantOrderSummary(
         id: _stringValue(json['id']),
@@ -314,6 +328,10 @@ class MerchantOrderSummary {
         paymentInstructions:
             json['paymentInstructions'] as String? ??
             json['payment_instructions'] as String?,
+        providerCode:
+            json['providerCode'] as String? ??
+            json['payment_provider_code'] as String? ??
+            'manual',
       );
 }
 
@@ -376,12 +394,21 @@ class CartGroup {
 }
 
 class MerchantPaymentChoice {
-  const MerchantPaymentChoice({required this.id, required this.name});
+  const MerchantPaymentChoice({
+    required this.id,
+    required this.name,
+    this.providerCode = 'manual',
+  });
   final String id;
   final String name;
+  final String providerCode;
   factory MerchantPaymentChoice.fromJson(Map<String, dynamic> json) =>
       MerchantPaymentChoice(
         id: _stringValue(json['id']),
         name: json['name'] as String,
+        providerCode:
+            json['providerCode'] as String? ??
+            json['provider_code'] as String? ??
+            'manual',
       );
 }

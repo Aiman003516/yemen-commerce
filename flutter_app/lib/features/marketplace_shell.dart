@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:commerce_core/commerce_core.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -976,10 +977,11 @@ class _OrdersPageState extends State<_OrdersPage> {
 
   Future<void> _showPayment(MerchantOrderSummary order) async {
     final reference = TextEditingController();
+    final provider = PaymentProviderCatalog.byCode(order.providerCode);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تعليمات الدفع لهذا المتجر'),
+        title: Text('الدفع عبر ${provider.nameAr}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -992,6 +994,18 @@ class _OrdersPageState extends State<_OrdersPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Text(order.paymentInstructions!),
+              ),
+            if (provider.supportsQrOrPos)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  'افتح تطبيق ${provider.nameAr} وادفع باستخدام رقم نقطة البيع أو رمز QR، ثم اكتب مرجع العملية هنا. لا يتم تأكيد الدفع تلقائياً.',
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(provider.activationNoteAr),
               ),
             const SizedBox(height: 14),
             TextField(
@@ -1531,9 +1545,11 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             ...workspace.paymentMethods.map(
               (method) => Card(
                 child: ListTile(
-                  title: Text(method.name),
+                  title: Text(
+                    '${method.name} · ${PaymentProviderCatalog.byCode(method.providerCode).nameAr}',
+                  ),
                   subtitle: Text(
-                    '${method.accountHolderName} · إثبات: ${method.proofRequirement}',
+                    '${method.accountHolderName} · إثبات: ${method.proofRequirement} · ${PaymentProviderCatalog.byCode(method.providerCode).activationNoteAr}',
                   ),
                   trailing: Wrap(
                     spacing: 4,
@@ -1656,6 +1672,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     final identifier = TextEditingController();
     final instructions = TextEditingController();
     var proofRequirement = 'reference';
+    var providerCode = 'manual';
     await showDialog<void>(
       context: context,
       builder: (dialog) => StatefulBuilder(
@@ -1680,7 +1697,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                 TextField(
                   controller: identifier,
                   decoration: const InputDecoration(
-                    labelText: 'رقم الحساب أو المحفظة',
+                    labelText: 'رقم الحساب أو المحفظة أو رقم نقطة البيع',
                   ),
                 ),
                 TextField(
@@ -1690,6 +1707,28 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                   decoration: const InputDecoration(
                     labelText: 'تعليمات للعميل',
                   ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: providerCode,
+                  decoration: const InputDecoration(
+                    labelText: 'مزود الدفع أو قناته',
+                  ),
+                  items: PaymentProviderCatalog.values
+                      .map(
+                        (provider) => DropdownMenuItem(
+                          value: provider.code,
+                          child: Text(provider.nameAr),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => providerCode = value ?? 'manual'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  PaymentProviderCatalog.byCode(providerCode).activationNoteAr,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -1735,6 +1774,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                     instructions.text.trim().length < 10) {
                   return;
                 }
+                final provider = PaymentProviderCatalog.byCode(providerCode);
                 try {
                   await MarketplaceApiClient().saveMerchantPaymentMethod(
                     name: name.text.trim(),
@@ -1742,6 +1782,14 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                     receivingIdentifier: identifier.text.trim(),
                     instructions: instructions.text.trim(),
                     proofRequirement: proofRequirement,
+                    providerCode: provider.code,
+                    providerMetadata: {
+                      'payment_channel': provider.supportsQrOrPos
+                          ? 'qr_or_pos'
+                          : 'manual',
+                      'integration_mode': provider.integrationMode,
+                      'verification_state': provider.verificationState,
+                    },
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
                   _reload();
@@ -1769,6 +1817,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     final identifier = TextEditingController(text: method.receivingIdentifier);
     final instructions = TextEditingController(text: method.instructions);
     var proofRequirement = method.proofRequirement;
+    var providerCode = method.providerCode;
     await showDialog<void>(
       context: context,
       builder: (dialog) => StatefulBuilder(
@@ -1778,6 +1827,28 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                DropdownButtonFormField<String>(
+                  initialValue: providerCode,
+                  decoration: const InputDecoration(
+                    labelText: 'مزود الدفع أو قناته',
+                  ),
+                  items: PaymentProviderCatalog.values
+                      .map(
+                        (provider) => DropdownMenuItem(
+                          value: provider.code,
+                          child: Text(provider.nameAr),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setDialogState(
+                    () => providerCode = value ?? method.providerCode,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  PaymentProviderCatalog.byCode(providerCode).activationNoteAr,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
                 TextField(
                   controller: holder,
                   decoration: const InputDecoration(
@@ -1849,6 +1920,20 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                     receivingIdentifier: identifier.text.trim(),
                     instructions: instructions.text.trim(),
                     proofRequirement: proofRequirement,
+                    providerCode: providerCode,
+                    providerMetadata: {
+                      'payment_channel':
+                          PaymentProviderCatalog.byCode(providerCode)
+                              .supportsQrOrPos
+                          ? 'qr_or_pos'
+                          : 'manual',
+                      'integration_mode': PaymentProviderCatalog.byCode(
+                        providerCode,
+                      ).integrationMode,
+                      'verification_state': PaymentProviderCatalog.byCode(
+                        providerCode,
+                      ).verificationState,
+                    },
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
                   _reload();

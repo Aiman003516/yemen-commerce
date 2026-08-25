@@ -1,0 +1,32 @@
+# Project TODO
+
+- [ ] Add repository documentation and synchronize the web project with the connected Yemen Commerce GitHub repository.
+- [x] Define shared versioned domain contracts for markets, roles, shops, products, carts, merchant orders, payment snapshots, proofs, fulfilment, policies, and audit events.
+- [x] Add modular geography configuration with Ibb seeded as the first enabled market and extensible governorate, city, district, and service-area records.
+- [ ] Add capability and feature-availability configuration with safe disabled states for payments, fulfilment, notifications, policies, roles, and integrations.
+- [x] Extend the database schema with role-aware user profiles, merchant records, shop approval, categories, products, stock state, and storefront settings.
+- [x] Extend the database schema with carts, cart items, checkout sessions, merchant-specific orders, order items, payment instruction snapshots, payment claims, proofs, fulfilment settings, status history, reports, and audit events.
+- [x] Apply database migrations and verify the resulting schema without seeding fabricated reviews, ratings, testimonials, or customer-generated content.
+- [x] Implement server-enforced customer, merchant, and administrator authorization foundations with merchant-scoped API access controls.
+- [ ] Implement administrator merchant and shop approval, category moderation, provider activation controls, reports, and audit-history procedures.
+- [ ] Implement merchant onboarding, branded storefront settings, catalogue management, stock state, fulfilment settings, and merchant-owned manual payment-method settings.
+- [ ] Implement approved-shop discovery, categories, search, public shop profiles, and product catalogues for the Ibb market.
+- [ ] Implement a visually grouped cross-merchant cart with independent merchant-group validation for stock, availability, minimum order, fulfilment, fee, and tax rules.
+- [ ] Implement checkout sessions that create exactly one merchant-specific order per merchant cart group and preserve immutable totals and payment instructions.
+- [ ] Implement customer payment-information screens with merchant-owned receiving details, references, proof submission, and independent multi-order payment progress.
+- [ ] Implement merchant payment-claim review with audited awaiting-payment, under-review, paid, rejected, cancelled, and fulfilment state transitions.
+- [ ] Implement collection, digital delivery, and seller-arranged fulfilment choices with merchant-scoped order management and customer tracking.
+- [ ] Build an elegant Arabic-first, RTL-ready responsive web marketplace with mobile, tablet, and desktop layouts.
+- [x] Build a Flutter-client foundation in the repository that consumes the same versioned API and domain contracts as the web client.
+- [ ] Add route guards, loading, empty, error, success, unavailable, and permission-denied states for every implemented feature.
+- [ ] Add Vitest coverage for merchant isolation, cart grouping, split-order creation, immutable payment snapshots, payment state transitions, modular availability, and second-city expansion behavior.
+- [x] Verify Arabic RTL behavior and responsive layouts on narrow-phone and desktop browser viewports.
+- [ ] Commit completed implementation increments and documentation to the connected private GitHub repository.
+- [ ] Save a final web project checkpoint after the initial implemented increment is verified.
+- [x] Replace the temporary React presentation layer with the shared Flutter application compiled for responsive web; keep the Node project as backend/API infrastructure only.
+- [x] Verify that the Flutter web client is Arabic-first, RTL-ready, responsive across phone and desktop widths, and shares versioned domain/API contracts with Android and iOS builds.
+- [x] Add explicit versioned market-policy configuration with safe policy availability APIs and regression tests.
+- [x] Remove the residual React presentation sources, validate Flutter Web as the sole root UI in development and production, and resolve the Flutter bootstrap integration warning.
+- [x] Add executable Flutter Web RTL and responsive verification for narrow-phone and desktop layouts, plus code-level tests for the shared contract subset used by both clients.
+- [x] Document the implemented shared contract subset and extend it as additional marketplace flows are connected in Flutter.
+- [x] Add regression tests for market-policy active/inactive availability, version resolution, and safe fallback behavior.

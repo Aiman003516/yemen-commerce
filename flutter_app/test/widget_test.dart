@@ -7,7 +7,7 @@ void main() {
   testWidgets('renders the Arabic-first marketplace shell', (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: MarketplaceShell(
-        market: MarketConfig(id: 1, governorate: 'إب', city: 'إب', currency: 'YER', isPilot: true),
+        market: MarketConfig(id: 'test-market', governorate: 'إب', city: 'إب', currency: 'YER', isPilot: true),
       ),
     ));
     expect(find.text('يمن كومرس'), findsOneWidget);

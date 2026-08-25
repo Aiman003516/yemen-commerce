@@ -323,8 +323,8 @@ class _CartPage extends StatefulWidget {
 
 class _CartPageState extends State<_CartPage> {
   late Future<List<CartGroup>> _cart = MarketplaceApiClient().cartGroups();
-  final Map<int, String> _fulfilmentByShop = {};
-  final Map<int, int> _paymentByMerchant = {};
+  final Map<String, String> _fulfilmentByShop = {};
+  final Map<String, String> _paymentByMerchant = {};
   bool _checkingOut = false;
   @override
   Widget build(BuildContext context) {
@@ -351,7 +351,7 @@ class _CartPageState extends State<_CartPage> {
             const SizedBox(height: 12),
             if (group.fulfilmentMethods.isEmpty) const _InlineWarning('لا توجد طريقة تنفيذ مفعلة لهذا المتجر حالياً.') else DropdownButtonFormField<String>(key: ValueKey('fulfilment-${group.shopId}-$fulfilment'), initialValue: fulfilment, decoration: const InputDecoration(labelText: 'طريقة التنفيذ'), items: group.fulfilmentMethods.map((method) => DropdownMenuItem(value: method, child: Text(_fulfilmentLabel(method)))).toList(), onChanged: (value) => setState(() => _fulfilmentByShop[group.shopId] = value ?? group.fulfilmentMethods.first)),
             const SizedBox(height: 10),
-            if (group.paymentMethods.isEmpty) const _InlineWarning('لا توجد طريقة دفع يدوية مفعلة لهذا التاجر حالياً.') else DropdownButtonFormField<int>(key: ValueKey('payment-${group.merchantId}-$payment'), initialValue: payment, decoration: const InputDecoration(labelText: 'طريقة الدفع لهذا المتجر'), items: group.paymentMethods.map((method) => DropdownMenuItem(value: method.id, child: Text(method.name))).toList(), onChanged: (value) => setState(() => _paymentByMerchant[group.merchantId] = value ?? group.paymentMethods.first.id)),
+            if (group.paymentMethods.isEmpty) const _InlineWarning('لا توجد طريقة دفع يدوية مفعلة لهذا التاجر حالياً.') else DropdownButtonFormField<String>(key: ValueKey('payment-${group.merchantId}-$payment'), initialValue: payment, decoration: const InputDecoration(labelText: 'طريقة الدفع لهذا المتجر'), items: group.paymentMethods.map((method) => DropdownMenuItem(value: method.id, child: Text(method.name))).toList(), onChanged: (value) => setState(() => _paymentByMerchant[group.merchantId] = value ?? group.paymentMethods.first.id)),
           ])));
         }),
         const SizedBox(height: 18),
@@ -607,7 +607,7 @@ class _MerchantOperationsPanel extends StatefulWidget {
 
 class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
   late Future<MerchantWorkspace> _workspace = MarketplaceApiClient().merchantWorkspace();
-  final Set<int> _updatingOrders = <int>{};
+  final Set<String> _updatingOrders = <String>{};
 
   void _reload() => setState(() => _workspace = MarketplaceApiClient().merchantWorkspace());
 

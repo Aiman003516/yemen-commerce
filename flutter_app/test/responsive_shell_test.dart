@@ -6,7 +6,7 @@ import 'package:yemen_commerce/features/marketplace_shell.dart';
 Widget buildShell() => MaterialApp(
         builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
         home: MarketplaceShell(
-          market: const MarketConfig(id: 1, governorate: 'إب', city: 'إب', currency: 'YER', isPilot: true),
+          market: const MarketConfig(id: 'test-market', governorate: 'إب', city: 'إب', currency: 'YER', isPilot: true),
         ),
       );
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_config.dart';
@@ -24,6 +25,16 @@ class SupabaseMarketplaceClient {
   User? get currentAuthUser => _client.auth.currentUser;
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+
+  Future<void> signInWithMagicLink(String email) async {
+    const configuredRedirect = String.fromEnvironment('SUPABASE_AUTH_REDIRECT_URL');
+    await _client.auth.signInWithOtp(
+      email: email.trim(),
+      emailRedirectTo: configuredRedirect.isNotEmpty ? configuredRedirect : (kIsWeb ? Uri.base.origin : null),
+    );
+  }
+
+  Future<void> signOut() => _client.auth.signOut();
 
   Future<SupabaseMarket?> activeMarket() async {
     final row = await _client

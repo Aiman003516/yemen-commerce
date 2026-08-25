@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/contracts.dart';
 import '../core/api_client.dart';
+import '../core/contracts.dart';
+import '../core/supabase_config.dart';
+import '../core/supabase_marketplace_client.dart';
 
 class MarketplaceShell extends StatefulWidget {
   const MarketplaceShell({super.key, this.market, this.marketLoading = false, this.user});
@@ -82,8 +85,10 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
         actions: [
           if (widget.user == null)
             TextButton.icon(onPressed: _startLogin, icon: const Icon(Icons.login_rounded), label: const Text('تسجيل الدخول'))
-          else
+          else ...[
             Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('مرحباً ${widget.user!.name ?? 'بك'}')),
+            IconButton(onPressed: _signOut, tooltip: 'تسجيل الخروج', icon: const Icon(Icons.logout_rounded)),
+          ],
           const SizedBox(width: 14),
         ],
       );
@@ -97,15 +102,34 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
       };
 
   Future<void> _startLogin() async {
-    final origin = Uri.base.origin;
-    if (origin.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اضبط عنوان API للتطبيق الأصلي قبل تسجيل الدخول.')));
+    if (!SupabaseConfig.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(SupabaseConfig.missingConfigurationMessage)));
       return;
     }
-    final loginUri = Uri.parse('$origin/api/oauth/start').replace(queryParameters: {'origin': origin});
-    if (!await launchUrl(loginUri, mode: LaunchMode.platformDefault)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر بدء تسجيل الدخول الآمن.')));
+    final emailController = TextEditingController();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تسجيل الدخول'),
+        content: TextField(controller: emailController, keyboardType: TextInputType.emailAddress, autofocus: true, decoration: const InputDecoration(labelText: 'البريد الإلكتروني')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, emailController.text.trim()), child: const Text('إرسال الرابط')),
+        ],
+      ),
+    );
+    emailController.dispose();
+    if (email == null || email.isEmpty || !mounted) return;
+    try {
+      await SupabaseMarketplaceClient().signInWithMagicLink(email);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال رابط تسجيل الدخول إلى بريدك الإلكتروني.')));
+    } on AuthException {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إرسال رابط تسجيل الدخول. تحقق من البريد وإعدادات المصادقة.')));
     }
+  }
+
+  Future<void> _signOut() async {
+    if (SupabaseConfig.isConfigured) await SupabaseMarketplaceClient().signOut();
   }
 }
 

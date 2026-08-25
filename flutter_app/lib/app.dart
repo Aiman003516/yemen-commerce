@@ -1,24 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/api_client.dart';
 import 'core/contracts.dart';
+import 'core/supabase_config.dart';
+import 'core/supabase_marketplace_client.dart';
 import 'features/marketplace_shell.dart';
 
-class YemenCommerceApp extends StatefulWidget {
+class YemenCommerceApp extends StatelessWidget {
   const YemenCommerceApp({super.key});
 
-  @override
-  State<YemenCommerceApp> createState() => _YemenCommerceAppState();
-}
-
-class _YemenCommerceAppState extends State<YemenCommerceApp> {
-  late final Future<MarketConfig> _market = MarketplaceApiClient().activeMarket();
-  late final Future<SessionUser?> _session = MarketplaceApiClient().currentUser();
+  Widget _shell() {
+    final api = MarketplaceApiClient();
+    return FutureBuilder<SessionUser?>(
+      future: api.currentUser(),
+      builder: (context, sessionSnapshot) => FutureBuilder<MarketConfig>(
+        future: api.activeMarket(),
+        builder: (context, marketSnapshot) => MarketplaceShell(
+          market: marketSnapshot.data,
+          marketLoading: marketSnapshot.connectionState == ConnectionState.waiting,
+          user: sessionSnapshot.data,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     const brand = Color(0xFF006A63);
+    final home = SupabaseConfig.isConfigured
+        ? StreamBuilder<AuthState>(
+            stream: SupabaseMarketplaceClient().authStateChanges,
+            builder: (context, _) => _shell(),
+          )
+        : _shell();
+
     return MaterialApp(
       title: 'يمن كومرس',
       debugShowCheckedModeBanner: false,
@@ -50,17 +67,7 @@ class _YemenCommerceAppState extends State<YemenCommerceApp> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         ),
       ),
-      home: FutureBuilder<SessionUser?>(
-        future: _session,
-        builder: (context, sessionSnapshot) => FutureBuilder<MarketConfig>(
-          future: _market,
-          builder: (context, marketSnapshot) => MarketplaceShell(
-            market: marketSnapshot.data,
-            marketLoading: marketSnapshot.connectionState == ConnectionState.waiting,
-            user: sessionSnapshot.data,
-          ),
-        ),
-      ),
+      home: home,
     );
   }
 }

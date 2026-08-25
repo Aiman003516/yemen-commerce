@@ -86,8 +86,8 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
       );
 
   Widget _pageFor(int index) => switch (index) {
-        0 => _HomePage(market: widget.market, marketLoading: widget.marketLoading, onNavigate: (index) => setState(() => _selectedIndex = index)),
-        1 => const _CartPage(),
+        0 => _HomePage(market: widget.market, marketLoading: widget.marketLoading, user: widget.user, onNavigate: (index) => setState(() => _selectedIndex = index)),
+        1 => _CartPage(user: widget.user),
         2 => _OrdersPage(user: widget.user),
         3 => _MerchantPage(user: widget.user),
         _ => const _AdminPage(),
@@ -120,10 +120,11 @@ class _BrandMark extends StatelessWidget {
 }
 
 class _HomePage extends StatelessWidget {
-  const _HomePage({required this.onNavigate, this.market, required this.marketLoading});
+  const _HomePage({required this.onNavigate, this.market, required this.marketLoading, this.user});
   final ValueChanged<int> onNavigate;
   final MarketConfig? market;
   final bool marketLoading;
+  final SessionUser? user;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +147,7 @@ class _HomePage extends StatelessWidget {
             const SizedBox(height: 34),
             const _SectionHeader(title: 'المتاجر والمنتجات المعتمدة', subtitle: 'ستظهر هنا بعد اكتمال الاعتماد ونشر الكتالوج.'),
             const SizedBox(height: 14),
-            const _CatalogSection(),
+            _CatalogSection(user: user),
           ]),
         ),
       ),
@@ -235,7 +236,8 @@ class _PrincipleCard extends StatelessWidget {
 }
 
 class _CatalogSection extends StatefulWidget {
-  const _CatalogSection();
+  const _CatalogSection({this.user});
+  final SessionUser? user;
 
   @override
   State<_CatalogSection> createState() => _CatalogSectionState();
@@ -268,7 +270,7 @@ class _CatalogSectionState extends State<_CatalogSection> {
             if (snapshot.hasError) return _CatalogNotice(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل الكتالوج', detail: 'تحقق من الاتصال ثم حاول البحث مرة أخرى.');
             final products = snapshot.data ?? [];
             if (products.isEmpty) return const _CatalogNotice(icon: Icons.storefront_outlined, title: 'نستعد لاستقبال المتاجر المعتمدة في إب', detail: 'لا نعرض متاجر أو منتجات تجريبية. يظهر الكتالوج فقط بعد إدخاله واعتماده من التاجر والإدارة.');
-            return Wrap(spacing: 14, runSpacing: 14, children: products.map((product) => _ProductCard(product: product)).toList());
+            return Wrap(spacing: 14, runSpacing: 14, children: products.map((product) => _ProductCard(product: product, canAdd: widget.user != null)).toList());
           },
         ),
       ]);
@@ -290,8 +292,9 @@ class _CatalogNotice extends StatelessWidget {
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.product});
+  const _ProductCard({required this.product, required this.canAdd});
   final MarketplaceProduct product;
+  final bool canAdd;
   @override
   Widget build(BuildContext context) => SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(product.shopName, style: const TextStyle(color: Color(0xFF006A63), fontWeight: FontWeight.w700)),
@@ -300,18 +303,40 @@ class _ProductCard extends StatelessWidget {
         const SizedBox(height: 8),
         Text('${product.priceMinor} ${product.currency}', style: const TextStyle(color: Color(0xFF68655F))),
         const SizedBox(height: 14),
-        FilledButton.tonal(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سجّل الدخول أولاً لإضافة المنتجات إلى السلة.'))), child: const Text('أضف إلى السلة')),
+        FilledButton.tonal(onPressed: () async {
+          if (!canAdd) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سجّل الدخول أولاً لإضافة المنتجات إلى السلة.'))); return; }
+          try { await MarketplaceApiClient().addToCart(product.id); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة المنتج إلى السلة.'))); }
+          on ApiException catch (error) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); }
+        }, child: const Text('أضف إلى السلة')),
       ]))));
 }
 
-class _CartPage extends StatelessWidget {
-  const _CartPage();
+class _CartPage extends StatefulWidget {
+  const _CartPage({this.user});
+  final SessionUser? user;
   @override
-  Widget build(BuildContext context) => _CenteredPage(
-        icon: Icons.shopping_bag_outlined,
-        title: 'سلتك جاهزة لاستقبال اختياراتك',
-        detail: 'عند إضافة منتجات من متاجر متعددة، ستبقى في سلة واحدة وتظهر في مجموعات مستقلة لكل تاجر قبل الدفع.',
-      );
+  State<_CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends State<_CartPage> {
+  late final Future<List<CartGroup>> _cart = MarketplaceApiClient().cartGroups();
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user == null) return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لاستخدام السلة', detail: 'ستُحفظ منتجاتك في سلة واحدة وتُقسم بوضوح حسب المتجر قبل الدفع.');
+    return FutureBuilder<List<CartGroup>>(future: _cart, builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+      if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل السلة', detail: 'تحقق من الاتصال ثم حاول مرة أخرى.');
+      final groups = snapshot.data ?? [];
+      if (groups.isEmpty) return const _CenteredPage(icon: Icons.shopping_bag_outlined, title: 'سلتك فارغة', detail: 'تُعرض المنتجات في مجموعات منفصلة لكل متجر عند إضافتها.');
+      return ListView(padding: const EdgeInsets.all(24), children: groups.map((group) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(group.shopName, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        ...group.items.map((item) => ListTile(title: Text(item.name), trailing: Text('${item.priceMinor} ${item.currency}'))),
+        const Divider(),
+        Text('إجمالي هذا المتجر: ${group.totalMinor} YER', style: const TextStyle(fontWeight: FontWeight.w700)),
+      ])))).toList());
+    });
+  }
 }
 
 class _OrdersPage extends StatefulWidget {

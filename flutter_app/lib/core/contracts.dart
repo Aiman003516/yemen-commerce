@@ -100,3 +100,19 @@ class MerchantOrderSummary {
     fulfilmentStatus: json['fulfilmentStatus'] as String,
   );
 }
+
+class CartGroup {
+  const CartGroup({required this.shopName, required this.merchantId, required this.totalMinor, required this.items});
+  final String shopName;
+  final int merchantId;
+  final int totalMinor;
+  final List<MarketplaceProduct> items;
+  factory CartGroup.fromJson(Map<String, dynamic> json) {
+    final shop = json['shop'] as Map<String, dynamic>;
+    final items = (json['items'] as List<dynamic>).map((item) {
+      final map = item as Map<String, dynamic>;
+      return MarketplaceProduct(id: map['productId'] as int, name: map['name'] as String, priceMinor: map['unitPriceMinor'] as int, currency: 'YER', stockQuantity: map['stockQuantity'] as int, shopName: shop['name'] as String, shopSlug: shop['slug'] as String);
+    }).toList();
+    return CartGroup(shopName: shop['name'] as String, merchantId: json['merchantId'] as int, totalMinor: json['totalMinor'] as int, items: items);
+  }
+}

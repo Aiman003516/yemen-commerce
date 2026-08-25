@@ -80,6 +80,21 @@ class MarketplaceApiClient {
     final json = (data['json'] ?? data) as List<dynamic>;
     return json.map((item) => MerchantOrderSummary.fromJson(item as Map<String, dynamic>)).toList();
   }
+
+  Future<void> addToCart(int productId) async {
+    final response = await _client.post(_uri('/api/trpc/cart.addItem'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'productId': productId, 'quantity': 1}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر إضافة المنتج إلى السلة.');
+  }
+
+  Future<List<CartGroup>> cartGroups() async {
+    final uri = _uri('/api/trpc/cart.get').replace(queryParameters: {'input': jsonEncode({'json': {}})});
+    final response = await _client.get(uri);
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل السلة.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    final json = (data['json'] ?? data) as Map<String, dynamic>;
+    return (json['groups'] as List<dynamic>).map((group) => CartGroup.fromJson(group as Map<String, dynamic>)).toList();
+  }
 }
 
 class ApiException implements Exception {

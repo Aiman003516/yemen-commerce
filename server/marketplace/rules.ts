@@ -30,6 +30,12 @@ export function canAdvanceFulfilment(paymentStatus: PaymentStatus, next: Exclude
   return next === "cancelled" || paymentStatus === "paid";
 }
 
+export function hasIndependentMerchantSelections(merchantIds: number[], paymentMerchantIds: number[]) {
+  const expected = new Set(merchantIds);
+  const selected = new Set(paymentMerchantIds);
+  return expected.size === merchantIds.length && selected.size === paymentMerchantIds.length && expected.size === selected.size && Array.from(expected).every((id) => selected.has(id));
+}
+
 export function resolveFeatureAvailability(input: { enabled: boolean; reasonAr?: string | null }) {
   return input.enabled
     ? { available: true as const, reasonAr: null }

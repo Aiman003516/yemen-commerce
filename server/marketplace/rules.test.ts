@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { marketPolicySchema } from "../../shared/domain";
-import { canAdvanceFulfilment, canReviewPayment, canSubmitPaymentClaim, groupCartLinesByMerchant, resolveFeatureAvailability } from "./rules";
+import { canAdvanceFulfilment, canReviewPayment, canSubmitPaymentClaim, groupCartLinesByMerchant, hasIndependentMerchantSelections, resolveFeatureAvailability } from "./rules";
 
 describe("multi-merchant marketplace rules", () => {
   it("splits a cross-merchant cart into one independently totalled group per merchant", () => {
@@ -19,6 +19,12 @@ describe("multi-merchant marketplace rules", () => {
     expect(canReviewPayment("awaiting_payment", "paid")).toBe(false);
     expect(canReviewPayment("payment_under_review", "paid")).toBe(true);
     expect(canReviewPayment("payment_under_review", "rejected")).toBe(true);
+  });
+
+  it("requires exactly one payment selection for every merchant group before split checkout", () => {
+    expect(hasIndependentMerchantSelections([100, 200], [100, 200])).toBe(true);
+    expect(hasIndependentMerchantSelections([100, 200], [100])).toBe(false);
+    expect(hasIndependentMerchantSelections([100, 200], [100, 100])).toBe(false);
   });
 
   it("requires a confirmed payment before non-cancellation fulfilment", () => {

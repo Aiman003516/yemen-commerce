@@ -77,6 +77,14 @@ async function buildCart(customerUserId: number, marketId: number) {
     });
     groups.set(row.shop.id, group);
   }
+  const merchantIds = Array.from(new Set(Array.from(groups.values()).map((group) => group.merchantId)));
+  const activePaymentMethods = merchantIds.length
+    ? await db.select({ id: paymentMethods.id, merchantId: paymentMethods.merchantId, name: paymentMethods.name }).from(paymentMethods).where(and(inArray(paymentMethods.merchantId, merchantIds), eq(paymentMethods.isActive, true), eq(paymentMethods.mode, "manual")))
+    : [];
+  const paymentMethodsByMerchant = new Map<number, Array<{ id: number; name: string }>>();
+  for (const method of activePaymentMethods) {
+    paymentMethodsByMerchant.set(method.merchantId, [...(paymentMethodsByMerchant.get(method.merchantId) ?? []), { id: method.id, name: method.name }]);
+  }
   return {
     id: cart.id,
     marketId,
@@ -86,6 +94,7 @@ async function buildCart(customerUserId: number, marketId: number) {
       taxMinor: 0,
       totalMinor: group.subtotalMinor,
       fulfilmentMethods: methodsByShop.get(group.shop.id) ?? [],
+      paymentMethods: paymentMethodsByMerchant.get(group.merchantId) ?? [],
     })),
   };
 }

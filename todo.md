@@ -12,7 +12,7 @@
 - [ ] Implement merchant onboarding, branded storefront settings, catalogue management, stock state, fulfilment settings, and merchant-owned manual payment-method settings.
 - [ ] Implement approved-shop discovery, categories, search, public shop profiles, and product catalogues for the Ibb market.
 - [ ] Implement a visually grouped cross-merchant cart with independent merchant-group validation for stock, availability, minimum order, fulfilment, fee, and tax rules.
-- [ ] Implement checkout sessions that create exactly one merchant-specific order per merchant cart group and preserve immutable totals and payment instructions.
+- [x] Implement checkout sessions that create exactly one merchant-specific order per merchant cart group and preserve immutable totals and payment instructions.
 - [ ] Implement customer payment-information screens with merchant-owned receiving details, references, proof submission, and independent multi-order payment progress.
 - [ ] Implement merchant payment-claim review with audited awaiting-payment, under-review, paid, rejected, cancelled, and fulfilment state transitions.
 - [ ] Implement collection, digital delivery, and seller-arranged fulfilment choices with merchant-scoped order management and customer tracking.
@@ -40,5 +40,8 @@
 - [x] Fix merchant identity-screen gating after refresh using authoritative merchant context rather than the general session role.
 - [x] Add loading, error, unavailable, and permission-denied states for merchant and administrator identity-verification screens.
 - [ ] Add router-level authorization tests for merchant evidence isolation, administrator-only evidence access, review-decision requirements, and unavailable database behavior.
-- [ ] Connect the protected merchant self-context, shop creation, payment-method, fulfilment, and order-management APIs to an Arabic Flutter merchant operations workspace.
+- [x] Connect the protected merchant self-context, shop creation, payment-method, fulfilment, and order-management APIs to an Arabic Flutter merchant operations workspace.
 - [x] Fix the Flutter Web runtime `Unexpected token '<'` error by validating JavaScript asset paths, MIME responses, and static-host fallback behavior.
+- [x] Extend merchant workspace fulfilment settings for collection, digital delivery, and seller-arranged handoff, each with merchant-controlled instructions.
+- [x] Expose merchant order transitions for ready, arranged, completed, and cancelled with server validation, action loading, and error states.
+- [x] Expose selectable manual-payment proof requirements and existing-method edits in the merchant workspace rather than hardcoding a reference-only choice.

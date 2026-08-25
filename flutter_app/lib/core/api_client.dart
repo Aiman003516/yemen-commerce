@@ -80,6 +80,34 @@ class MarketplaceApiClient {
     return json['merchant'] != null;
   }
 
+  Future<MerchantWorkspace> merchantWorkspace() async {
+    final response = await _client.get(_uri('/api/trpc/merchant.mine'));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل مساحة التاجر.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    return MerchantWorkspace.fromJson((data['json'] ?? data) as Map<String, dynamic>);
+  }
+
+  Future<void> createShop({required String name, required String slug, required String areaLabel}) async {
+    final response = await _client.post(_uri('/api/trpc/merchant.createShop'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'name': name, 'slug': slug, 'areaLabel': areaLabel}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر إرسال المتجر للمراجعة. تحقق من الاسم والرابط المختصر.');
+  }
+
+  Future<void> saveMerchantPaymentMethod({int? id, required String name, required String accountHolderName, required String receivingIdentifier, required String instructions, required String proofRequirement}) async {
+    final response = await _client.post(_uri('/api/trpc/merchant.savePaymentMethod'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'id': id, 'name': name, 'accountHolderName': accountHolderName, 'receivingIdentifier': receivingIdentifier, 'customerInstructions': instructions, 'proofRequirement': proofRequirement}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر حفظ طريقة الدفع اليدوية.');
+  }
+
+  Future<void> setMerchantFulfilment({required int shopId, required String method, required String instructions, required bool isActive}) async {
+    final response = await _client.post(_uri('/api/trpc/merchant.setFulfilment'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'shopId': shopId, 'method': method, 'instructions': instructions, 'isActive': isActive}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر حفظ إعداد التنفيذ.');
+  }
+
+  Future<void> updateMerchantFulfilment({required int merchantOrderId, required String fulfilmentStatus}) async {
+    final response = await _client.post(_uri('/api/trpc/merchant.updateFulfilment'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'merchantOrderId': merchantOrderId, 'fulfilmentStatus': fulfilmentStatus}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحديث حالة تنفيذ الطلب. تأكد من تأكيد الدفع أولاً.');
+  }
+
   Future<IdentityVerificationSummary> identityMine() async {
     final response = await _client.get(_uri('/api/trpc/identity.mine'));
     if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل حالة التحقق.');
@@ -142,6 +170,11 @@ class MarketplaceApiClient {
     final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     final json = (data['json'] ?? data) as Map<String, dynamic>;
     return (json['groups'] as List<dynamic>).map((group) => CartGroup.fromJson(group as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> checkoutCart({required List<Map<String, dynamic>> fulfilmentByShop, required List<Map<String, dynamic>> paymentMethodByMerchant}) async {
+    final response = await _client.post(_uri('/api/trpc/cart.checkout'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'fulfilmentByShop': fulfilmentByShop, 'paymentMethodByMerchant': paymentMethodByMerchant}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر إتمام الطلبات المنفصلة. تحقق من خيارات كل متجر ثم حاول مرة أخرى.');
   }
 
   Future<void> submitPaymentReference({required int merchantOrderId, required String reference}) async {

@@ -41,6 +41,56 @@ class AdminIdentityEvidence {
   factory AdminIdentityEvidence.fromJson(Map<String, dynamic> json) => AdminIdentityEvidence(kind: json['kind'] as String, signedUrl: json['signedUrl'] as String);
 }
 
+class MerchantShopSummary {
+  const MerchantShopSummary({required this.id, required this.name, required this.status, this.areaLabel});
+  final int id;
+  final String name;
+  final String status;
+  final String? areaLabel;
+  factory MerchantShopSummary.fromJson(Map<String, dynamic> json) => MerchantShopSummary(id: json['id'] as int, name: json['name'] as String, status: json['status'] as String, areaLabel: json['areaLabel'] as String?);
+}
+
+class MerchantPaymentMethodSummary {
+  const MerchantPaymentMethodSummary({required this.id, required this.name, required this.accountHolderName, required this.receivingIdentifier, required this.instructions, required this.proofRequirement, required this.isActive});
+  final int id;
+  final String name;
+  final String accountHolderName;
+  final String receivingIdentifier;
+  final String instructions;
+  final String proofRequirement;
+  final bool isActive;
+  factory MerchantPaymentMethodSummary.fromJson(Map<String, dynamic> json) => MerchantPaymentMethodSummary(id: json['id'] as int, name: json['name'] as String, accountHolderName: json['accountHolderName'] as String, receivingIdentifier: json['receivingIdentifier'] as String, instructions: json['customerInstructions'] as String, proofRequirement: json['proofRequirement'] as String, isActive: json['isActive'] as bool);
+}
+
+class MerchantManagedOrder {
+  const MerchantManagedOrder({required this.id, required this.totalMinor, required this.paymentStatus, required this.fulfilmentStatus});
+  final int id;
+  final int totalMinor;
+  final String paymentStatus;
+  final String fulfilmentStatus;
+  factory MerchantManagedOrder.fromJson(Map<String, dynamic> json) => MerchantManagedOrder(id: json['id'] as int, totalMinor: json['totalMinor'] as int, paymentStatus: json['paymentStatus'] as String, fulfilmentStatus: json['fulfilmentStatus'] as String);
+}
+
+class MerchantWorkspace {
+  const MerchantWorkspace({this.merchantId, this.verificationStatus, this.shops = const [], this.paymentMethods = const [], this.orders = const []});
+  final int? merchantId;
+  final String? verificationStatus;
+  final List<MerchantShopSummary> shops;
+  final List<MerchantPaymentMethodSummary> paymentMethods;
+  final List<MerchantManagedOrder> orders;
+  bool get exists => merchantId != null;
+  factory MerchantWorkspace.fromJson(Map<String, dynamic> json) {
+    final merchant = json['merchant'] as Map<String, dynamic>?;
+    return MerchantWorkspace(
+      merchantId: merchant?['id'] as int?,
+      verificationStatus: merchant?['verificationStatus'] as String?,
+      shops: (json['shops'] as List<dynamic>? ?? const []).map((item) => MerchantShopSummary.fromJson(item as Map<String, dynamic>)).toList(),
+      paymentMethods: (json['paymentMethods'] as List<dynamic>? ?? const []).map((item) => MerchantPaymentMethodSummary.fromJson(item as Map<String, dynamic>)).toList(),
+      orders: (json['orders'] as List<dynamic>? ?? const []).map((item) => MerchantManagedOrder.fromJson(item as Map<String, dynamic>)).toList(),
+    );
+  }
+}
+
 class MarketConfig {
   const MarketConfig({
     required this.id,
@@ -142,17 +192,27 @@ class MerchantOrderSummary {
 }
 
 class CartGroup {
-  const CartGroup({required this.shopName, required this.merchantId, required this.totalMinor, required this.items});
+  const CartGroup({required this.shopId, required this.shopName, required this.merchantId, required this.totalMinor, required this.items, required this.fulfilmentMethods, required this.paymentMethods});
+  final int shopId;
   final String shopName;
   final int merchantId;
   final int totalMinor;
   final List<MarketplaceProduct> items;
+  final List<String> fulfilmentMethods;
+  final List<MerchantPaymentChoice> paymentMethods;
   factory CartGroup.fromJson(Map<String, dynamic> json) {
     final shop = json['shop'] as Map<String, dynamic>;
     final items = (json['items'] as List<dynamic>).map((item) {
       final map = item as Map<String, dynamic>;
       return MarketplaceProduct(id: map['productId'] as int, name: map['name'] as String, priceMinor: map['unitPriceMinor'] as int, currency: 'YER', stockQuantity: map['stockQuantity'] as int, shopName: shop['name'] as String, shopSlug: shop['slug'] as String);
     }).toList();
-    return CartGroup(shopName: shop['name'] as String, merchantId: json['merchantId'] as int, totalMinor: json['totalMinor'] as int, items: items);
+    return CartGroup(shopId: shop['id'] as int, shopName: shop['name'] as String, merchantId: json['merchantId'] as int, totalMinor: json['totalMinor'] as int, items: items, fulfilmentMethods: ((json['fulfilmentMethods'] as List<dynamic>? ?? const []).map((item) => (item as Map<String, dynamic>)['method'] as String)).toList(), paymentMethods: (json['paymentMethods'] as List<dynamic>? ?? const []).map((item) => MerchantPaymentChoice.fromJson(item as Map<String, dynamic>)).toList());
   }
+}
+
+class MerchantPaymentChoice {
+  const MerchantPaymentChoice({required this.id, required this.name});
+  final int id;
+  final String name;
+  factory MerchantPaymentChoice.fromJson(Map<String, dynamic> json) => MerchantPaymentChoice(id: json['id'] as int, name: json['name'] as String);
 }

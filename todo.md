@@ -40,3 +40,5 @@
 - [x] Fix merchant identity-screen gating after refresh using authoritative merchant context rather than the general session role.
 - [x] Add loading, error, unavailable, and permission-denied states for merchant and administrator identity-verification screens.
 - [ ] Add router-level authorization tests for merchant evidence isolation, administrator-only evidence access, review-decision requirements, and unavailable database behavior.
+- [ ] Connect the protected merchant self-context, shop creation, payment-method, fulfilment, and order-management APIs to an Arabic Flutter merchant operations workspace.
+- [x] Fix the Flutter Web runtime `Unexpected token '<'` error by validating JavaScript asset paths, MIME responses, and static-host fallback behavior.

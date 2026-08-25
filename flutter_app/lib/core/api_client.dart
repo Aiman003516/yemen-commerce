@@ -71,6 +71,54 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<bool> hasMerchantContext() async {
+    final response = await _client.get(_uri('/api/trpc/merchant.mine'));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر التحقق من حالة حساب التاجر.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    final json = (data['json'] ?? data) as Map<String, dynamic>;
+    return json['merchant'] != null;
+  }
+
+  Future<IdentityVerificationSummary> identityMine() async {
+    final response = await _client.get(_uri('/api/trpc/identity.mine'));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل حالة التحقق.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    return IdentityVerificationSummary.fromJson((data['json'] ?? data) as Map<String, dynamic>);
+  }
+
+  Future<void> submitIdentityEvidence({required String passportBase64, required String passportName, required String passportMimeType, required String selfieBase64, required String selfieName, required String selfieMimeType}) async {
+    final body = {'consent': true, 'passport': {'base64': passportBase64, 'originalName': passportName, 'mimeType': passportMimeType}, 'selfie': {'base64': selfieBase64, 'originalName': selfieName, 'mimeType': selfieMimeType}};
+    final response = await _client.post(_uri('/api/trpc/identity.submit'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': body}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر إرسال صور التحقق. استخدم صورة JPEG أو PNG أو WebP أصغر من الحد المسموح.');
+  }
+
+  Future<List<AdminIdentityCase>> adminIdentityQueue() async {
+    final response = await _client.get(_uri('/api/trpc/identity.adminQueue'));
+    if (response.statusCode == 403) throw ApiException('هذه الشاشة متاحة للإدارة المخوّلة فقط.');
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل قائمة المراجعة.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    final json = (data['json'] ?? data) as List<dynamic>;
+    return json.map((item) => AdminIdentityCase.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<AdminIdentityEvidence>> adminIdentityEvidence(int identityCaseId) async {
+    final uri = _uri('/api/trpc/identity.adminEvidenceAccess').replace(queryParameters: {'input': jsonEncode({'json': {'identityCaseId': identityCaseId}})});
+    final response = await _client.get(uri);
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر فتح الوثائق المصرح بها.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = (decoded['result'] as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    final json = (data['json'] ?? data) as List<dynamic>;
+    return json.map((item) => AdminIdentityEvidence.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> reviewIdentityCase({required int identityCaseId, required bool approve, required String note}) async {
+    final response = await _client.post(_uri('/api/trpc/identity.review'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'identityCaseId': identityCaseId, 'decision': approve ? 'verified' : 'rejected', 'note': note}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر حفظ قرار المراجعة. اكتب ملاحظة توضح القرار.');
+  }
+
   Future<List<MerchantOrderSummary>> myOrders() async {
     final response = await _client.get(_uri('/api/trpc/orders.mine'));
     if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل الطلبات.');

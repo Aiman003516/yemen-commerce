@@ -114,6 +114,36 @@ export const otpProviderConfigurations = mysqlTable("otpProviderConfigurations",
   index("otp_provider_market_status_idx").on(table.marketId, table.status),
 ]);
 
+/** Passport and selfie evidence are never public catalogue assets and are reviewed only by authorized administrators. */
+export const identityVerificationCases = mysqlTable("identityVerificationCases", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantId: int("merchantId").notNull().references(() => merchants.id),
+  submittedByUserId: int("submittedByUserId").notNull().references(() => users.id),
+  consentAt: timestamp("consentAt").notNull(),
+  status: mysqlEnum("status", ["draft", "submitted", "under_review", "verified", "rejected", "expired"]).default("draft").notNull(),
+  reviewedByUserId: int("reviewedByUserId").references(() => users.id),
+  reviewedAt: timestamp("reviewedAt"),
+  decisionNote: text("decisionNote"),
+  retentionUntil: timestamp("retentionUntil"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("identity_case_merchant_unique").on(table.merchantId),
+  index("identity_case_status_idx").on(table.status),
+]);
+
+export const identityEvidence = mysqlTable("identityEvidence", {
+  id: int("id").autoincrement().primaryKey(),
+  identityCaseId: int("identityCaseId").notNull().references(() => identityVerificationCases.id),
+  kind: mysqlEnum("kind", ["passport", "selfie"]).notNull(),
+  storageKey: varchar("storageKey", { length: 1024 }).notNull(),
+  mimeType: varchar("mimeType", { length: 80 }).notNull(),
+  originalName: varchar("originalName", { length: 180 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("identity_evidence_kind_unique").on(table.identityCaseId, table.kind),
+]);
+
 export const shops = mysqlTable("shops", {
   id: int("id").autoincrement().primaryKey(),
   merchantId: int("merchantId").notNull().references(() => merchants.id),

@@ -8,6 +8,7 @@ import { marketRouter } from "./routers/market";
 import { merchantRouter } from "./routers/merchant";
 import { paymentRouter } from "./routers/payment";
 import { ordersRouter } from "./routers/orders";
+import { identityRouter } from "./routers/identity";
 import { adminRouter } from "./routers/admin";
 
 export const appRouter = router({
@@ -28,6 +29,7 @@ export const appRouter = router({
   cart: cartRouter,
   payment: paymentRouter,
   orders: ordersRouter,
+  identity: identityRouter,
   merchant: merchantRouter,
   admin: adminRouter,
 

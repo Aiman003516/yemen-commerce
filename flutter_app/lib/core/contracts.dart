@@ -7,6 +7,40 @@ enum PaymentState { awaitingPayment, paymentUnderReview, paid, rejected, cancell
 
 enum FulfilmentMethod { collection, digital, sellerArranged }
 
+/// Matches shared/domain.ts. Evidence is staff-reviewed and not biometrically matched.
+enum IdentityVerificationStatus { draft, submitted, underReview, verified, rejected, expired }
+
+class IdentityVerificationSummary {
+  const IdentityVerificationSummary({this.status, this.decisionNote, this.evidenceKinds = const []});
+  final String? status;
+  final String? decisionNote;
+  final List<String> evidenceKinds;
+
+  factory IdentityVerificationSummary.fromJson(Map<String, dynamic> json) {
+    final identityCase = json['identityCase'] as Map<String, dynamic>?;
+    return IdentityVerificationSummary(
+      status: identityCase?['status'] as String?,
+      decisionNote: identityCase?['decisionNote'] as String?,
+      evidenceKinds: (json['evidenceKinds'] as List<dynamic>? ?? const []).cast<String>(),
+    );
+  }
+}
+
+class AdminIdentityCase {
+  const AdminIdentityCase({required this.id, required this.merchantId, required this.status});
+  final int id;
+  final int merchantId;
+  final String status;
+  factory AdminIdentityCase.fromJson(Map<String, dynamic> json) => AdminIdentityCase(id: json['id'] as int, merchantId: json['merchantId'] as int, status: json['status'] as String);
+}
+
+class AdminIdentityEvidence {
+  const AdminIdentityEvidence({required this.kind, required this.signedUrl});
+  final String kind;
+  final String signedUrl;
+  factory AdminIdentityEvidence.fromJson(Map<String, dynamic> json) => AdminIdentityEvidence(kind: json['kind'] as String, signedUrl: json['signedUrl'] as String);
+}
+
 class MarketConfig {
   const MarketConfig({
     required this.id,

@@ -51,11 +51,19 @@ export const capabilityKeys = [
   "provider_api_payments",
   "support_agent",
   "phone_otp_verification",
+  "merchant_identity_verification",
 ] as const;
 export type CapabilityKey = (typeof capabilityKeys)[number];
 
 export const phoneVerificationStatuses = ["unverified", "pending", "verified"] as const;
 export type PhoneVerificationStatus = (typeof phoneVerificationStatuses)[number];
+
+/** Manual staff-review states only; upload never makes an identity decision automatically. */
+export const identityVerificationStatuses = ["draft", "submitted", "under_review", "verified", "rejected", "expired"] as const;
+export type IdentityVerificationStatus = (typeof identityVerificationStatuses)[number];
+
+export const identityEvidenceKinds = ["passport", "selfie"] as const;
+export type IdentityEvidenceKind = (typeof identityEvidenceKinds)[number];
 
 export const marketConfigSchema = z.object({
   id: z.number().int().positive(),

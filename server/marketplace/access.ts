@@ -22,11 +22,12 @@ const DEFAULT_CAPABILITIES: Array<{ key: CapabilityKey; enabled: boolean; reason
   { key: "provider_api_payments", enabled: false, reasonAr: "تظل عمليات الدفع يدوية حتى اعتماد مزود الدفع رسمياً." },
   { key: "support_agent", enabled: false, reasonAr: "دور الدعم محدود ومؤجل في مرحلة الإطلاق." },
   { key: "phone_otp_verification", enabled: false, reasonAr: "سيُفعّل التحقق من ملكية الهاتف بعد اعتماد مزود رسائل مناسب." },
+  { key: "merchant_identity_verification", enabled: true, reasonAr: "يتم التحقق من الهوية بمراجعة موظف مخوّل للوثائق؛ لا توجد مطابقة وجه أو قرار آلي." },
 ];
 
 const DEFAULT_POLICIES = [
   { key: "pilot_pricing", value: { subscriptionMinor: 0, commissionBps: 0, centralFundsCustody: false } },
-  { key: "merchant_verification", value: { approvalRequired: true, phoneRequired: true, locationRequired: true } },
+  { key: "merchant_verification", value: { approvalRequired: true, phoneRequired: true, locationRequired: true, identityEvidenceRequiredForReview: true, manualIdentityReviewOnly: true } },
   { key: "fulfilment", value: { enabledMethods: ["collection", "digital", "seller_arranged"], platformManagedShipping: false } },
 ];
 

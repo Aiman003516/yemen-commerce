@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -90,7 +93,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
         1 => _CartPage(user: widget.user),
         2 => _OrdersPage(user: widget.user),
         3 => _MerchantPage(user: widget.user),
-        _ => const _AdminPage(),
+        _ => _AdminPage(user: widget.user),
       };
 
   Future<void> _startLogin() async {
@@ -403,6 +406,8 @@ class _MerchantPageState extends State<_MerchantPage> {
   final _phone = TextEditingController();
   final _ownerName = TextEditingController();
   bool _submitting = false;
+  bool _applicationSubmitted = false;
+  late final Future<bool> _hasMerchant = MarketplaceApiClient().hasMerchantContext();
 
   @override
   void dispose() {
@@ -416,6 +421,7 @@ class _MerchantPageState extends State<_MerchantPage> {
     setState(() => _submitting = true);
     try {
       await MarketplaceApiClient().submitMerchantApplication(phone: _phone.text.trim(), ownerName: _ownerName.text.trim());
+      if (mounted) setState(() => _applicationSubmitted = true);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب التاجر للمراجعة.')));
     } on ApiException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
@@ -429,6 +435,16 @@ class _MerchantPageState extends State<_MerchantPage> {
     if (widget.user == null) {
       return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لبدء طلب التاجر', detail: 'يُحفظ حساب التاجر وبيانات متجره بشكل منفصل وآمن بعد تسجيل الدخول.');
     }
+    if (_applicationSubmitted) return const _IdentityMerchantPanel();
+    return FutureBuilder<bool>(future: _hasMerchant, builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+      if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل حالة حساب التاجر', detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.');
+      if (snapshot.data == true) return const _IdentityMerchantPanel();
+      return _applicationForm(context);
+    });
+  }
+
+  Widget _applicationForm(BuildContext context) {
     return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: Card(child: Padding(
       padding: const EdgeInsets.all(28),
       child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -448,14 +464,138 @@ class _MerchantPageState extends State<_MerchantPage> {
   }
 }
 
-class _AdminPage extends StatelessWidget {
-  const _AdminPage();
+class _IdentityMerchantPanel extends StatefulWidget {
+  const _IdentityMerchantPanel();
+
   @override
-  Widget build(BuildContext context) => _CenteredPage(
-        icon: Icons.admin_panel_settings_outlined,
-        title: 'ضوابط الإدارة والمراجعة',
-        detail: 'بعد تسجيل الدخول الإداري، ستتمكن من اعتماد التجار والمتاجر وإدارة التصنيفات والقدرات وسجل التدقيق.',
-      );
+  State<_IdentityMerchantPanel> createState() => _IdentityMerchantPanelState();
+}
+
+class _IdentityMerchantPanelState extends State<_IdentityMerchantPanel> {
+  PlatformFile? _passport;
+  PlatformFile? _selfie;
+  bool _consent = false;
+  bool _submitting = false;
+  late Future<IdentityVerificationSummary> _summary = MarketplaceApiClient().identityMine();
+
+  Future<void> _pick(bool passport) async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'], withData: true);
+    final file = result?.files.single;
+    if (file == null) return;
+    if (file.bytes == null || file.size > 3 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اختر صورة JPEG أو PNG أو WebP أصغر من 3 ميغابايت.')));
+      return;
+    }
+    setState(() {
+      if (passport) {
+        _passport = file;
+      } else {
+        _selfie = file;
+      }
+    });
+  }
+
+  String _mime(PlatformFile file) => file.name.toLowerCase().endsWith('.png') ? 'image/png' : file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+
+  Future<void> _submit() async {
+    if (!_consent || _passport?.bytes == null || _selfie?.bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أقرّ بالموافقة واختر صورة جواز وصورة سيلفي أولاً.')));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await MarketplaceApiClient().submitIdentityEvidence(passportBase64: base64Encode(_passport!.bytes!), passportName: _passport!.name, passportMimeType: _mime(_passport!), selfieBase64: base64Encode(_selfie!.bytes!), selfieName: _selfie!.name, selfieMimeType: _mime(_selfie!));
+      if (mounted) setState(() => _summary = MarketplaceApiClient().identityMine());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الوثائق للمراجعة اليدوية. لن يتم اتخاذ قرار تلقائي.')));
+    } on ApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally { if (mounted) setState(() => _submitting = false); }
+  }
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(padding: const EdgeInsets.all(24), child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 620), child: FutureBuilder<IdentityVerificationSummary>(future: _summary, builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) return const Padding(padding: EdgeInsets.all(36), child: CircularProgressIndicator());
+    if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل حالة التحقق', detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.');
+    final status = snapshot.data?.status;
+    final note = snapshot.data?.decisionNote;
+    return Card(child: Padding(padding: const EdgeInsets.all(28), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('التحقق من هوية التاجر', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 10),
+      const Text('ترسل صورة الجواز وصورة السيلفي لموظفي الإدارة المخوّلين للمراجعة اليدوية فقط. لا تُعرض علناً ولا تُستخدم لمطابقة الوجه أو لقرار آلي.', style: TextStyle(height: 1.65)),
+      const SizedBox(height: 16),
+      Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFEAF5F1), borderRadius: BorderRadius.circular(14)), child: Text(status == null ? 'لم تُرسل وثائق تحقق بعد.' : 'حالة المراجعة: $status${note == null ? '' : '\nملاحظة الإدارة: $note'}', style: const TextStyle(height: 1.6))),
+      const SizedBox(height: 20),
+      OutlinedButton.icon(onPressed: _submitting ? null : () => _pick(true), icon: const Icon(Icons.badge_outlined), label: Text(_passport == null ? 'اختر صورة جواز السفر' : 'تم اختيار: ${_passport!.name}')),
+      const SizedBox(height: 10),
+      OutlinedButton.icon(onPressed: _submitting ? null : () => _pick(false), icon: const Icon(Icons.face_retouching_natural_outlined), label: Text(_selfie == null ? 'اختر صورة سيلفي للوجه' : 'تم اختيار: ${_selfie!.name}')),
+      CheckboxListTile(contentPadding: EdgeInsets.zero, value: _consent, onChanged: _submitting ? null : (value) => setState(() => _consent = value ?? false), title: const Text('أوافق على إرسال الوثيقتين للمراجعة اليدوية من الإدارة المخوّلة.'), controlAffinity: ListTileControlAffinity.leading),
+      const SizedBox(height: 8),
+      FilledButton.icon(onPressed: _submitting ? null : _submit, icon: _submitting ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.verified_user_outlined), label: Text(_submitting ? 'جارٍ الإرسال' : 'إرسال للمراجعة اليدوية')),
+    ])));
+  }))));
+}
+
+class _AdminPage extends StatefulWidget {
+  const _AdminPage({this.user});
+  final SessionUser? user;
+  @override
+  State<_AdminPage> createState() => _AdminPageState();
+}
+
+class _AdminPageState extends State<_AdminPage> {
+  late Future<List<AdminIdentityCase>> _queue = MarketplaceApiClient().adminIdentityQueue();
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user?.role != 'admin') return const _CenteredPage(icon: Icons.lock_outline, title: 'صلاحية الإدارة مطلوبة', detail: 'تقتصر مراجعة وثائق الهوية على موظفي الإدارة المخوّلين.');
+    return FutureBuilder<List<AdminIdentityCase>>(future: _queue, builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+      if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل المراجعات', detail: 'تحقق من الصلاحية والاتصال ثم حاول مجدداً.');
+      final queue = snapshot.data ?? [];
+      if (queue.isEmpty) return const _CenteredPage(icon: Icons.fact_check_outlined, title: 'لا توجد وثائق بانتظار المراجعة', detail: 'لا يظهر هنا سوى طلبات التحقق التي أرسلها التجار للمراجعة اليدوية.');
+      return ListView(padding: const EdgeInsets.all(24), children: [
+        Text('مراجعة هوية التجار', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        const Text('لا توجد مطابقة وجه آلية. القرار هنا لا يعتمد المتجر أو ينشره تلقائياً.'),
+        const SizedBox(height: 14),
+        ...queue.map((item) => Card(child: ListTile(title: Text('طلب تاجر #${item.merchantId}'), subtitle: Text('الحالة: ${item.status}'), trailing: Wrap(spacing: 8, children: [OutlinedButton(onPressed: () => _openEvidence(item), child: const Text('عرض الوثائق')), FilledButton(onPressed: () => _review(item), child: const Text('اتخاذ قرار'))])))),
+      ]);
+    });
+  }
+
+  Future<void> _review(AdminIdentityCase item) async {
+    final note = TextEditingController();
+    var submitting = false;
+    await showDialog<void>(context: context, builder: (dialog) => StatefulBuilder(builder: (dialogContext, setDialogState) {
+      Future<void> decide(bool approve) async {
+        if (note.text.trim().length < 3) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب ملاحظة من ثلاثة أحرف على الأقل قبل اتخاذ القرار.')));
+          return;
+        }
+        setDialogState(() => submitting = true);
+        try {
+          await MarketplaceApiClient().reviewIdentityCase(identityCaseId: item.id, approve: approve, note: note.text.trim());
+          if (mounted) setState(() => _queue = MarketplaceApiClient().adminIdentityQueue());
+          if (dialogContext.mounted) Navigator.pop(dialogContext);
+        } on ApiException catch (error) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+        } finally {
+          if (dialogContext.mounted) setDialogState(() => submitting = false);
+        }
+      }
+      return AlertDialog(title: const Text('قرار مراجعة يدوي'), content: TextField(controller: note, enabled: !submitting, minLines: 2, maxLines: 5, decoration: const InputDecoration(labelText: 'ملاحظة القرار المطلوبة')), actions: [TextButton(onPressed: submitting ? null : () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton.tonal(onPressed: submitting ? null : () => decide(false), child: Text(submitting ? 'جارٍ الحفظ' : 'رفض')), FilledButton(onPressed: submitting ? null : () => decide(true), child: Text(submitting ? 'جارٍ الحفظ' : 'اعتماد'))]);
+    }));
+    note.dispose();
+  }
+
+  Future<void> _openEvidence(AdminIdentityCase item) async {
+    try {
+      final evidence = await MarketplaceApiClient().adminIdentityEvidence(item.id);
+      if (!mounted) return;
+      await showDialog<void>(context: context, builder: (dialog) => AlertDialog(title: const Text('وثائق المراجعة المصرح بها'), content: Column(mainAxisSize: MainAxisSize.min, children: evidence.map((document) => ListTile(title: Text(document.kind == 'passport' ? 'صورة جواز السفر' : 'صورة السيلفي'), trailing: const Icon(Icons.open_in_new), onTap: () async { await launchUrl(Uri.parse(document.signedUrl), mode: LaunchMode.externalApplication); })).toList()), actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('إغلاق'))]));
+    } on ApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 }
 
 class _CenteredPage extends StatelessWidget {

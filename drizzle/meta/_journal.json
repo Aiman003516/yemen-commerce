@@ -29,6 +29,13 @@
       "when": 1787660310306,
       "tag": "0003_safe_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1787661544420,
+      "tag": "0004_groovy_machine_man",
+      "breakpoints": true
     }
   ]
 }

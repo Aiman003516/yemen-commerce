@@ -32,3 +32,11 @@
 - [x] Add regression tests for market-policy active/inactive availability, version resolution, and safe fallback behavior.
 - [x] Keep mobile phone numbers collected but explicitly unverified during the Ibb pilot; do not block onboarding or customer flows on OTP until a provider is approved.
 - [x] Add a disabled, adapter-based carrier OTP module for future Yemen Mobile, Sabafon, YOU, or local-aggregator activation, including provider configuration, delivery reports, rate limits, and audit events.
+- [x] Add a merchant identity-verification case with secure object references for passport and selfie images, explicit consent, manual-review status transitions, retention dates, and immutable audit events.
+- [x] Restrict identity evidence upload, access, review, and decisions to the merchant owner and authorized administrators; never expose passport or selfie assets in public catalogue, order, or merchant views.
+- [x] Add Arabic RTL merchant evidence submission and administrator manual-review screens, with no automated biometric matching or identity decision.
+- [ ] Add authorization and privacy regression tests covering identity-evidence isolation, review decisions, and safe unavailable states.
+- [ ] Agree and implement the production retention, deletion, access-review, and incident-response policy before collecting live passport or selfie evidence.
+- [x] Fix merchant identity-screen gating after refresh using authoritative merchant context rather than the general session role.
+- [x] Add loading, error, unavailable, and permission-denied states for merchant and administrator identity-verification screens.
+- [ ] Add router-level authorization tests for merchant evidence isolation, administrator-only evidence access, review-decision requirements, and unavailable database behavior.

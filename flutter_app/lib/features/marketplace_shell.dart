@@ -361,10 +361,32 @@ class _OrdersPageState extends State<_OrdersPage> {
         return ListView(padding: const EdgeInsets.all(24), children: orders.map((order) => Card(child: ListTile(
           title: Text('طلب #${order.id}'),
           subtitle: Text('الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}'),
-          trailing: Text('${order.totalMinor} ${order.currency}'),
+          trailing: Column(mainAxisSize: MainAxisSize.min, children: [Text('${order.totalMinor} ${order.currency}'), if (order.paymentStatus == 'awaiting_payment') TextButton(onPressed: () => _showPayment(order), child: const Text('تعليمات الدفع'))]),
         ))).toList());
       },
     );
+  }
+
+  Future<void> _showPayment(MerchantOrderSummary order) async {
+    final reference = TextEditingController();
+    await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('تعليمات الدفع لهذا المتجر'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (order.accountHolderName != null) Text('اسم المستلم: ${order.accountHolderName}'),
+        if (order.receivingIdentifier != null) Text('الحساب/المحفظة: ${order.receivingIdentifier}'),
+        if (order.paymentInstructions != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(order.paymentInstructions!)),
+        const SizedBox(height: 14),
+        TextField(controller: reference, decoration: const InputDecoration(labelText: 'مرجع التحويل')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () async {
+        final value = reference.text.trim();
+        if (value.isEmpty) return;
+        Navigator.pop(dialogContext);
+        try { await MarketplaceApiClient().submitPaymentReference(merchantOrderId: order.id, reference: value); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أُرسل مرجع التحويل للمراجعة.'))); }
+        on ApiException catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message))); }
+      }, child: const Text('إرسال للمراجعة'))],
+    ));
+    reference.dispose();
   }
 }
 

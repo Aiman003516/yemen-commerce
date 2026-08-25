@@ -95,6 +95,11 @@ class MarketplaceApiClient {
     final json = (data['json'] ?? data) as Map<String, dynamic>;
     return (json['groups'] as List<dynamic>).map((group) => CartGroup.fromJson(group as Map<String, dynamic>)).toList();
   }
+
+  Future<void> submitPaymentReference({required int merchantOrderId, required String reference}) async {
+    final response = await _client.post(_uri('/api/trpc/payment.submitClaim'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'json': {'merchantOrderId': merchantOrderId, 'transactionReference': reference}}));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر إرسال مرجع التحويل.');
+  }
 }
 
 class ApiException implements Exception {

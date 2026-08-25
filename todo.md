@@ -35,13 +35,15 @@
 - [x] Add a merchant identity-verification case with secure object references for passport and selfie images, explicit consent, manual-review status transitions, retention dates, and immutable audit events.
 - [x] Restrict identity evidence upload, access, review, and decisions to the merchant owner and authorized administrators; never expose passport or selfie assets in public catalogue, order, or merchant views.
 - [x] Add Arabic RTL merchant evidence submission and administrator manual-review screens, with no automated biometric matching or identity decision.
-- [ ] Add authorization and privacy regression tests covering identity-evidence isolation, review decisions, and safe unavailable states.
+- [x] Add authorization and privacy regression tests covering identity-evidence isolation, review decisions, and safe unavailable states.
 - [ ] Agree and implement the production retention, deletion, access-review, and incident-response policy before collecting live passport or selfie evidence.
 - [x] Fix merchant identity-screen gating after refresh using authoritative merchant context rather than the general session role.
 - [x] Add loading, error, unavailable, and permission-denied states for merchant and administrator identity-verification screens.
-- [ ] Add router-level authorization tests for merchant evidence isolation, administrator-only evidence access, review-decision requirements, and unavailable database behavior.
+- [x] Add router-level authorization tests for merchant evidence isolation, administrator-only evidence access, review-decision requirements, and unavailable database behavior.
 - [x] Connect the protected merchant self-context, shop creation, payment-method, fulfilment, and order-management APIs to an Arabic Flutter merchant operations workspace.
 - [x] Fix the Flutter Web runtime `Unexpected token '<'` error by validating JavaScript asset paths, MIME responses, and static-host fallback behavior.
 - [x] Extend merchant workspace fulfilment settings for collection, digital delivery, and seller-arranged handoff, each with merchant-controlled instructions.
 - [x] Expose merchant order transitions for ready, arranged, completed, and cancelled with server validation, action loading, and error states.
 - [x] Expose selectable manual-payment proof requirements and existing-method edits in the merchant workspace rather than hardcoding a reference-only choice.
+- [x] Add explicit merchant-role denial and non-leak tests for admin-only identity evidence access and another merchant’s evidence case.
+- [x] Add a no-client-input router test showing that a merchant cannot request another merchant’s identity case or evidence metadata by identifier.

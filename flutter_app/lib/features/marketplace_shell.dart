@@ -88,7 +88,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
   Widget _pageFor(int index) => switch (index) {
         0 => _HomePage(market: widget.market, marketLoading: widget.marketLoading, onNavigate: (index) => setState(() => _selectedIndex = index)),
         1 => const _CartPage(),
-        2 => const _OrdersPage(),
+        2 => _OrdersPage(user: widget.user),
         3 => _MerchantPage(user: widget.user),
         _ => const _AdminPage(),
       };
@@ -314,14 +314,33 @@ class _CartPage extends StatelessWidget {
       );
 }
 
-class _OrdersPage extends StatelessWidget {
-  const _OrdersPage();
+class _OrdersPage extends StatefulWidget {
+  const _OrdersPage({this.user});
+  final SessionUser? user;
   @override
-  Widget build(BuildContext context) => _CenteredPage(
-        icon: Icons.receipt_long_outlined,
-        title: 'تابع كل طلب على حدة',
-        detail: 'ستعرض هذه الصفحة تعليمات الدفع، المرجع، إثبات التحويل، ومراحل التنفيذ لكل طلب تابع لمتجر مختلف.',
-      );
+  State<_OrdersPage> createState() => _OrdersPageState();
+}
+
+class _OrdersPageState extends State<_OrdersPage> {
+  late final Future<List<MerchantOrderSummary>> _orders = MarketplaceApiClient().myOrders();
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user == null) return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لمتابعة طلباتك', detail: 'ستظهر كل مجموعة تاجر كطلب مستقل مع حالة الدفع والتنفيذ الخاصة بها.');
+    return FutureBuilder<List<MerchantOrderSummary>>(
+      future: _orders,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return const _CenteredPage(icon: Icons.cloud_off_outlined, title: 'تعذر تحميل الطلبات', detail: 'تحقق من الاتصال ثم حاول مرة أخرى.');
+        final orders = snapshot.data ?? [];
+        if (orders.isEmpty) return const _CenteredPage(icon: Icons.receipt_long_outlined, title: 'لا توجد طلبات بعد', detail: 'عند إتمام الدفع، سيُنشأ طلب مستقل لكل متجر في السلة.');
+        return ListView(padding: const EdgeInsets.all(24), children: orders.map((order) => Card(child: ListTile(
+          title: Text('طلب #${order.id}'),
+          subtitle: Text('الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}'),
+          trailing: Text('${order.totalMinor} ${order.currency}'),
+        ))).toList());
+      },
+    );
+  }
 }
 
 class _MerchantPage extends StatefulWidget {

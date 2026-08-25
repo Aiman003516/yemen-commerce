@@ -84,3 +84,19 @@ class SessionUser {
         role: json['role'] as String,
       );
 }
+
+class MerchantOrderSummary {
+  const MerchantOrderSummary({required this.id, required this.totalMinor, required this.currency, required this.paymentStatus, required this.fulfilmentStatus});
+  final int id;
+  final int totalMinor;
+  final String currency;
+  final String paymentStatus;
+  final String fulfilmentStatus;
+  factory MerchantOrderSummary.fromJson(Map<String, dynamic> json) => MerchantOrderSummary(
+    id: json['id'] as int,
+    totalMinor: json['totalMinor'] as int,
+    currency: json['currency'] as String,
+    paymentStatus: json['paymentStatus'] as String,
+    fulfilmentStatus: json['fulfilmentStatus'] as String,
+  );
+}

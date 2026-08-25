@@ -7,6 +7,7 @@ import { cartRouter } from "./routers/cart";
 import { marketRouter } from "./routers/market";
 import { merchantRouter } from "./routers/merchant";
 import { paymentRouter } from "./routers/payment";
+import { ordersRouter } from "./routers/orders";
 import { adminRouter } from "./routers/admin";
 
 export const appRouter = router({
@@ -26,6 +27,7 @@ export const appRouter = router({
   catalog: catalogRouter,
   cart: cartRouter,
   payment: paymentRouter,
+  orders: ordersRouter,
   merchant: merchantRouter,
   admin: adminRouter,
 

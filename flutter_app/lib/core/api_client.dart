@@ -70,6 +70,16 @@ class MarketplaceApiClient {
       throw ApiException('تعذر إرسال طلب التاجر. تحقق من تسجيل الدخول والبيانات.');
     }
   }
+
+  Future<List<MerchantOrderSummary>> myOrders() async {
+    final response = await _client.get(_uri('/api/trpc/orders.mine'));
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException('تعذر تحميل الطلبات.');
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final result = decoded['result'] as Map<String, dynamic>;
+    final data = result['data'] as Map<String, dynamic>;
+    final json = (data['json'] ?? data) as List<dynamic>;
+    return json.map((item) => MerchantOrderSummary.fromJson(item as Map<String, dynamic>)).toList();
+  }
 }
 
 class ApiException implements Exception {

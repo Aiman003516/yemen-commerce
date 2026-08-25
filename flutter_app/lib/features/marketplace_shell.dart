@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/contracts.dart';
 import '../core/api_client.dart';
 
 class MarketplaceShell extends StatefulWidget {
-  const MarketplaceShell({super.key, this.market, this.marketLoading = false});
+  const MarketplaceShell({super.key, this.market, this.marketLoading = false, this.user});
 
   final MarketConfig? market;
   final bool marketLoading;
+  final SessionUser? user;
 
   @override
   State<MarketplaceShell> createState() => _MarketplaceShellState();
@@ -75,7 +77,10 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
           child: Row(children: [if (compact) const _BrandMark(compact: true), if (compact) const SizedBox(width: 10), const Text('يمن كومرس')]),
         ),
         actions: [
-          TextButton.icon(onPressed: _comingSoon, icon: const Icon(Icons.login_rounded), label: const Text('تسجيل الدخول')),
+          if (widget.user == null)
+            TextButton.icon(onPressed: _startLogin, icon: const Icon(Icons.login_rounded), label: const Text('تسجيل الدخول'))
+          else
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('مرحباً ${widget.user!.name ?? 'بك'}')),
           const SizedBox(width: 14),
         ],
       );
@@ -84,11 +89,21 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
         0 => _HomePage(market: widget.market, marketLoading: widget.marketLoading, onNavigate: (index) => setState(() => _selectedIndex = index)),
         1 => const _CartPage(),
         2 => const _OrdersPage(),
-        3 => const _MerchantPage(),
+        3 => _MerchantPage(user: widget.user),
         _ => const _AdminPage(),
       };
 
-  void _comingSoon() => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سيُفتح تسجيل الدخول الآمن عند ربط هوية الحساب بالخادم.')));
+  Future<void> _startLogin() async {
+    final origin = Uri.base.origin;
+    if (origin.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اضبط عنوان API للتطبيق الأصلي قبل تسجيل الدخول.')));
+      return;
+    }
+    final loginUri = Uri.parse('$origin/api/oauth/start').replace(queryParameters: {'origin': origin});
+    if (!await launchUrl(loginUri, mode: LaunchMode.platformDefault)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر بدء تسجيل الدخول الآمن.')));
+    }
+  }
 }
 
 class _BrandMark extends StatelessWidget {
@@ -309,14 +324,62 @@ class _OrdersPage extends StatelessWidget {
       );
 }
 
-class _MerchantPage extends StatelessWidget {
-  const _MerchantPage();
+class _MerchantPage extends StatefulWidget {
+  const _MerchantPage({this.user});
+  final SessionUser? user;
+
   @override
-  Widget build(BuildContext context) => _CenteredPage(
-        icon: Icons.store_mall_directory_outlined,
-        title: 'مساحة التاجر',
-        detail: 'سجّل متجرك، أضف الكتالوج، عيّن وسائل الاستلام وبيانات الحساب المستلم، ثم انتظر اعتماد الإدارة قبل النشر.',
-      );
+  State<_MerchantPage> createState() => _MerchantPageState();
+}
+
+class _MerchantPageState extends State<_MerchantPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _phone = TextEditingController();
+  final _ownerName = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    _ownerName.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      await MarketplaceApiClient().submitMerchantApplication(phone: _phone.text.trim(), ownerName: _ownerName.text.trim());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب التاجر للمراجعة.')));
+    } on ApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user == null) {
+      return const _CenteredPage(icon: Icons.lock_outline, title: 'سجّل الدخول لبدء طلب التاجر', detail: 'يُحفظ حساب التاجر وبيانات متجره بشكل منفصل وآمن بعد تسجيل الدخول.');
+    }
+    return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: Card(child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('طلب الانضمام كتاجر', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        const Text('سيُراجع الطلب قبل ظهور المتجر أو منتجاته في السوق العام.'),
+        const SizedBox(height: 20),
+        TextFormField(controller: _ownerName, decoration: const InputDecoration(labelText: 'اسم صاحب النشاط'), validator: (value) => value == null || value.trim().length < 3 ? 'أدخل اسماً صحيحاً.' : null),
+        const SizedBox(height: 12),
+        TextFormField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف'), validator: (value) => value == null || value.trim().length < 7 ? 'أدخل رقم هاتف صحيحاً.' : null),
+        const SizedBox(height: 8),
+        const Text('سيُحفظ الرقم كغير مُتحقق منه خلال المرحلة التجريبية. سيتاح التحقق برسالة عند اعتماد مزود رسائل محلي.', style: TextStyle(color: Color(0xFF68655F), height: 1.5)),
+        const SizedBox(height: 20),
+        FilledButton.icon(onPressed: _submitting ? null : _submit, icon: _submitting ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded), label: Text(_submitting ? 'جارٍ الإرسال' : 'إرسال الطلب')),
+      ])),
+    ))));
+  }
 }
 
 class _AdminPage extends StatelessWidget {

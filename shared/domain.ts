@@ -50,8 +50,12 @@ export const capabilityKeys = [
   "notifications",
   "provider_api_payments",
   "support_agent",
+  "phone_otp_verification",
 ] as const;
 export type CapabilityKey = (typeof capabilityKeys)[number];
+
+export const phoneVerificationStatuses = ["unverified", "pending", "verified"] as const;
+export type PhoneVerificationStatus = (typeof phoneVerificationStatuses)[number];
 
 export const marketConfigSchema = z.object({
   id: z.number().int().positive(),

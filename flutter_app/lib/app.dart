@@ -14,6 +14,7 @@ class YemenCommerceApp extends StatefulWidget {
 
 class _YemenCommerceAppState extends State<YemenCommerceApp> {
   late final Future<MarketConfig> _market = MarketplaceApiClient().activeMarket();
+  late final Future<SessionUser?> _session = MarketplaceApiClient().currentUser();
 
   @override
   Widget build(BuildContext context) {
@@ -49,11 +50,15 @@ class _YemenCommerceAppState extends State<YemenCommerceApp> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         ),
       ),
-      home: FutureBuilder<MarketConfig>(
-        future: _market,
-        builder: (context, snapshot) => MarketplaceShell(
-          market: snapshot.data,
-          marketLoading: snapshot.connectionState == ConnectionState.waiting,
+      home: FutureBuilder<SessionUser?>(
+        future: _session,
+        builder: (context, sessionSnapshot) => FutureBuilder<MarketConfig>(
+          future: _market,
+          builder: (context, marketSnapshot) => MarketplaceShell(
+            market: marketSnapshot.data,
+            marketLoading: marketSnapshot.connectionState == ConnectionState.waiting,
+            user: sessionSnapshot.data,
+          ),
         ),
       ),
     );

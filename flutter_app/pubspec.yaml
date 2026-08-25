@@ -33,6 +33,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   http: ^1.2.2
+  url_launcher: ^6.3.1
 
   cupertino_icons: ^1.0.8
 

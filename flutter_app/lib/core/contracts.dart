@@ -71,3 +71,16 @@ class MarketplaceProduct {
     );
   }
 }
+
+class SessionUser {
+  const SessionUser({required this.id, this.name, required this.role});
+  final int id;
+  final String? name;
+  final String role;
+
+  factory SessionUser.fromJson(Map<String, dynamic> json) => SessionUser(
+        id: json['id'] as int,
+        name: json['name'] as String?,
+        role: json['role'] as String,
+      );
+}

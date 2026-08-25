@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { merchantOrders, merchants, paymentMethods, products, shopFulfilmentMethods, shops, userRoles } from "../../drizzle/schema";
@@ -24,7 +24,7 @@ export const merchantRouter = router({
     if (!merchant) return { merchant: null, shops: [], products: [], paymentMethods: [], orders: [] };
     const merchantShops = await db.select().from(shops).where(eq(shops.merchantId, merchant.id));
     const shopIds = merchantShops.map((shop) => shop.id);
-    const merchantProducts = shopIds.length ? await db.select().from(products).where(eq(products.shopId, shopIds[0]!)) : [];
+    const merchantProducts = shopIds.length ? await db.select().from(products).where(inArray(products.shopId, shopIds)) : [];
     const methods = await db.select().from(paymentMethods).where(eq(paymentMethods.merchantId, merchant.id));
     const orders = await db.select().from(merchantOrders).where(eq(merchantOrders.merchantId, merchant.id)).orderBy(desc(merchantOrders.createdAt));
     return { merchant, shops: merchantShops, products: merchantProducts, paymentMethods: methods, orders };

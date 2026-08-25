@@ -85,6 +85,8 @@ export const merchants = mysqlTable("merchants", {
   ownerUserId: int("ownerUserId").notNull().references(() => users.id),
   marketId: int("marketId").notNull().references(() => markets.id),
   phone: varchar("phone", { length: 32 }).notNull(),
+  phoneVerificationStatus: mysqlEnum("phoneVerificationStatus", ["unverified", "pending", "verified"]).default("unverified").notNull(),
+  phoneVerifiedAt: timestamp("phoneVerifiedAt"),
   ownerName: varchar("ownerName", { length: 160 }).notNull(),
   verificationStatus: mysqlEnum("verificationStatus", ["draft", "pending", "verified", "rejected"]).default("draft").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -92,6 +94,24 @@ export const merchants = mysqlTable("merchants", {
 }, (table) => [
   index("merchants_owner_idx").on(table.ownerUserId),
   index("merchants_market_idx").on(table.marketId),
+]);
+
+/** Credentials are intentionally excluded; they will be managed as environment secrets only after an approved provider contract exists. */
+export const otpProviderConfigurations = mysqlTable("otpProviderConfigurations", {
+  id: int("id").autoincrement().primaryKey(),
+  marketId: int("marketId").notNull().references(() => markets.id),
+  providerKey: varchar("providerKey", { length: 80 }).notNull(),
+  providerType: mysqlEnum("providerType", ["carrier", "aggregator"]).notNull(),
+  displayName: varchar("displayName", { length: 160 }).notNull(),
+  status: mysqlEnum("status", ["disabled", "pending_activation", "active", "paused"]).default("disabled").notNull(),
+  senderId: varchar("senderId", { length: 32 }),
+  deliveryReportsEnabled: boolean("deliveryReportsEnabled").default(false).notNull(),
+  rateLimitPerMinute: int("rateLimitPerMinute").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("otp_provider_market_key_unique").on(table.marketId, table.providerKey),
+  index("otp_provider_market_status_idx").on(table.marketId, table.status),
 ]);
 
 export const shops = mysqlTable("shops", {

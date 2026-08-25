@@ -21,6 +21,7 @@ const DEFAULT_CAPABILITIES: Array<{ key: CapabilityKey; enabled: boolean; reason
   { key: "notifications", enabled: false, reasonAr: "سيتم تفعيل الإشعارات في مرحلة لاحقة." },
   { key: "provider_api_payments", enabled: false, reasonAr: "تظل عمليات الدفع يدوية حتى اعتماد مزود الدفع رسمياً." },
   { key: "support_agent", enabled: false, reasonAr: "دور الدعم محدود ومؤجل في مرحلة الإطلاق." },
+  { key: "phone_otp_verification", enabled: false, reasonAr: "سيُفعّل التحقق من ملكية الهاتف بعد اعتماد مزود رسائل مناسب." },
 ];
 
 const DEFAULT_POLICIES = [

@@ -49,6 +49,27 @@ class MarketplaceApiClient {
     final json = (data['json'] ?? data) as List<dynamic>;
     return json.map((item) => MarketplaceProduct.fromCatalogJson(item as Map<String, dynamic>)).toList();
   }
+
+  Future<SessionUser?> currentUser() async {
+    final response = await _client.get(_uri('/api/trpc/auth.me'));
+    if (response.statusCode < 200 || response.statusCode >= 300) return null;
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final result = decoded['result'] as Map<String, dynamic>;
+    final data = result['data'] as Map<String, dynamic>;
+    final json = data['json'] ?? data;
+    return json == null ? null : SessionUser.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<void> submitMerchantApplication({required String phone, required String ownerName}) async {
+    final response = await _client.post(
+      _uri('/api/trpc/merchant.submitApplication'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'json': {'phone': phone, 'ownerName': ownerName}}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException('تعذر إرسال طلب التاجر. تحقق من تسجيل الدخول والبيانات.');
+    }
+  }
 }
 
 class ApiException implements Exception {

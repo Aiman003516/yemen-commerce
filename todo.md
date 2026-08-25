@@ -1,6 +1,6 @@
 # Project TODO
 
-- [ ] Add repository documentation and synchronize the web project with the connected Yemen Commerce GitHub repository.
+- [x] Add repository documentation and synchronize the web project with the connected Yemen Commerce GitHub repository.
 - [x] Define shared versioned domain contracts for markets, roles, shops, products, carts, merchant orders, payment snapshots, proofs, fulfilment, policies, and audit events.
 - [x] Add modular geography configuration with Ibb seeded as the first enabled market and extensible governorate, city, district, and service-area records.
 - [ ] Add capability and feature-availability configuration with safe disabled states for payments, fulfilment, notifications, policies, roles, and integrations.
@@ -21,8 +21,8 @@
 - [ ] Add route guards, loading, empty, error, success, unavailable, and permission-denied states for every implemented feature.
 - [ ] Add Vitest coverage for merchant isolation, cart grouping, split-order creation, immutable payment snapshots, payment state transitions, modular availability, and second-city expansion behavior.
 - [x] Verify Arabic RTL behavior and responsive layouts on narrow-phone and desktop browser viewports.
-- [ ] Commit completed implementation increments and documentation to the connected private GitHub repository.
-- [ ] Save a final web project checkpoint after the initial implemented increment is verified.
+- [x] Commit completed implementation increments and documentation to the connected private GitHub repository.
+- [x] Save a final web project checkpoint after the initial implemented increment is verified.
 - [x] Replace the temporary React presentation layer with the shared Flutter application compiled for responsive web; keep the Node project as backend/API infrastructure only.
 - [x] Verify that the Flutter web client is Arabic-first, RTL-ready, responsive across phone and desktop widths, and shares versioned domain/API contracts with Android and iOS builds.
 - [x] Add explicit versioned market-policy configuration with safe policy availability APIs and regression tests.
@@ -30,3 +30,5 @@
 - [x] Add executable Flutter Web RTL and responsive verification for narrow-phone and desktop layouts, plus code-level tests for the shared contract subset used by both clients.
 - [x] Document the implemented shared contract subset and extend it as additional marketplace flows are connected in Flutter.
 - [x] Add regression tests for market-policy active/inactive availability, version resolution, and safe fallback behavior.
+- [x] Keep mobile phone numbers collected but explicitly unverified during the Ibb pilot; do not block onboarding or customer flows on OTP until a provider is approved.
+- [ ] Add a disabled, adapter-based carrier OTP module for future Yemen Mobile, Sabafon, YOU, or local-aggregator activation, including provider configuration, delivery reports, rate limits, and audit events.

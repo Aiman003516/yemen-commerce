@@ -1,9 +1,10 @@
-import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState, encodeOAuthState } from "@shared/const";
 import { parse as parseCookieHeader } from "cookie";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -11,6 +12,29 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
+  app.get("/api/oauth/start", (req: Request, res: Response) => {
+    const origin = getQueryParam(req, "origin");
+    if (!origin || !ENV.oAuthPortalUrl || !ENV.appId) {
+      res.status(400).json({ error: "OAuth configuration or origin is missing" });
+      return;
+    }
+    try {
+      const frontendOrigin = new URL(origin).origin;
+      const redirectUri = `${frontendOrigin}/api/oauth/callback`;
+      const nonce = crypto.randomUUID();
+      const state = encodeOAuthState({ redirectUri, nonce });
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(OAUTH_STATE_COOKIE, nonce, { ...cookieOptions, maxAge: 10 * 60 * 1000 });
+      const loginUrl = new URL("/login", ENV.oAuthPortalUrl);
+      loginUrl.searchParams.set("app_id", ENV.appId);
+      loginUrl.searchParams.set("redirect_url", redirectUri);
+      loginUrl.searchParams.set("state", state);
+      res.redirect(302, loginUrl.toString());
+    } catch {
+      res.status(400).json({ error: "Invalid OAuth origin" });
+    }
+  });
+
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");

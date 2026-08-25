@@ -22,6 +22,13 @@
       "when": 1787658718650,
       "tag": "0002_premium_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787660310306,
+      "tag": "0003_safe_caretaker",
+      "breakpoints": true
     }
   ]
 }

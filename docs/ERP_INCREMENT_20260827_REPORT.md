@@ -2,7 +2,7 @@
 
 **Branch:** `migration/flutter-supabase-foundation`
 **ERP implementation commit:** `86e1c0e8d05c6de5778d7520d09a67ef684fd7bf`
-**Final branch head:** `139766f1f9af3e9fcda87843185252d9f2d6ba5e`
+**Final branch head:** `3a003ee`
 **Scope:** ERP expansion on top of the existing Arabic-first Flutter/Supabase commerce platform.
 
 ## Delivered and deployed
@@ -50,4 +50,4 @@ The implementation does **not** claim that all 32 enterprise features are produc
 
 The existing AI-3 through AI-6 controls remain governed by creator policy, explicit merchant confirmation, quotas, consent, revocation, and disabled-by-default provider/background gates. No AI, forecast, anomaly, webhook, or ERP projection automatically posts a ledger, marks an order paid, settles a collection, or moves funds.
 
-The branch was pushed successfully to GitHub. The ERP implementation is in commit `86e1c0e8d05c6de5778d7520d09a67ef684fd7bf`; the final branch head is `139766f1f9af3e9fcda87843185252d9f2d6ba5e` (verified after push). `main` was not merged.
+The branch was pushed successfully to GitHub. The ERP implementation is in commit `86e1c0e8d05c6de5778d7520d09a67ef684fd7bf`; the final branch head is `3a003ee` (verified after push). `main` was not merged.

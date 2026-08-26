@@ -1809,6 +1809,102 @@ class _IdentityMerchantPanelState extends State<_IdentityMerchantPanel> {
   );
 }
 
+class _MerchantInsightsCard extends StatelessWidget {
+  const _MerchantInsightsCard({
+    required this.shopId,
+    required this.onAddPromotion,
+  });
+
+  final String shopId;
+  final VoidCallback onAddPromotion;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<MerchantAnalytics>(
+        future: MarketplaceApiClient().merchantAnalytics(shopId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Text('تعذر تحميل مؤشرات المتجر حالياً.');
+          }
+          final metrics = snapshot.data!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'مؤشرات ونمو المتجر',
+                      subtitle: 'أرقام مجمعة للعناية بالتشغيل، مع عروض قابلة للتوسع لاحقاً داخل الدفع.',
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onAddPromotion,
+                    icon: const Icon(Icons.local_offer_outlined),
+                    label: const Text('إضافة عرض'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _MetricChip(
+                    label: 'الطلبات',
+                    value: '${metrics.ordersCount}',
+                  ),
+                  _MetricChip(
+                    label: 'المدفوعة',
+                    value: '${metrics.paidOrdersCount}',
+                  ),
+                  _MetricChip(
+                    label: 'المكتملة',
+                    value: '${metrics.completedOrdersCount}',
+                  ),
+                  _MetricChip(
+                    label: 'المنتجات النشطة',
+                    value: '${metrics.activeProductsCount}',
+                  ),
+                  _MetricChip(
+                    label: 'مخزون منخفض',
+                    value: '${metrics.lowStockProductsCount}',
+                  ),
+                  _MetricChip(
+                    label: 'حالات مفتوحة',
+                    value: '${metrics.openCasesCount}',
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Chip(
+    avatar: CircleAvatar(
+      backgroundColor: const Color(0xFFE5F3EE),
+      child: Text(value, style: const TextStyle(fontSize: 11)),
+    ),
+    label: Text(label),
+  );
+}
+
 class _MerchantOperationsPanel extends StatefulWidget {
   const _MerchantOperationsPanel();
 
@@ -1952,6 +2048,13 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
               );
             },
           ),
+          if (workspace.shops.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _MerchantInsightsCard(
+              shopId: workspace.shops.first.id,
+              onAddPromotion: () => _createPromotion(workspace.shops.first.id),
+            ),
+          ],
           const SizedBox(height: 20),
           Text(
             'متاجرك',
@@ -2053,6 +2156,85 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
       );
     },
   );
+
+  Future<void> _createPromotion(String shopId) async {
+    final code = TextEditingController();
+    final value = TextEditingController();
+    var kind = 'percent';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إضافة عرض'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: code,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(labelText: 'رمز العرض'),
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: kind,
+                decoration: const InputDecoration(labelText: 'نوع العرض'),
+                items: const [
+                  DropdownMenuItem(value: 'percent', child: Text('نسبة مئوية')),
+                  DropdownMenuItem(value: 'fixed', child: Text('قيمة ثابتة')),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => kind = value ?? 'percent'),
+              ),
+              TextField(
+                controller: value,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'القيمة (نسبة أو ريال)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final parsed = int.tryParse(value.text.trim());
+                if (code.text.trim().length < 3 ||
+                    parsed == null ||
+                    parsed <= 0) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveMerchantPromotion(
+                    shopId: shopId,
+                    code: code.text.trim(),
+                    kind: kind,
+                    valueMinor: parsed,
+                    status: 'draft',
+                  );
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم حفظ العرض كمسودة.')),
+                  );
+                } on ApiException catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ كمسودة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    code.dispose();
+    value.dispose();
+  }
 
   Future<void> _createProduct(List<MerchantShopSummary> shops) async {
     final name = TextEditingController();

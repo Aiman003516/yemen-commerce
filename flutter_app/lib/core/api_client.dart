@@ -83,6 +83,172 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> _invokeAiEndpoint({
+    required String function,
+    required Map<String, dynamic> body,
+    required String fallback,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إجراءات المساعد اتصال Supabase.');
+    }
+    try {
+      final response = await supabase.client.functions.invoke(
+        function,
+        body: body,
+      );
+      if (response.status < 200 ||
+          response.status >= 300 ||
+          response.data is! Map) {
+        throw ApiException(fallback);
+      }
+      return Map<String, dynamic>.from(response.data as Map);
+    } on ApiException {
+      rethrow;
+    } on FunctionException catch (error) {
+      final details = error.details;
+      final code = details is Map ? details['code']?.toString() : null;
+      throw ApiException(_localizedAiError(code));
+    } catch (_) {
+      throw ApiException(fallback);
+    }
+  }
+
+  Future<AiActionProposal> proposeMerchantAction({
+    required String shopId,
+    required String actionKey,
+    required Map<String, dynamic> arguments,
+    required String idempotencyKey,
+  }) async {
+    if (shopId.trim().isEmpty ||
+        actionKey.trim().isEmpty ||
+        arguments.isEmpty ||
+        idempotencyKey.trim().isEmpty) {
+      throw ApiException('بيانات إجراء المراجعة غير صالحة.');
+    }
+    final json = await _invokeAiEndpoint(
+      function: 'ai-propose-action',
+      fallback: 'تعذر إعداد الإجراء للمراجعة. لم يتم تنفيذ أي تغيير.',
+      body: {
+        'app_surface': 'merchant',
+        'scope_type': 'shop',
+        'scope_id': shopId.trim(),
+        'action_key': actionKey.trim(),
+        'arguments': arguments,
+        'idempotency_key': idempotencyKey.trim(),
+      },
+    );
+    return AiActionProposal.fromJson(json);
+  }
+
+  Future<List<AiApprovalSummary>> myAiApprovals({
+    String status = 'pending',
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مراجعة إجراءات المساعد اتصال Supabase.');
+    }
+    try {
+      final result = await supabase.client.rpc(
+        'ai_list_my_approvals',
+        params: {'p_status': status.trim().isEmpty ? null : status.trim()},
+      );
+      if (result is! List) return const [];
+      return result
+          .whereType<Map>()
+          .map(
+            (row) => AiApprovalSummary.fromJson(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل إجراءات المراجعة.'),
+      );
+    }
+  }
+
+  Future<List<AiToolCallSummary>> aiRunToolCalls(String runId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مراجعة إجراءات المساعد اتصال Supabase.');
+    }
+    if (runId.trim().isEmpty) {
+      throw ApiException('معرّف تشغيل المساعد غير صالح.');
+    }
+    try {
+      final result = await supabase.client.rpc(
+        'ai_list_run_tool_calls',
+        params: {'p_run_id': runId.trim()},
+      );
+      if (result is! List) return const [];
+      return result
+          .whereType<Map>()
+          .map(
+            (row) => AiToolCallSummary.fromJson(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل تفاصيل إجراء المراجعة.'),
+      );
+    }
+  }
+
+  Future<AiApprovalDecisionResult> decideAiApproval({
+    required String approvalId,
+    required String decision,
+    String? reason,
+  }) async {
+    if (approvalId.trim().isEmpty ||
+        (decision != 'approved' && decision != 'rejected') ||
+        (decision == 'rejected' && (reason?.trim().length ?? 0) < 3)) {
+      throw ApiException('قرار المراجعة أو سببه غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مراجعة إجراءات المساعد اتصال Supabase.');
+    }
+    try {
+      final result = await supabase.client.rpc(
+        'ai_decide_approval',
+        params: {
+          'p_approval_id': approvalId.trim(),
+          'p_decision': decision,
+          'p_reason': reason?.trim().isEmpty == true ? null : reason?.trim(),
+        },
+      );
+      return AiApprovalDecisionResult.fromJson(
+        Map<String, dynamic>.from(result as Map),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر حفظ قرار المراجعة.'),
+      );
+    }
+  }
+
+  Future<AiActionExecutionResult> executeAiAction({
+    required String runId,
+    required String toolCallId,
+    required String approvalId,
+  }) async {
+    if (runId.trim().isEmpty ||
+        toolCallId.trim().isEmpty ||
+        approvalId.trim().isEmpty) {
+      throw ApiException('بيانات تنفيذ الإجراء غير صالحة.');
+    }
+    final json = await _invokeAiEndpoint(
+      function: 'ai-execute-action',
+      fallback: 'تعذر تنفيذ الإجراء. لم يتم تأكيد أي تغيير غير مقصود.',
+      body: {
+        'run_id': runId.trim(),
+        'tool_call_id': toolCallId.trim(),
+        'approval_id': approvalId.trim(),
+      },
+    );
+    return AiActionExecutionResult.fromJson(json);
+  }
+
   Future<MarketConfig> activeMarket() async {
     final supabase = _supabase;
     if (supabase != null) {
@@ -1899,6 +2065,7 @@ String _localizedAiError(String? code) {
     case 'AI_SCOPE_FORBIDDEN':
       return 'لا يمكن للمساعد الوصول إلى هذا المتجر بهذه الجلسة.';
     case 'AI_POLICY_DENIED':
+    case 'AI_ACTION_DISABLED':
     case 'AI_PROVIDER_POLICY_DISABLED':
       return 'هذه الميزة غير مفعلة وفق سياسة المساعد الحالية.';
     case 'AI_PROVIDER_NOT_CONFIGURED':
@@ -1911,6 +2078,12 @@ String _localizedAiError(String? code) {
       return 'هذا النوع من طلبات التاجر غير متاح حالياً.';
     case 'AI_TOOL_ARGUMENTS_INVALID':
       return 'لم تكن معاملات أداة المساعد صالحة، لذلك تم إيقاف الطلب.';
+    case 'AI_APPROVAL_EXPIRED':
+      return 'انتهت صلاحية الموافقة. أعد إنشاء طلب مراجعة.';
+    case 'AI_APPROVAL_FORBIDDEN':
+      return 'لا توجد موافقة صالحة لهذا الإجراء.';
+    case 'AI_ARGUMENTS_MISMATCH':
+      return 'تغيرت معاملات الإجراء؛ لم يتم تنفيذ أي تغيير.';
     default:
       return 'تعذر إكمال طلب المساعد بأمان. لم يتم تنفيذ أي تغيير.';
   }

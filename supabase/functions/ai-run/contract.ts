@@ -3,6 +3,8 @@ export type JsonObject = Record<string, unknown>;
 export const READONLY_TOOL_NAMES = new Set([
   "customer.list_own_quotes",
   "merchant.ai_catalog",
+  "merchant.knowledge_search",
+  "merchant.terminology_search",
   "merchant.order_workbench",
   "merchant.daily_rollups",
   "merchant.price_lists",
@@ -12,6 +14,9 @@ export const READONLY_TOOL_NAMES = new Set([
   "merchant.quality_summary",
   "developer.provider_readiness",
   "developer.effective_policies",
+  "developer.platform_settings",
+  "developer.action_definitions",
+  "developer.my_workflows",
 ]);
 
 export const MERCHANT_INTENT_KEYS = new Set([
@@ -64,6 +69,16 @@ export const objectOrEmpty = (value: unknown): JsonObject => {
 
 export const validateNoArgs = (args: JsonObject): string | null =>
   Object.keys(args).length === 0 ? null : "NO_ARGUMENTS_ALLOWED";
+
+export const validateKnowledgeArgs = (args: JsonObject): string | null => {
+  const keys = Object.keys(args);
+  if (keys.some((key) => !["query", "limit"].includes(key))) return "UNKNOWN_ARGUMENT";
+  if (requireString(args.query, 240) === null) return "INVALID_QUERY";
+  if (args.limit !== undefined && requireInteger(args.limit, 1, 10) === null) return "INVALID_LIMIT";
+  return null;
+};
+
+export const validateTerminologyArgs = validateKnowledgeArgs;
 
 export const validateCatalogArgs = (args: JsonObject): string | null => {
   const keys = Object.keys(args);

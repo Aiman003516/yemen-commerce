@@ -411,6 +411,196 @@ class CreatorRepository {
       Map<String, dynamic>.from(result as Map),
     );
   }
+
+  Future<Map<String, dynamic>> aiPlatformSettings() async {
+    final result = await _client.rpc('ai_get_platform_settings');
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> aiActionDefinitions() async {
+    final result = await _client.rpc('ai_list_action_definitions');
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> publishAiPlatformSettings({
+    String? model,
+    required bool providerEnabled,
+    required bool backgroundEnabled,
+    required bool knowledgeEnabled,
+    required bool externalAgentEnabled,
+    required int maxToolCalls,
+    required int maxWorkflowAttempts,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'ai_publish_platform_settings',
+      params: {
+        'p_model': model?.trim().isEmpty == true ? null : model?.trim(),
+        'p_provider_enabled': providerEnabled,
+        'p_background_enabled': backgroundEnabled,
+        'p_knowledge_enabled': knowledgeEnabled,
+        'p_external_agent_enabled': externalAgentEnabled,
+        'p_max_tool_calls': maxToolCalls,
+        'p_max_workflow_attempts': maxWorkflowAttempts,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> setAiActionEnabled({
+    required String actionKey,
+    required bool enabled,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'ai_set_action_enabled',
+      params: {
+        'p_action_key': actionKey,
+        'p_enabled': enabled,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> aiUpsertKnowledgeSource({
+    required String scopeType,
+    String? scopeId,
+    required String sourceKey,
+    required String title,
+    required String sourceKind,
+    String? sourceUri,
+    required int sourceVersion,
+    required String status,
+    required String trustClass,
+    required String contentHash,
+    Map<String, dynamic> metadata = const {},
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'ai_upsert_knowledge_source',
+      params: {
+        'p_scope_type': scopeType,
+        'p_scope_id': scopeId,
+        'p_source_key': sourceKey.trim(),
+        'p_title': title.trim(),
+        'p_source_kind': sourceKind,
+        'p_source_uri': sourceUri?.trim().isEmpty == true
+            ? null
+            : sourceUri?.trim(),
+        'p_source_version': sourceVersion,
+        'p_status': status,
+        'p_trust_class': trustClass,
+        'p_content_hash': contentHash.trim(),
+        'p_metadata': metadata,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> aiAddKnowledgeChunk({
+    required String sourceId,
+    required int ordinal,
+    required String content,
+    required String contentHash,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'ai_add_knowledge_chunk',
+      params: {
+        'p_source_id': sourceId,
+        'p_ordinal': ordinal,
+        'p_content': content.trim(),
+        'p_content_hash': contentHash.trim(),
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> aiUpsertEvaluationSuite({
+    required String suiteKey,
+    required int version,
+    required String name,
+    String description = '',
+    required String locale,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'ai_upsert_evaluation_suite',
+      params: {
+        'p_suite_key': suiteKey.trim(),
+        'p_version': version,
+        'p_name': name.trim(),
+        'p_description': description.trim(),
+        'p_locale': locale,
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> aiUpsertTerminologyEntry({
+    required String scopeType,
+    String? scopeId,
+    required String termKey,
+    required String termArabic,
+    required String canonicalTerm,
+    List<String> aliases = const [],
+    String definition = '',
+    String? sourceId,
+    required String status,
+    required String contentHash,
+    Map<String, dynamic> metadata = const {},
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'ai_upsert_terminology_entry',
+      params: {
+        'p_scope_type': scopeType,
+        'p_scope_id': scopeId,
+        'p_term_key': termKey.trim(),
+        'p_term_ar': termArabic.trim(),
+        'p_canonical_term': canonicalTerm.trim(),
+        'p_aliases': aliases
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false),
+        'p_definition': definition.trim(),
+        'p_source_id': sourceId?.trim().isEmpty == true
+            ? null
+            : sourceId?.trim(),
+        'p_status': status,
+        'p_content_hash': contentHash.trim(),
+        'p_metadata': metadata,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> aiEvaluationSummary() async {
+    final result = await _client.rpc('ai_list_evaluation_summary');
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> aiWorkflows({String? status}) async {
+    final result = await _client.rpc(
+      'ai_list_my_workflows',
+      params: {'p_status': status},
+    );
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
 }
 
 class CreatorRepositoryException implements Exception {

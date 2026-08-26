@@ -66,6 +66,173 @@ class AiRunResponse {
   );
 }
 
+class AiActionProposal {
+  const AiActionProposal({
+    required this.runId,
+    required this.toolCallId,
+    required this.approvalId,
+    required this.actionKey,
+    required this.status,
+    required this.argumentsRedacted,
+    required this.expiresAt,
+    required this.locale,
+  });
+
+  final String runId;
+  final String toolCallId;
+  final String approvalId;
+  final String actionKey;
+  final String status;
+  final Map<String, dynamic> argumentsRedacted;
+  final String? expiresAt;
+  final String locale;
+
+  factory AiActionProposal.fromJson(Map<String, dynamic> json) =>
+      AiActionProposal(
+        runId: json['run_id']?.toString() ?? '',
+        toolCallId: json['tool_call_id']?.toString() ?? '',
+        approvalId: json['approval_id']?.toString() ?? '',
+        actionKey: json['action_key']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'unknown',
+        argumentsRedacted: _mapValue(json['arguments']),
+        expiresAt: json['expires_at']?.toString(),
+        locale: json['locale']?.toString() ?? 'ar',
+      );
+}
+
+class AiApprovalSummary {
+  const AiApprovalSummary({
+    required this.approvalId,
+    required this.runId,
+    required this.toolCallId,
+    required this.toolName,
+    required this.argumentsHash,
+    required this.status,
+    required this.createdAt,
+    required this.expiresAt,
+    this.decisionReason,
+    this.decidedAt,
+  });
+
+  final String approvalId;
+  final String runId;
+  final String toolCallId;
+  final String toolName;
+  final String argumentsHash;
+  final String status;
+  final String? decisionReason;
+  final String? createdAt;
+  final String? expiresAt;
+  final String? decidedAt;
+
+  factory AiApprovalSummary.fromJson(Map<String, dynamic> json) =>
+      AiApprovalSummary(
+        approvalId: json['approval_id']?.toString() ?? '',
+        runId: json['run_id']?.toString() ?? '',
+        toolCallId: json['tool_call_id']?.toString() ?? '',
+        toolName: json['tool_name']?.toString() ?? '',
+        argumentsHash: json['arguments_hash']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'unknown',
+        decisionReason: json['decision_reason']?.toString(),
+        createdAt: json['created_at']?.toString(),
+        expiresAt: json['expires_at']?.toString(),
+        decidedAt: json['decided_at']?.toString(),
+      );
+}
+
+class AiToolCallSummary {
+  const AiToolCallSummary({
+    required this.toolCallId,
+    required this.runId,
+    required this.toolName,
+    required this.actionClass,
+    required this.status,
+    required this.argumentsHash,
+    required this.argumentsRedacted,
+    required this.approvalRequired,
+    this.errorCode,
+  });
+
+  final String toolCallId;
+  final String runId;
+  final String toolName;
+  final String actionClass;
+  final String status;
+  final String argumentsHash;
+  final Map<String, dynamic> argumentsRedacted;
+  final bool approvalRequired;
+  final String? errorCode;
+
+  factory AiToolCallSummary.fromJson(Map<String, dynamic> json) =>
+      AiToolCallSummary(
+        toolCallId: json['tool_call_id']?.toString() ?? '',
+        runId: json['run_id']?.toString() ?? '',
+        toolName: json['tool_name']?.toString() ?? '',
+        actionClass: json['action_class']?.toString() ?? 'unknown',
+        status: json['status']?.toString() ?? 'unknown',
+        argumentsHash: json['arguments_hash']?.toString() ?? '',
+        argumentsRedacted: _mapValue(json['arguments_redacted']),
+        approvalRequired: json['approval_required'] == true,
+        errorCode: json['error_code']?.toString(),
+      );
+}
+
+class AiApprovalDecisionResult {
+  const AiApprovalDecisionResult({
+    required this.approvalId,
+    required this.toolCallId,
+    required this.status,
+    required this.toolStatus,
+  });
+
+  final String approvalId;
+  final String toolCallId;
+  final String status;
+  final String toolStatus;
+
+  factory AiApprovalDecisionResult.fromJson(Map<String, dynamic> json) =>
+      AiApprovalDecisionResult(
+        approvalId: json['approval_id']?.toString() ?? '',
+        toolCallId: json['tool_call_id']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'unknown',
+        toolStatus: json['tool_status']?.toString() ?? 'unknown',
+      );
+}
+
+class AiActionExecutionResult {
+  const AiActionExecutionResult({
+    required this.runId,
+    required this.toolCallId,
+    required this.actionKey,
+    required this.status,
+    required this.idempotent,
+    required this.result,
+    required this.locale,
+  });
+
+  final String runId;
+  final String toolCallId;
+  final String actionKey;
+  final String status;
+  final bool idempotent;
+  final Map<String, dynamic> result;
+  final String locale;
+
+  factory AiActionExecutionResult.fromJson(Map<String, dynamic> json) =>
+      AiActionExecutionResult(
+        runId: json['run_id']?.toString() ?? '',
+        toolCallId: json['tool_call_id']?.toString() ?? '',
+        actionKey: json['action_key']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'unknown',
+        idempotent: json['idempotent'] == true,
+        result: _mapValue(json['result']),
+        locale: json['locale']?.toString() ?? 'ar',
+      );
+}
+
+Map<String, dynamic> _mapValue(dynamic value) =>
+    value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
 class IdentityVerificationSummary {
   const IdentityVerificationSummary({
     this.status,

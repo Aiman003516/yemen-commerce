@@ -19,7 +19,7 @@ import {
 
 describe("AI-1 read-only dispatcher contracts", () => {
   it("keeps the registry namespaced and free of dangerous actions", () => {
-    expect(READONLY_TOOL_NAMES.size).toBe(11);
+    expect(READONLY_TOOL_NAMES.size).toBe(16);
     expect([...READONLY_TOOL_NAMES].every((name) => name.includes("."))).toBe(true);
     expect([...DENIED_ACTION_CLASSES]).not.toContain("read");
   });
@@ -38,6 +38,7 @@ describe("AI-1 read-only dispatcher contracts", () => {
     expect(validateRollupArgs({ from: "2026-08-01", to: "2026-08-26", limit: 30 })).toBeNull();
     expect(validateRollupArgs({ from: "2026-08-01", to: "2026-08-26", limit: 31 })).not.toBeNull();
     expect(validateCatalogArgs({ query: "قهوة", limit: 40, offset: 0 })).toBeNull();
+    expect(READONLY_TOOL_NAMES).toContain("merchant.terminology_search");
     expect(validateCatalogArgs({ url: "https://unsafe.invalid" })).not.toBeNull();
     expect(validateCodArgs({ business_date: "2026-08-26", limit: 30 })).toBeNull();
     expect(validateCodArgs({ business_date: "2026-08-26", limit: 31 })).not.toBeNull();
@@ -95,7 +96,7 @@ describe("AI-1 read-only dispatcher contracts", () => {
 
   it("keeps customer, merchant, and developer tool namespaces separated", () => {
     expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("customer.")).length).toBe(1);
-    expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("merchant.")).length).toBe(8);
-    expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("developer.")).length).toBe(2);
+    expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("merchant.")).length).toBe(10);
+    expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("developer.")).length).toBe(5);
   });
 });

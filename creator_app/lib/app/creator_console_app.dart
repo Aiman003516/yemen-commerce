@@ -110,6 +110,7 @@ class _CreatorConsoleShellState extends State<CreatorConsoleShell> {
       const CreatorMarketOperationsPage(),
       const CreatorProviderHubPage(),
       const CreatorTrustSupportPage(),
+      const CreatorAiOperationsPage(),
     ];
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -203,6 +204,11 @@ class _CreatorRail extends StatelessWidget {
         selectedIcon: Icon(Icons.fact_check),
         label: Text('التدقيق'),
       ),
+      NavigationRailDestination(
+        icon: Icon(Icons.smart_toy_outlined),
+        selectedIcon: Icon(Icons.smart_toy),
+        label: Text('حوكمة الذكاء'),
+      ),
     ],
   );
 }
@@ -241,6 +247,10 @@ class _CreatorBottomBar extends StatelessWidget {
       NavigationDestination(
         icon: Icon(Icons.fact_check_outlined),
         label: 'التدقيق',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.smart_toy_outlined),
+        label: 'حوكمة الذكاء',
       ),
     ],
   );
@@ -2010,5 +2020,944 @@ class _EmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(padding: const EdgeInsets.all(18), child: Text(message)),
+  );
+}
+
+class CreatorAiOperationsPage extends StatefulWidget {
+  const CreatorAiOperationsPage({super.key});
+
+  @override
+  State<CreatorAiOperationsPage> createState() =>
+      _CreatorAiOperationsPageState();
+}
+
+class _CreatorAiOperationsPageState extends State<CreatorAiOperationsPage> {
+  final _repository = CreatorRepository();
+  late Future<List<dynamic>> _load;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _load = Future.wait<dynamic>([
+      _repository.aiPlatformSettings(),
+      _repository.aiActionDefinitions(),
+      _repository.aiWorkflows(),
+      _repository.aiEvaluationSummary(),
+    ]);
+  }
+
+  Future<String?> _reasonDialog(String title) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 500,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'سبب التغيير',
+            hintText: 'اكتب سبباً واضحاً للمراجعة والتدقيق',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length >= 3) Navigator.pop(context, value);
+            },
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
+  }
+
+  Future<void> _publish(
+    Map<String, dynamic> current,
+    String field,
+    bool value,
+  ) async {
+    if (_saving) return;
+    final reason = await _reasonDialog('تأكيد تغيير إعداد الذكاء الاصطناعي');
+    if (!mounted || reason == null) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.publishAiPlatformSettings(
+        model: current['model']?.toString(),
+        providerEnabled: field == 'provider_enabled'
+            ? value
+            : current['provider_enabled'] == true,
+        backgroundEnabled: field == 'background_enabled'
+            ? value
+            : current['background_enabled'] == true,
+        knowledgeEnabled: field == 'knowledge_enabled'
+            ? value
+            : current['knowledge_enabled'] == true,
+        externalAgentEnabled: field == 'external_agent_enabled'
+            ? value
+            : current['external_agent_enabled'] == true,
+        maxToolCalls: (current['max_tool_calls'] as num?)?.toInt() ?? 8,
+        maxWorkflowAttempts:
+            (current['max_workflow_attempts'] as num?)?.toInt() ?? 3,
+        reason: reason,
+      );
+      if (mounted) setState(() => _reload());
+    } catch (_) {
+      if (mounted) _showMessage('تعذر نشر الإعداد. لم يتغير أي مسار تشغيل.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _toggleAction(Map<String, dynamic> action, bool value) async {
+    if (_saving) return;
+    final reason = await _reasonDialog('تأكيد تغيير إتاحة الإجراء');
+    if (!mounted || reason == null) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.setAiActionEnabled(
+        actionKey: action['action_key'].toString(),
+        enabled: value,
+        reason: reason,
+      );
+      if (mounted) setState(() => _reload());
+    } catch (_) {
+      if (mounted) _showMessage('تعذر تغيير إتاحة الإجراء.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _createKnowledgeSource() async {
+    final scopeType = ValueNotifier<String>('global');
+    final sourceKind = ValueNotifier<String>('guide');
+    final status = ValueNotifier<String>('draft');
+    final trustClass = ValueNotifier<String>('internal');
+    final scopeId = TextEditingController();
+    final sourceKey = TextEditingController();
+    final title = TextEditingController();
+    final sourceUri = TextEditingController();
+    final sourceVersion = TextEditingController(text: '1');
+    final contentHash = TextEditingController();
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إضافة مصدر معرفة مُدار'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValueListenableBuilder<String>(
+                valueListenable: scopeType,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'النطاق'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'global',
+                      child: Text('عام للمنصة'),
+                    ),
+                    DropdownMenuItem(value: 'market', child: Text('سوق محدد')),
+                    DropdownMenuItem(value: 'shop', child: Text('متجر محدد')),
+                  ],
+                  onChanged: (next) => scopeType.value = next ?? 'global',
+                ),
+              ),
+              TextField(
+                controller: scopeId,
+                decoration: const InputDecoration(
+                  labelText: 'معرّف السوق/المتجر عند الحاجة',
+                ),
+              ),
+              TextField(
+                controller: sourceKey,
+                decoration: const InputDecoration(labelText: 'مفتاح المصدر'),
+              ),
+              TextField(
+                controller: title,
+                decoration: const InputDecoration(labelText: 'عنوان المصدر'),
+              ),
+              TextField(
+                controller: sourceUri,
+                decoration: const InputDecoration(
+                  labelText: 'رابط مرجعي اختياري — لا يتم جلبه تلقائياً',
+                ),
+              ),
+              TextField(
+                controller: sourceVersion,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الإصدار'),
+              ),
+              TextField(
+                controller: contentHash,
+                decoration: const InputDecoration(
+                  labelText: 'بصمة المحتوى SHA-256',
+                ),
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: sourceKind,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'نوع المصدر'),
+                  items: const [
+                    DropdownMenuItem(value: 'policy', child: Text('سياسة')),
+                    DropdownMenuItem(value: 'catalog', child: Text('كتالوج')),
+                    DropdownMenuItem(value: 'faq', child: Text('أسئلة شائعة')),
+                    DropdownMenuItem(value: 'guide', child: Text('دليل')),
+                    DropdownMenuItem(value: 'support', child: Text('دعم')),
+                    DropdownMenuItem(value: 'other', child: Text('أخرى')),
+                  ],
+                  onChanged: (next) => sourceKind.value = next ?? 'guide',
+                ),
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: status,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(
+                      value: 'ready',
+                      child: Text('جاهز للاسترجاع'),
+                    ),
+                    DropdownMenuItem(value: 'archived', child: Text('مؤرشف')),
+                  ],
+                  onChanged: (next) => status.value = next ?? 'draft',
+                ),
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: trustClass,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'درجة الثقة'),
+                  items: const [
+                    DropdownMenuItem(value: 'internal', child: Text('داخلي')),
+                    DropdownMenuItem(
+                      value: 'merchant_provided',
+                      child: Text('مقدم من تاجر'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'external_unverified',
+                      child: Text('خارجي غير موثق'),
+                    ),
+                  ],
+                  onChanged: (next) => trustClass.value = next ?? 'internal',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final version = int.tryParse(sourceVersion.text.trim());
+              if (sourceKey.text.trim().length >= 2 &&
+                  title.text.trim().length >= 2 &&
+                  (version ?? 0) > 0 &&
+                  contentHash.text.trim().length >= 16 &&
+                  (scopeType.value == 'global' ||
+                      scopeId.text.trim().isNotEmpty)) {
+                Navigator.pop(dialogContext, {
+                  'scope_type': scopeType.value,
+                  'scope_id': scopeId.text.trim().isEmpty
+                      ? null
+                      : scopeId.text.trim(),
+                  'source_key': sourceKey.text.trim(),
+                  'title': title.text.trim(),
+                  'source_uri': sourceUri.text.trim().isEmpty
+                      ? null
+                      : sourceUri.text.trim(),
+                  'source_version': version,
+                  'content_hash': contentHash.text.trim(),
+                  'source_kind': sourceKind.value,
+                  'status': status.value,
+                  'trust_class': trustClass.value,
+                });
+              }
+            },
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    scopeType.dispose();
+    sourceKind.dispose();
+    status.dispose();
+    trustClass.dispose();
+    scopeId.dispose();
+    sourceKey.dispose();
+    title.dispose();
+    sourceUri.dispose();
+    sourceVersion.dispose();
+    contentHash.dispose();
+    if (values == null || !mounted) return;
+    final reason = await _reasonDialog('تأكيد إضافة مصدر المعرفة');
+    if (!mounted || reason == null) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.aiUpsertKnowledgeSource(
+        scopeType: values['scope_type'] as String,
+        scopeId: values['scope_id'] as String?,
+        sourceKey: values['source_key'] as String,
+        title: values['title'] as String,
+        sourceKind: values['source_kind'] as String,
+        sourceUri: values['source_uri'] as String?,
+        sourceVersion: values['source_version'] as int,
+        status: values['status'] as String,
+        trustClass: values['trust_class'] as String,
+        contentHash: values['content_hash'] as String,
+        reason: reason,
+      );
+      if (mounted) {
+        _showMessage('تم حفظ المصدر. أضف أجزاءً منفصلة قبل تفعيل الاسترجاع.');
+        setState(() => _reload());
+      }
+    } catch (_) {
+      if (mounted) _showMessage('تعذر حفظ مصدر المعرفة.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _addKnowledgeChunk() async {
+    final sourceId = TextEditingController();
+    final ordinal = TextEditingController(text: '0');
+    final content = TextEditingController();
+    final contentHash = TextEditingController();
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إضافة جزء معرفة'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: sourceId,
+                decoration: const InputDecoration(labelText: 'معرّف المصدر'),
+              ),
+              TextField(
+                controller: ordinal,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الترتيب'),
+              ),
+              TextField(
+                controller: content,
+                minLines: 4,
+                maxLines: 8,
+                maxLength: 8000,
+                decoration: const InputDecoration(
+                  labelText: 'المحتوى العربي أو المختلط',
+                ),
+              ),
+              TextField(
+                controller: contentHash,
+                decoration: const InputDecoration(
+                  labelText: 'بصمة الجزء SHA-256',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final index = int.tryParse(ordinal.text.trim());
+              if (sourceId.text.trim().isNotEmpty &&
+                  (index ?? -1) >= 0 &&
+                  content.text.trim().isNotEmpty &&
+                  contentHash.text.trim().length >= 16) {
+                Navigator.pop(dialogContext, {
+                  'source_id': sourceId.text.trim(),
+                  'ordinal': index,
+                  'content': content.text.trim(),
+                  'content_hash': contentHash.text.trim(),
+                });
+              }
+            },
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    sourceId.dispose();
+    ordinal.dispose();
+    content.dispose();
+    contentHash.dispose();
+    if (values == null || !mounted) return;
+    final reason = await _reasonDialog('تأكيد إضافة جزء المعرفة');
+    if (!mounted || reason == null) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.aiAddKnowledgeChunk(
+        sourceId: values['source_id'] as String,
+        ordinal: values['ordinal'] as int,
+        content: values['content'] as String,
+        contentHash: values['content_hash'] as String,
+        reason: reason,
+      );
+      if (mounted) _showMessage('تم حفظ جزء المعرفة مع سجل التدقيق.');
+    } catch (_) {
+      if (mounted) _showMessage('تعذر حفظ جزء المعرفة.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _createTerminologyEntry() async {
+    final scopeType = ValueNotifier<String>('global');
+    final status = ValueNotifier<String>('draft');
+    final scopeId = TextEditingController();
+    final termKey = TextEditingController();
+    final termArabic = TextEditingController();
+    final canonicalTerm = TextEditingController();
+    final aliases = TextEditingController();
+    final definition = TextEditingController();
+    final sourceId = TextEditingController();
+    final contentHash = TextEditingController();
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إضافة مصطلح عربي'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValueListenableBuilder<String>(
+                valueListenable: scopeType,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'النطاق'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'global',
+                      child: Text('عام للمنصة'),
+                    ),
+                    DropdownMenuItem(value: 'market', child: Text('سوق محدد')),
+                    DropdownMenuItem(value: 'shop', child: Text('متجر محدد')),
+                  ],
+                  onChanged: (next) => scopeType.value = next ?? 'global',
+                ),
+              ),
+              TextField(
+                controller: scopeId,
+                decoration: const InputDecoration(
+                  labelText: 'معرّف السوق/المتجر عند الحاجة',
+                ),
+              ),
+              TextField(
+                controller: termKey,
+                decoration: const InputDecoration(labelText: 'مفتاح المصطلح'),
+              ),
+              TextField(
+                controller: termArabic,
+                decoration: const InputDecoration(labelText: 'المصطلح العربي'),
+              ),
+              TextField(
+                controller: canonicalTerm,
+                decoration: const InputDecoration(labelText: 'المصطلح القياسي'),
+              ),
+              TextField(
+                controller: aliases,
+                decoration: const InputDecoration(
+                  labelText: 'مرادفات مفصولة بفواصل',
+                ),
+              ),
+              TextField(
+                controller: definition,
+                maxLines: 3,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  labelText: 'تعريف أو ملاحظة تشغيلية',
+                ),
+              ),
+              TextField(
+                controller: sourceId,
+                decoration: const InputDecoration(
+                  labelText: 'معرّف مصدر المعرفة الاختياري',
+                ),
+              ),
+              TextField(
+                controller: contentHash,
+                decoration: const InputDecoration(
+                  labelText: 'بصمة المحتوى SHA-256',
+                ),
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: status,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(
+                      value: 'ready',
+                      child: Text('جاهز للاسترجاع'),
+                    ),
+                    DropdownMenuItem(value: 'archived', child: Text('مؤرشف')),
+                  ],
+                  onChanged: (next) => status.value = next ?? 'draft',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (termKey.text.trim().length >= 2 &&
+                  termArabic.text.trim().isNotEmpty &&
+                  canonicalTerm.text.trim().isNotEmpty &&
+                  contentHash.text.trim().length >= 16 &&
+                  (scopeType.value == 'global' ||
+                      scopeId.text.trim().isNotEmpty)) {
+                Navigator.pop(dialogContext, {
+                  'scope_type': scopeType.value,
+                  'scope_id': scopeId.text.trim().isEmpty
+                      ? null
+                      : scopeId.text.trim(),
+                  'term_key': termKey.text.trim(),
+                  'term_ar': termArabic.text.trim(),
+                  'canonical_term': canonicalTerm.text.trim(),
+                  'aliases': aliases.text
+                      .split(',')
+                      .map((item) => item.trim())
+                      .where((item) => item.isNotEmpty)
+                      .toList(growable: false),
+                  'definition': definition.text.trim(),
+                  'source_id': sourceId.text.trim().isEmpty
+                      ? null
+                      : sourceId.text.trim(),
+                  'content_hash': contentHash.text.trim(),
+                  'status': status.value,
+                });
+              }
+            },
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    scopeType.dispose();
+    status.dispose();
+    scopeId.dispose();
+    termKey.dispose();
+    termArabic.dispose();
+    canonicalTerm.dispose();
+    aliases.dispose();
+    definition.dispose();
+    sourceId.dispose();
+    contentHash.dispose();
+    if (values == null || !mounted) return;
+    final reason = await _reasonDialog('تأكيد حفظ المصطلح العربي');
+    if (!mounted || reason == null) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.aiUpsertTerminologyEntry(
+        scopeType: values['scope_type'] as String,
+        scopeId: values['scope_id'] as String?,
+        termKey: values['term_key'] as String,
+        termArabic: values['term_ar'] as String,
+        canonicalTerm: values['canonical_term'] as String,
+        aliases: (values['aliases'] as List<dynamic>).cast<String>(),
+        definition: values['definition'] as String,
+        sourceId: values['source_id'] as String?,
+        status: values['status'] as String,
+        contentHash: values['content_hash'] as String,
+        reason: reason,
+      );
+      if (mounted) _showMessage('تم حفظ المصطلح مع سجل التدقيق.');
+    } catch (_) {
+      if (mounted) _showMessage('تعذر حفظ المصطلح العربي.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _createEvaluationSuite() async {
+    final suiteKey = TextEditingController();
+    final version = TextEditingController(text: '1');
+    final name = TextEditingController();
+    final description = TextEditingController();
+    final locale = ValueNotifier<String>('ar');
+    final status = ValueNotifier<String>('draft');
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إضافة مجموعة تقييم'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: suiteKey,
+                decoration: const InputDecoration(labelText: 'مفتاح المجموعة'),
+              ),
+              TextField(
+                controller: version,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الإصدار'),
+              ),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'الاسم'),
+              ),
+              TextField(
+                controller: description,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'الوصف'),
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: locale,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'اللغة'),
+                  items: const [
+                    DropdownMenuItem(value: 'ar', child: Text('العربية')),
+                    DropdownMenuItem(value: 'en', child: Text('الإنجليزية')),
+                    DropdownMenuItem(value: 'mixed', child: Text('مختلطة')),
+                  ],
+                  onChanged: (next) => locale.value = next ?? 'ar',
+                ),
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: status,
+                builder: (_, value, _) => DropdownButtonFormField<String>(
+                  initialValue: value,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(value: 'active', child: Text('نشطة')),
+                    DropdownMenuItem(value: 'retired', child: Text('متقاعدة')),
+                  ],
+                  onChanged: (next) => status.value = next ?? 'draft',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final parsed = int.tryParse(version.text.trim());
+              if (suiteKey.text.trim().length >= 2 &&
+                  name.text.trim().length >= 2 &&
+                  (parsed ?? 0) > 0) {
+                Navigator.pop(dialogContext, {
+                  'suite_key': suiteKey.text.trim(),
+                  'version': parsed,
+                  'name': name.text.trim(),
+                  'description': description.text.trim(),
+                  'locale': locale.value,
+                  'status': status.value,
+                });
+              }
+            },
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    suiteKey.dispose();
+    version.dispose();
+    name.dispose();
+    description.dispose();
+    locale.dispose();
+    status.dispose();
+    if (values == null || !mounted) return;
+    final reason = await _reasonDialog('تأكيد حفظ مجموعة التقييم');
+    if (!mounted || reason == null) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.aiUpsertEvaluationSuite(
+        suiteKey: values['suite_key'] as String,
+        version: values['version'] as int,
+        name: values['name'] as String,
+        description: values['description'] as String,
+        locale: values['locale'] as String,
+        status: values['status'] as String,
+        reason: reason,
+      );
+      if (mounted) {
+        _showMessage('تم حفظ مجموعة التقييم.');
+        setState(() => _reload());
+      }
+    } catch (_) {
+      if (mounted) _showMessage('تعذر حفظ مجموعة التقييم.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<dynamic>>(
+    future: _load,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const _LoadingPage();
+      }
+      if (snapshot.hasError || snapshot.data == null) {
+        return const _FailurePage(
+          message: 'تعذر تحميل حوكمة الذكاء الاصطناعي.',
+        );
+      }
+      final settings = Map<String, dynamic>.from(snapshot.data![0] as Map);
+      final actions = (snapshot.data![1] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final workflows = (snapshot.data![2] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final evaluations = (snapshot.data![3] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'حوكمة الذكاء الاصطناعي',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'إعدادات المالك والإجراءات لا تتجاوز سياسات Supabase. كل تغيير يحتاج سبباً واضحاً ويسجل في سجل التدقيق.',
+          ),
+          const SizedBox(height: 20),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الإعدادات العامة — الإصدار ${settings['version'] ?? '-'}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'مفاتيح مزود الذكاء الاصطناعي لا تظهر هنا ولا تحفظ في التطبيق. التفعيل وحده لا يثبت جاهزية المزود.',
+                  ),
+                  SwitchListTile(
+                    title: const Text('تشغيل المزود'),
+                    value: settings['provider_enabled'] == true,
+                    onChanged: _saving
+                        ? null
+                        : (value) =>
+                              _publish(settings, 'provider_enabled', value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('تشغيل المعرفة المُدارة'),
+                    value: settings['knowledge_enabled'] == true,
+                    onChanged: _saving
+                        ? null
+                        : (value) =>
+                              _publish(settings, 'knowledge_enabled', value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('تشغيل سير العمل الخلفي'),
+                    value: settings['background_enabled'] == true,
+                    onChanged: _saving
+                        ? null
+                        : (value) =>
+                              _publish(settings, 'background_enabled', value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('الوصول الخارجي المتوافق مع MCP'),
+                    value: settings['external_agent_enabled'] == true,
+                    onChanged: _saving
+                        ? null
+                        : (value) => _publish(
+                            settings,
+                            'external_agent_enabled',
+                            value,
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'إجراءات التاجر',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'الإجراءات قابلة للمراجعة فقط، وتظل الموافقة والتنفيذ منفصلين وبمعاملات RPC موجودة.',
+                  ),
+                  ...actions.map(
+                    (action) => SwitchListTile(
+                      title: Text(action['action_key']?.toString() ?? 'إجراء'),
+                      subtitle: Text(action['description']?.toString() ?? ''),
+                      value: action['enabled'] == true,
+                      onChanged: _saving
+                          ? null
+                          : (value) => _toggleAction(action, value),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'المعرفة المُدارة',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _createKnowledgeSource,
+                        icon: const Icon(Icons.library_add_outlined),
+                        label: const Text('إضافة مصدر'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _addKnowledgeChunk,
+                        icon: const Icon(Icons.note_add_outlined),
+                        label: const Text('إضافة جزء'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _createTerminologyEntry,
+                        icon: const Icon(Icons.translate_outlined),
+                        label: const Text('إضافة مصطلح'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'الإدخال مقسم ومُدار من المالك. الروابط تحفظ كمرجع فقط ولا يتم جلبها تلقائياً، ولا يصبح المصدر أو المصطلح قابلاً للاسترجاع إلا بعد اعتماد الحالة. المصطلحات تحفظ المعنى العربي والمرادفات وبصمة المصدر.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'مجموعات التقييم',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _createEvaluationSuite,
+                        icon: const Icon(Icons.add_chart_outlined),
+                        label: const Text('إضافة مجموعة'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (evaluations.isEmpty)
+                    const Text('لا توجد مجموعات تقييم بعد.'),
+                  ...evaluations
+                      .take(20)
+                      .map(
+                        (evaluation) => ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.assessment_outlined),
+                          title: Text(
+                            '${evaluation['suite_key'] ?? 'مجموعة'} · الإصدار ${evaluation['version'] ?? '-'}',
+                          ),
+                          subtitle: Text(
+                            'الحالة: ${evaluation['status'] ?? '-'} · التشغيلات: ${evaluation['run_count'] ?? 0} · آخر حالة: ${evaluation['latest_run_status'] ?? '-'} · متوسط آخر نتيجة: ${evaluation['latest_average_score'] ?? '-'}',
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'سير العمل الأخيرة',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  if (workflows.isEmpty)
+                    const Text('لا توجد عمليات خلفية مسجلة.'),
+                  ...workflows
+                      .take(20)
+                      .map(
+                        (workflow) => ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.sync_alt),
+                          title: Text(
+                            workflow['workflow_key']?.toString() ?? 'سير عمل',
+                          ),
+                          subtitle: Text(
+                            '${workflow['status'] ?? '-'} — المحاولات ${workflow['attempts'] ?? 0}/${workflow['max_attempts'] ?? 0}',
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    },
   );
 }

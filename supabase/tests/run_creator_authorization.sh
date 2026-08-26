@@ -90,6 +90,10 @@ assert_anon_denied save_wholesale_price_list_item '{"p_id":null,"p_price_list_id
 assert_anon_denied list_merchant_wholesale_requests '{"p_shop_id":"00000000-0000-0000-0000-000000000000"}'
 assert_anon_denied review_wholesale_request_with_price_list '{"p_request_id":"00000000-0000-0000-0000-000000000000","p_status":"approved","p_review_note":"Test approval","p_price_list_id":null}'
 assert_anon_denied close_pos_session '{"p_pos_session_id":"00000000-0000-0000-0000-000000000000","p_counted_total_minor":0,"p_closing_note":"Test close"}'
+assert_anon_denied merchant_b2b_analytics '{"p_shop_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied export_merchant_b2b '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_limit":1,"p_offset":0}'
+assert_anon_denied merchant_pos_analytics '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_from":"2026-01-01T00:00:00Z","p_to":"2026-01-02T00:00:00Z"}'
+assert_anon_denied export_merchant_pos '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_from":"2026-01-01T00:00:00Z","p_to":"2026-01-02T00:00:00Z","p_limit":1,"p_offset":0}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

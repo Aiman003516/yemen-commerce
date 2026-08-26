@@ -592,6 +592,62 @@ class MarketplaceApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> merchantB2bAnalytics(String shopId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مؤشرات B2B اتصال Supabase.');
+    }
+    return supabase.merchantB2bAnalytics(shopId);
+  }
+
+  Future<List<Map<String, dynamic>>> exportMerchantB2b(
+    String shopId, {
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('يتطلب تصدير B2B اتصال Supabase.');
+    }
+    return supabase.exportMerchantB2b(
+      shopId,
+      limit: limit.clamp(1, 500),
+      offset: offset < 0 ? 0 : offset,
+    );
+  }
+
+  Future<Map<String, dynamic>> merchantPosAnalytics(
+    String shopId, {
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مؤشرات POS اتصال Supabase.');
+    }
+    return supabase.merchantPosAnalytics(shopId, from: from, to: to);
+  }
+
+  Future<List<Map<String, dynamic>>> exportMerchantPos(
+    String shopId, {
+    required DateTime from,
+    required DateTime to,
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('يتطلب تصدير POS اتصال Supabase.');
+    }
+    return supabase.exportMerchantPos(
+      shopId,
+      from: from,
+      to: to,
+      limit: limit.clamp(1, 500),
+      offset: offset < 0 ? 0 : offset,
+    );
+  }
+
   Future<void> saveMerchantIntegration({
     required String shopId,
     required String providerCode,

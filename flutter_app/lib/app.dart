@@ -32,9 +32,22 @@ class YemenCommerceApp extends StatelessWidget {
     );
   }
 
-  Future<void> _replayQueuedCommands() async {
+  static String? _lastReplayUserId;
+  static DateTime? _lastReplayStartedAt;
+
+  Future<void> _replayQueuedCommands(String userId) async {
+    final now = DateTime.now();
+    final lastStarted = _lastReplayStartedAt;
+    if (_lastReplayUserId == userId &&
+        lastStarted != null &&
+        now.difference(lastStarted) < const Duration(seconds: 30)) {
+      return;
+    }
+    _lastReplayUserId = userId;
+    _lastReplayStartedAt = now;
     try {
-      await OutboxReplayWorker(outbox: SecureCommandOutbox()).replay();
+      await OutboxReplayWorker(outbox: SecureCommandOutbox(userScope: userId))
+          .replay();
     } on Object {
       // Replay is best-effort. The encrypted queue remains available for the
       // next authenticated session event and never blocks app startup.
@@ -48,8 +61,12 @@ class YemenCommerceApp extends StatelessWidget {
         ? StreamBuilder<AuthState>(
             stream: SupabaseMarketplaceClient().authStateChanges,
             builder: (context, _) {
-              if (SupabaseMarketplaceClient().currentAuthUser != null) {
-                unawaited(_replayQueuedCommands());
+              final userId = SupabaseMarketplaceClient().currentAuthUser?.id;
+              if (userId != null && userId.isNotEmpty) {
+                unawaited(_replayQueuedCommands(userId));
+              } else {
+                _lastReplayUserId = null;
+                _lastReplayStartedAt = null;
               }
               return _shell();
             },

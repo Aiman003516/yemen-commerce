@@ -58,7 +58,19 @@ class OutboxReplayWorker {
   Future<void> discard(String idempotencyKey) =>
       outbox.markCompleted(idempotencyKey);
 
-  Future<OutboxReplaySummary> replay() async {
+  static Future<OutboxReplaySummary>? _activeReplay;
+
+  Future<OutboxReplaySummary> replay() {
+    final active = _activeReplay;
+    if (active != null) return active;
+    final current = _replayInternal();
+    _activeReplay = current;
+    return current.whenComplete(() {
+      if (identical(_activeReplay, current)) _activeReplay = null;
+    });
+  }
+
+  Future<OutboxReplaySummary> _replayInternal() async {
     var completed = 0;
     var failed = 0;
     var skipped = 0;

@@ -659,6 +659,70 @@ class SupabaseMarketplaceClient {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<Map<String, dynamic>> merchantB2bAnalytics(String shopId) async {
+    final result = await _client.rpc(
+      'merchant_b2b_analytics',
+      params: {'p_shop_id': shopId},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> exportMerchantB2b(
+    String shopId, {
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'export_merchant_b2b',
+      params: {
+        'p_shop_id': shopId,
+        'p_limit': limit.clamp(1, 500),
+        'p_offset': offset < 0 ? 0 : offset,
+      },
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> merchantPosAnalytics(
+    String shopId, {
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_pos_analytics',
+      params: {
+        'p_shop_id': shopId,
+        'p_from': from.toUtc().toIso8601String(),
+        'p_to': to.toUtc().toIso8601String(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> exportMerchantPos(
+    String shopId, {
+    required DateTime from,
+    required DateTime to,
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'export_merchant_pos',
+      params: {
+        'p_shop_id': shopId,
+        'p_from': from.toUtc().toIso8601String(),
+        'p_to': to.toUtc().toIso8601String(),
+        'p_limit': limit.clamp(1, 500),
+        'p_offset': offset < 0 ? 0 : offset,
+      },
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>> saveMerchantIntegration({
     required String shopId,
     required String providerCode,

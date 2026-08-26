@@ -9,11 +9,24 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// class. Callers should enqueue only idempotent, non-financial commands whose
 /// server-side RPCs enforce the same idempotency key.
 class SecureCommandOutbox implements CommandOutbox {
-  SecureCommandOutbox({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+  SecureCommandOutbox({
+    required String userScope,
+    FlutterSecureStorage? storage,
+  }) : _storage = storage ?? const FlutterSecureStorage(),
+       _storageKey = _scopedStorageKey(userScope);
 
-  static const _storageKey = 'commerce_command_outbox_v1';
+  static const _storageKeyPrefix = 'commerce_command_outbox_v1_';
   final FlutterSecureStorage _storage;
+  final String _storageKey;
+
+  static String _scopedStorageKey(String userScope) {
+    final normalized = userScope.trim();
+    if (normalized.isEmpty || normalized.length > 128) {
+      throw ArgumentError.value(userScope, 'userScope', 'must be non-empty');
+    }
+    final safeScope = base64Url.encode(utf8.encode(normalized));
+    return '$_storageKeyPrefix$safeScope';
+  }
 
   @override
   Future<void> enqueue(QueuedCommand command) async {

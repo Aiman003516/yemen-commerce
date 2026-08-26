@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:commerce_core/commerce_core.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,6 +11,7 @@ import '../core/api_client.dart';
 import '../core/contracts.dart';
 import '../core/supabase_config.dart';
 import '../core/supabase_marketplace_client.dart';
+import '../core/outbox_background_scheduler.dart';
 import '../core/outbox_replay_worker.dart';
 import '../core/secure_command_outbox.dart';
 
@@ -161,7 +163,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
     2 => _OrdersPage(user: widget.user),
     3 => _MerchantPage(user: widget.user),
     4 => const _ServicesPage(),
-    5 => const _SyncCenterPage(),
+    5 => _SyncCenterPage(user: widget.user),
     _ => _AdminPage(user: widget.user),
   };
 
@@ -1262,7 +1264,7 @@ class _CartPageState extends State<_CartPage> {
         );
       }
     } on ApiException catch (error) {
-      await SecureCommandOutbox().enqueue(
+      await SecureCommandOutbox(userScope: widget.user!.id).enqueue(
         QueuedCommand(
           idempotencyKey: commandKey,
           kind: 'checkout_create_orders',
@@ -2124,6 +2126,47 @@ class _MetricChip extends StatelessWidget {
   );
 }
 
+int _metricInt(Map<String, dynamic> metrics, String key) =>
+    (metrics[key] as num?)?.toInt() ?? 0;
+
+String _csvCell(Object? value) {
+  final text = value?.toString() ?? '';
+  return '"${text.replaceAll('"', '""')}"';
+}
+
+String _csvDocument(List<String> headers, List<Map<String, dynamic>> rows) {
+  final lines = <String>[headers.map(_csvCell).join(',')];
+  for (final row in rows) {
+    lines.add(headers.map((header) => _csvCell(row[header])).join(','));
+  }
+  return '\ufeff${lines.join('\n')}\n';
+}
+
+Future<void> _saveCsv(
+  BuildContext context, {
+  required String fileName,
+  required List<String> headers,
+  required List<Map<String, dynamic>> rows,
+}) async {
+  final csv = _csvDocument(headers, rows);
+  final savedPath = await FilePicker.platform.saveFile(
+    dialogTitle: 'تصدير CSV آمن',
+    fileName: fileName,
+    type: FileType.custom,
+    allowedExtensions: const ['csv'],
+    bytes: Uint8List.fromList(utf8.encode(csv)),
+  );
+  if (savedPath != null && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'تم تصدير البيانات التشغيلية فقط دون بيانات هوية أو إثبات دفع.',
+        ),
+      ),
+    );
+  }
+}
+
 class _MerchantQualityCard extends StatelessWidget {
   const _MerchantQualityCard({required this.shopId});
 
@@ -2197,6 +2240,16 @@ class _MerchantB2BCard extends StatefulWidget {
 class _MerchantB2BCardState extends State<_MerchantB2BCard> {
   late Future<List<Map<String, dynamic>>> requests = MarketplaceApiClient()
       .merchantWholesaleRequests(widget.shopId);
+
+  @override
+  void didUpdateWidget(covariant _MerchantB2BCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopId != widget.shopId) {
+      requests = MarketplaceApiClient().merchantWholesaleRequests(
+        widget.shopId,
+      );
+    }
+  }
 
   void refresh() {
     setState(
@@ -2393,6 +2446,304 @@ class _MerchantB2BCardState extends State<_MerchantB2BCard> {
   }
 }
 
+class _MerchantB2bAnalyticsCard extends StatefulWidget {
+  const _MerchantB2bAnalyticsCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantB2bAnalyticsCard> createState() =>
+      _MerchantB2bAnalyticsCardState();
+}
+
+class _MerchantB2bAnalyticsCardState extends State<_MerchantB2bAnalyticsCard> {
+  late Future<Map<String, dynamic>> metrics = MarketplaceApiClient()
+      .merchantB2bAnalytics(widget.shopId);
+  bool exporting = false;
+
+  @override
+  void didUpdateWidget(covariant _MerchantB2bAnalyticsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopId != widget.shopId) {
+      metrics = MarketplaceApiClient().merchantB2bAnalytics(widget.shopId);
+    }
+  }
+
+  void refresh() {
+    setState(() {
+      metrics = MarketplaceApiClient().merchantB2bAnalytics(widget.shopId);
+    });
+  }
+
+  Future<void> export() async {
+    setState(() => exporting = true);
+    try {
+      final rows = await MarketplaceApiClient().exportMerchantB2b(
+        widget.shopId,
+        limit: 500,
+      );
+      if (!mounted) return;
+      await _saveCsv(
+        context,
+        fileName: 'yemen-commerce-b2b.csv',
+        headers: const [
+          'request_id',
+          'shop_id',
+          'status',
+          'requested_currency',
+          'estimated_monthly_minor',
+          'has_approved_price_list',
+          'created_at',
+          'updated_at',
+        ],
+        rows: rows,
+      );
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: metrics,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Text('تعذر تحميل تحليلات B2B حالياً.');
+          }
+          final data = snapshot.data!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'تحليلات B2B والتسعير',
+                      subtitle: 'طلبات الجملة والقوائم النشطة فقط؛ لا تُعرض بيانات هوية أو إثباتات دفع في التحليل أو التصدير.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: refresh,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: exporting ? null : export,
+                    icon: exporting
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download_outlined),
+                    label: const Text('CSV'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _MetricChip(
+                    label: 'كل الطلبات',
+                    value: '${_metricInt(data, 'request_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'مفتوحة',
+                    value: '${_metricInt(data, 'open_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'قيد المراجعة',
+                    value: '${_metricInt(data, 'reviewing_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'معتمدة',
+                    value: '${_metricInt(data, 'approved_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'قوائم نشطة',
+                    value: '${_metricInt(data, 'active_price_lists_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'بنود نشطة',
+                    value:
+                        '${_metricInt(data, 'active_price_list_items_count')}',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'القيمة الشهرية التقديرية للطلبات المفتوحة/قيد المراجعة/المعتمدة: ${_metricInt(data, 'estimated_monthly_minor')} YER',
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _MerchantPosAnalyticsCard extends StatefulWidget {
+  const _MerchantPosAnalyticsCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantPosAnalyticsCard> createState() =>
+      _MerchantPosAnalyticsCardState();
+}
+
+class _MerchantPosAnalyticsCardState extends State<_MerchantPosAnalyticsCard> {
+  final DateTime _from = DateTime.now().subtract(const Duration(days: 30));
+  final DateTime _to = DateTime.now();
+  late Future<Map<String, dynamic>> metrics = _load();
+  bool exporting = false;
+
+  @override
+  void didUpdateWidget(covariant _MerchantPosAnalyticsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopId != widget.shopId) metrics = _load();
+  }
+
+  Future<Map<String, dynamic>> _load() => MarketplaceApiClient()
+      .merchantPosAnalytics(widget.shopId, from: _from, to: _to);
+
+  void refresh() {
+    setState(() => metrics = _load());
+  }
+
+  Future<void> export() async {
+    setState(() => exporting = true);
+    try {
+      final rows = await MarketplaceApiClient().exportMerchantPos(
+        widget.shopId,
+        from: _from,
+        to: _to,
+        limit: 500,
+      );
+      if (!mounted) return;
+      await _saveCsv(
+        context,
+        fileName: 'yemen-commerce-pos.csv',
+        headers: const [
+          'pos_session_id',
+          'shop_id',
+          'status',
+          'reconciliation_status',
+          'expected_total_minor',
+          'counted_total_minor',
+          'variance_minor',
+          'opened_at',
+          'closed_at',
+          'sale_count',
+          'gross_total_minor',
+        ],
+        rows: rows,
+      );
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: metrics,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Text('تعذر تحميل تحليلات POS حالياً.');
+          }
+          final data = snapshot.data!;
+          final rangeLabel =
+              '${_from.day}/${_from.month}–${_to.day}/${_to.month}';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'تحليلات POS والمطابقة',
+                      subtitle: 'ملخص آخر 30 يوماً للجلسات والمبيعات والفروقات؛ طرق الدفع المحلية لا تعني تسوية إلكترونية.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: refresh,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: exporting ? null : export,
+                    icon: exporting
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download_outlined),
+                    label: const Text('CSV'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('النطاق: $rangeLabel'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _MetricChip(
+                    label: 'الجلسات',
+                    value: '${_metricInt(data, 'session_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'المبيعات',
+                    value: '${_metricInt(data, 'sale_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'الإجمالي',
+                    value: '${_metricInt(data, 'gross_total_minor')} YER',
+                  ),
+                  _MetricChip(
+                    label: 'جلسات مطابقة',
+                    value: '${_metricInt(data, 'reconciled_session_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'جلسات بفروقات',
+                    value: '${_metricInt(data, 'variance_session_count')}',
+                  ),
+                  _MetricChip(
+                    label: 'فروقات صافية',
+                    value: '${_metricInt(data, 'variance_total_minor')} YER',
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
 class _CourierDispatchCard extends StatefulWidget {
   const _CourierDispatchCard();
 
@@ -2527,6 +2878,15 @@ class _MerchantPosCard extends StatefulWidget {
 class _MerchantPosCardState extends State<_MerchantPosCard> {
   String? sessionId;
   bool busy = false;
+
+  @override
+  void didUpdateWidget(covariant _MerchantPosCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopId != widget.shopId) {
+      sessionId = null;
+      busy = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Card(
@@ -3079,7 +3439,11 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             const SizedBox(height: 20),
             _MerchantB2BCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
+            _MerchantB2bAnalyticsCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
             _MerchantPosCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
+            _MerchantPosAnalyticsCard(shopId: workspace.shops.first.id),
           ],
           const SizedBox(height: 20),
           Text(
@@ -3992,26 +4356,56 @@ class _OperationsCard extends StatelessWidget {
 }
 
 class _SyncCenterPage extends StatefulWidget {
-  const _SyncCenterPage();
+  const _SyncCenterPage({this.user});
+
+  final SessionUser? user;
 
   @override
   State<_SyncCenterPage> createState() => _SyncCenterPageState();
 }
 
 class _SyncCenterPageState extends State<_SyncCenterPage> {
-  final worker = OutboxReplayWorker(outbox: SecureCommandOutbox());
-  late Future<List<OutboxDiagnostic>> diagnostics = worker.diagnostics();
+  late OutboxReplayWorker? worker;
+  late Future<List<OutboxDiagnostic>> diagnostics;
+
+  @override
+  void initState() {
+    super.initState();
+    final userId = widget.user?.id;
+    worker = userId == null
+        ? null
+        : OutboxReplayWorker(outbox: SecureCommandOutbox(userScope: userId));
+    diagnostics = worker?.diagnostics() ?? Future.value(const []);
+  }
+
   OutboxReplaySummary? lastSummary;
   bool busy = false;
 
+  @override
+  void didUpdateWidget(covariant _SyncCenterPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldUserId = oldWidget.user?.id;
+    final newUserId = widget.user?.id;
+    if (oldUserId == newUserId) return;
+    worker = newUserId == null
+        ? null
+        : OutboxReplayWorker(outbox: SecureCommandOutbox(userScope: newUserId));
+    lastSummary = null;
+    diagnostics = worker?.diagnostics() ?? Future.value(const []);
+  }
+
   void refresh() {
-    setState(() => diagnostics = worker.diagnostics());
+    final currentWorker = worker;
+    if (currentWorker == null || !mounted) return;
+    setState(() => diagnostics = currentWorker.diagnostics());
   }
 
   Future<void> replay() async {
+    final currentWorker = worker;
+    if (currentWorker == null) return;
     setState(() => busy = true);
     try {
-      final summary = await worker.replay();
+      final summary = await currentWorker.replay();
       if (mounted) {
         setState(() => lastSummary = summary);
         refresh();
@@ -4022,107 +4416,138 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
   }
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      Row(
-        children: [
-          const Expanded(
-            child: _SectionHeader(
-              title: 'مركز المزامنة الآمنة',
-              subtitle: 'أوامر غير مالية محفوظة محلياً بشكل مشفر. راقب المحاولات وأعد المحاولة عند توفر الاتصال.',
+  Widget build(BuildContext context) {
+    if (widget.user == null) {
+      return const _CenteredPage(
+        icon: Icons.lock_outline,
+        title: 'سجّل الدخول لمركز المزامنة',
+        detail: 'تظل الأوامر المشفرة معزولة لكل حساب ولا تُقرأ دون جلسة مصادق عليها.',
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: _SectionHeader(
+                title: 'مركز المزامنة الآمنة',
+                subtitle: 'أوامر غير مالية محفوظة محلياً بشكل مشفر. راقب المحاولات وأعد المحاولة عند توفر الاتصال.',
+              ),
             ),
-          ),
-          FilledButton.icon(
-            onPressed: busy ? null : replay,
-            icon: busy
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.sync),
-            label: const Text('مزامنة الآن'),
-          ),
-        ],
-      ),
-      const SizedBox(height: 16),
-      if (lastSummary != null)
+            FilledButton.icon(
+              onPressed: busy ? null : replay,
+              icon: busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              label: const Text('مزامنة الآن'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.check_circle_outline),
-            title: Text(
-              'آخر مزامنة: ${lastSummary!.completed} اكتمل · ${lastSummary!.failed} فشل · ${lastSummary!.skipped} محجوب',
-            ),
+            leading: const Icon(Icons.settings_backup_restore_outlined),
+            title: const Text('حالة الجدولة التلقائية'),
             subtitle: Text(
-              'قبل: ${lastSummary!.pendingBefore} · بعد: ${lastSummary!.pendingAfter}',
+              '${outboxBackgroundScheduler.modeLabel}${outboxBackgroundScheduler.lastConnectedEventAt == null ? '' : '\nآخر إشارة اتصال: ${outboxBackgroundScheduler.lastConnectedEventAt!.toLocal().toIso8601String()}'}',
             ),
           ),
         ),
-      const SizedBox(height: 8),
-      FutureBuilder<List<OutboxDiagnostic>>(
-        future: diagnostics,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LinearProgressIndicator(minHeight: 2);
-          }
-          if (snapshot.hasError) {
-            return const _InlineWarning('تعذر قراءة قائمة المزامنة المشفرة.');
-          }
-          final rows = snapshot.data ?? const <OutboxDiagnostic>[];
-          if (rows.isEmpty) {
-            return const _CatalogNotice(
-              icon: Icons.cloud_done_outlined,
-              title: 'لا توجد أوامر معلقة',
-              detail: 'ستظهر هنا أوامر checkout والعروض غير المالية إذا انقطع الاتصال أثناء الحفظ.',
-            );
-          }
-          return Column(
-            children: rows
-                .map(
-                  (item) => Card(
-                    child: ListTile(
-                      leading: Icon(
-                        item.state == 'blocked'
-                            ? Icons.block
-                            : item.state == 'failed'
-                            ? Icons.warning_amber_outlined
-                            : Icons.schedule,
-                      ),
-                      title: Text(_kindLabel(item.command.kind)),
-                      subtitle: Text(
-                        'الحالة: ${_stateLabel(item.state)} · محاولات: ${item.command.attempts}\nالمعرف: ${item.command.idempotencyKey}${item.command.lastError == null ? '' : '\nآخر خطأ: ${item.command.lastError}'}',
-                      ),
-                      isThreeLine: item.command.lastError != null,
-                      trailing: Wrap(
-                        spacing: 4,
-                        children: [
-                          IconButton(
-                            onPressed: () async {
-                              await worker.retry(item.command.idempotencyKey);
-                              refresh();
-                            },
-                            icon: const Icon(Icons.replay),
-                            tooltip: 'إعادة المحاولة',
-                          ),
-                          IconButton(
-                            onPressed: () async {
-                              await worker.discard(item.command.idempotencyKey);
-                              refresh();
-                            },
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: 'حذف الأمر',
-                          ),
-                        ],
+        if (lastSummary != null)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: Text(
+                'آخر مزامنة: ${lastSummary!.completed} اكتمل · ${lastSummary!.failed} فشل · ${lastSummary!.skipped} محجوب',
+              ),
+              subtitle: Text(
+                'قبل: ${lastSummary!.pendingBefore} · بعد: ${lastSummary!.pendingAfter}',
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        FutureBuilder<List<OutboxDiagnostic>>(
+          future: diagnostics,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const LinearProgressIndicator(minHeight: 2);
+            }
+            if (snapshot.hasError) {
+              return const _InlineWarning('تعذر قراءة قائمة المزامنة المشفرة.');
+            }
+            final rows = snapshot.data ?? const <OutboxDiagnostic>[];
+            if (rows.isEmpty) {
+              return const _CatalogNotice(
+                icon: Icons.cloud_done_outlined,
+                title: 'لا توجد أوامر معلقة',
+                detail: 'ستظهر هنا أوامر checkout والعروض غير المالية إذا انقطع الاتصال أثناء الحفظ.',
+              );
+            }
+            return Column(
+              children: rows
+                  .map(
+                    (item) => Card(
+                      child: ListTile(
+                        leading: Icon(
+                          item.state == 'blocked'
+                              ? Icons.block
+                              : item.state == 'failed'
+                              ? Icons.warning_amber_outlined
+                              : Icons.schedule,
+                        ),
+                        title: Text(_kindLabel(item.command.kind)),
+                        subtitle: Text(
+                          'الحالة: ${_stateLabel(item.state)} · محاولات: ${item.command.attempts}\nالمعرف: ${_maskKey(item.command.idempotencyKey)}${item.command.lastError == null ? '' : '\nتعذر التنفيذ؛ أعد المحاولة أو احذف الأمر.'}',
+                        ),
+                        isThreeLine: item.command.lastError != null,
+                        trailing: Wrap(
+                          spacing: 4,
+                          children: [
+                            IconButton(
+                              onPressed: () async {
+                                final currentWorker = worker;
+                                if (currentWorker == null) return;
+                                await currentWorker.retry(
+                                  item.command.idempotencyKey,
+                                );
+                                refresh();
+                              },
+                              icon: const Icon(Icons.replay),
+                              tooltip: 'إعادة المحاولة',
+                            ),
+                            IconButton(
+                              onPressed: () async {
+                                final currentWorker = worker;
+                                if (currentWorker == null) return;
+                                await currentWorker.discard(
+                                  item.command.idempotencyKey,
+                                );
+                                refresh();
+                              },
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'حذف الأمر',
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
-          );
-        },
-      ),
-    ],
-  );
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  static String _maskKey(String key) {
+    if (key.length <= 8) return '••••';
+    return '${key.substring(0, 4)}…${key.substring(key.length - 4)}';
+  }
 
   static String _kindLabel(String kind) => switch (kind) {
     'checkout_create_orders' => 'إنشاء طلبات منفصلة',

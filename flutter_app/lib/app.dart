@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'dart:async';
+
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,6 +9,8 @@ import 'core/api_client.dart';
 import 'core/contracts.dart';
 import 'core/supabase_config.dart';
 import 'core/supabase_marketplace_client.dart';
+import 'core/outbox_replay_worker.dart';
+import 'core/secure_command_outbox.dart';
 import 'features/marketplace_shell.dart';
 
 class YemenCommerceApp extends StatelessWidget {
@@ -27,13 +32,27 @@ class YemenCommerceApp extends StatelessWidget {
     );
   }
 
+  Future<void> _replayQueuedCommands() async {
+    try {
+      await OutboxReplayWorker(outbox: SecureCommandOutbox()).replay();
+    } on Object {
+      // Replay is best-effort. The encrypted queue remains available for the
+      // next authenticated session event and never blocks app startup.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const brand = Color(0xFF006A63);
     final home = SupabaseConfig.isConfigured
         ? StreamBuilder<AuthState>(
             stream: SupabaseMarketplaceClient().authStateChanges,
-            builder: (context, _) => _shell(),
+            builder: (context, _) {
+              if (SupabaseMarketplaceClient().currentAuthUser != null) {
+                unawaited(_replayQueuedCommands());
+              }
+              return _shell();
+            },
           )
         : _shell();
 

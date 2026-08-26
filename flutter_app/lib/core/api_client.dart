@@ -433,6 +433,82 @@ class MarketplaceApiClient {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, dynamic>>> merchantWholesaleRequests(
+    String shopId,
+  ) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب طلبات الجملة اتصال Supabase.');
+    }
+    return supabase.listMerchantWholesaleRequests(shopId);
+  }
+
+  Future<void> saveWholesalePriceList({
+    String? id,
+    required String shopId,
+    required String nameAr,
+    required String currency,
+    required String status,
+    required String reason,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب قائمة الأسعار اتصال Supabase.');
+    }
+    await supabase.saveWholesalePriceList(
+      id: id,
+      shopId: shopId,
+      nameAr: nameAr,
+      currency: currency,
+      status: status,
+      reason: reason,
+    );
+  }
+
+  Future<void> saveWholesalePriceListItem({
+    String? id,
+    required String priceListId,
+    required String productId,
+    String? variantId,
+    required int unitPriceMinor,
+    required int minQuantity,
+    required String status,
+    required String reason,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب أسعار الجملة اتصال Supabase.');
+    }
+    await supabase.saveWholesalePriceListItem(
+      id: id,
+      priceListId: priceListId,
+      productId: productId,
+      variantId: variantId,
+      unitPriceMinor: unitPriceMinor,
+      minQuantity: minQuantity,
+      status: status,
+      reason: reason,
+    );
+  }
+
+  Future<void> reviewWholesaleRequestWithPriceList({
+    required String requestId,
+    required String status,
+    required String reviewNote,
+    String? priceListId,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مراجعة طلبات الجملة اتصال Supabase.');
+    }
+    await supabase.reviewWholesaleRequestWithPriceList(
+      requestId: requestId,
+      status: status,
+      reviewNote: reviewNote,
+      priceListId: priceListId,
+    );
+  }
+
   Future<void> saveBusinessProfile({
     required String businessName,
     required String contactPhone,
@@ -480,10 +556,27 @@ class MarketplaceApiClient {
     return result['pos_session_id'].toString();
   }
 
+  Future<void> closePosSession({
+    required String posSessionId,
+    required int countedTotalMinor,
+    String? closingNote,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مطابقة وإغلاق نقطة البيع اتصال Supabase.');
+    }
+    await supabase.closePosSession(
+      posSessionId: posSessionId,
+      countedTotalMinor: countedTotalMinor,
+      closingNote: closingNote,
+    );
+  }
+
   Future<void> recordPosSale({
     required String posSessionId,
     required int totalMinor,
     required String paymentMode,
+    List<Map<String, dynamic>> lineItems = const [],
     String? note,
   }) async {
     final supabase = _supabase;
@@ -494,6 +587,7 @@ class MarketplaceApiClient {
       posSessionId: posSessionId,
       totalMinor: totalMinor,
       paymentMode: paymentMode,
+      lineItems: lineItems,
       note: note,
     );
   }
@@ -1103,6 +1197,62 @@ class MarketplaceApiClient {
         'تعذر إتمام الطلبات المنفصلة. تحقق من خيارات كل متجر ثم حاول مرة أخرى.',
       );
     }
+  }
+
+  Future<List<Map<String, dynamic>>> courierAssignments() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب عمليات التوصيل اتصال Supabase.');
+    }
+    return supabase.courierAssignments();
+  }
+
+  Future<void> assignOrderCourier({
+    required String merchantOrderId,
+    required String courierUserId,
+    String? deliveryNote,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إسنادات التوصيل اتصال Supabase.');
+    }
+    await supabase.assignOrderCourier(
+      merchantOrderId: merchantOrderId,
+      courierUserId: courierUserId,
+      deliveryNote: deliveryNote,
+    );
+  }
+
+  Future<void> recordCourierHandoff({
+    required String assignmentId,
+    required String status,
+    String? deliveryNote,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب تحديثات التسليم اتصال Supabase.');
+    }
+    await supabase.recordCourierHandoff(
+      assignmentId: assignmentId,
+      status: status,
+      deliveryNote: deliveryNote,
+    );
+  }
+
+  Future<void> recordCourierDispatchEvent({
+    required String assignmentId,
+    required String eventType,
+    String? note,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب أحداث التوصيل اتصال Supabase.');
+    }
+    await supabase.recordCourierDispatchEvent(
+      assignmentId: assignmentId,
+      eventType: eventType,
+      note: note,
+    );
   }
 
   Future<void> checkoutCartIdempotent({

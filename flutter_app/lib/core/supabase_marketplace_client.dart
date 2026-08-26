@@ -502,6 +502,84 @@ class SupabaseMarketplaceClient {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, dynamic>>> listMerchantWholesaleRequests(
+    String shopId,
+  ) async {
+    final rows = await _client.rpc(
+      'list_merchant_wholesale_requests',
+      params: {'p_shop_id': shopId},
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveWholesalePriceList({
+    String? id,
+    required String shopId,
+    required String nameAr,
+    required String currency,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'save_wholesale_price_list',
+      params: {
+        'p_id': id,
+        'p_shop_id': shopId,
+        'p_name_ar': nameAr,
+        'p_currency': currency,
+        'p_status': status,
+        'p_reason': reason,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> saveWholesalePriceListItem({
+    String? id,
+    required String priceListId,
+    required String productId,
+    String? variantId,
+    required int unitPriceMinor,
+    required int minQuantity,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'save_wholesale_price_list_item',
+      params: {
+        'p_id': id,
+        'p_price_list_id': priceListId,
+        'p_product_id': productId,
+        'p_variant_id': variantId,
+        'p_unit_price_minor': unitPriceMinor,
+        'p_min_quantity': minQuantity,
+        'p_status': status,
+        'p_reason': reason,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> reviewWholesaleRequestWithPriceList({
+    required String requestId,
+    required String status,
+    required String reviewNote,
+    String? priceListId,
+  }) async {
+    final result = await _client.rpc(
+      'review_wholesale_request_with_price_list',
+      params: {
+        'p_request_id': requestId,
+        'p_status': status,
+        'p_review_note': reviewNote,
+        'p_price_list_id': priceListId,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>> saveBusinessProfile({
     required String businessName,
     required String contactPhone,
@@ -541,6 +619,22 @@ class SupabaseMarketplaceClient {
     final result = await _client.rpc(
       'open_pos_session',
       params: {'p_shop_id': shopId, 'p_opening_note': openingNote},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> closePosSession({
+    required String posSessionId,
+    required int countedTotalMinor,
+    String? closingNote,
+  }) async {
+    final result = await _client.rpc(
+      'close_pos_session',
+      params: {
+        'p_pos_session_id': posSessionId,
+        'p_counted_total_minor': countedTotalMinor,
+        'p_closing_note': closingNote,
+      },
     );
     return Map<String, dynamic>.from(result as Map);
   }
@@ -1035,6 +1129,67 @@ class SupabaseMarketplaceClient {
         'p_fulfilment_by_shop': fulfilmentByShop,
         'p_payment_by_merchant': paymentByMerchant,
         'p_delivery_by_shop': deliveryByShop,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> courierAssignments() async {
+    final rows = await _client
+        .from('order_courier_assignments')
+        .select(
+          'id,merchant_order_id,courier_user_id,status,delivery_note,failure_reason,assigned_at,picked_up_at,delivered_at,updated_at',
+        )
+        .order('updated_at', ascending: false)
+        .limit(100);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> assignOrderCourier({
+    required String merchantOrderId,
+    required String courierUserId,
+    String? deliveryNote,
+  }) async {
+    final result = await _client.rpc(
+      'assign_order_courier',
+      params: {
+        'p_merchant_order_id': merchantOrderId,
+        'p_courier_user_id': courierUserId,
+        'p_delivery_note': deliveryNote,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordCourierHandoff({
+    required String assignmentId,
+    required String status,
+    String? deliveryNote,
+  }) async {
+    final result = await _client.rpc(
+      'record_courier_handoff',
+      params: {
+        'p_assignment_id': assignmentId,
+        'p_status': status,
+        'p_delivery_note': deliveryNote,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordCourierDispatchEvent({
+    required String assignmentId,
+    required String eventType,
+    String? note,
+  }) async {
+    final result = await _client.rpc(
+      'record_courier_dispatch_event',
+      params: {
+        'p_assignment_id': assignmentId,
+        'p_event_type': eventType,
+        'p_note': note,
       },
     );
     return Map<String, dynamic>.from(result as Map);

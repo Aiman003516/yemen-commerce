@@ -3,6 +3,69 @@ const marketplaceApiVersion = 'v1';
 String _stringValue(dynamic value) => value.toString();
 int _intValue(dynamic value) => (value as num).toInt();
 
+class AiDraft {
+  const AiDraft({
+    required this.kind,
+    required this.title,
+    required this.content,
+    required this.language,
+    this.sourceProductId,
+  });
+
+  final String kind;
+  final String title;
+  final String content;
+  final String language;
+  final String? sourceProductId;
+
+  factory AiDraft.fromJson(Map<String, dynamic> json) => AiDraft(
+    kind: json['kind']?.toString() ?? 'unknown',
+    title: json['title']?.toString() ?? '',
+    content: json['content']?.toString() ?? '',
+    language: json['language']?.toString() ?? 'ar',
+    sourceProductId: json['source_product_id']?.toString(),
+  );
+}
+
+class AiRunResponse {
+  const AiRunResponse({
+    required this.runId,
+    required this.status,
+    required this.mode,
+    required this.answer,
+    required this.locale,
+    required this.toolCalls,
+    required this.idempotent,
+    this.drafts = const [],
+  });
+
+  final String runId;
+  final String status;
+  final String mode;
+  final String answer;
+  final String locale;
+  final int toolCalls;
+  final bool idempotent;
+  final List<AiDraft> drafts;
+
+  bool get isSuccessful => status == 'succeeded';
+  bool get hasDrafts => drafts.isNotEmpty;
+
+  factory AiRunResponse.fromJson(Map<String, dynamic> json) => AiRunResponse(
+    runId: json['run_id']?.toString() ?? '',
+    status: json['status']?.toString() ?? 'failed',
+    mode: json['mode']?.toString() ?? 'read',
+    answer: json['answer']?.toString() ?? '',
+    locale: json['locale']?.toString() ?? 'ar',
+    toolCalls: (json['tool_calls'] as num?)?.toInt() ?? 0,
+    idempotent: json['idempotent'] == true,
+    drafts: (json['drafts'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => AiDraft.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false),
+  );
+}
+
 class IdentityVerificationSummary {
   const IdentityVerificationSummary({
     this.status,

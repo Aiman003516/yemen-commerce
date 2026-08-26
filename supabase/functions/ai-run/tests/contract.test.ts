@@ -3,19 +3,23 @@ import {
   DENIED_ACTION_CLASSES,
   READONLY_TOOL_NAMES,
   objectOrEmpty,
+  parseDraftEnvelope,
   parseJsonObject,
   redactToolResult,
   requireInteger,
   requireString,
   safePolicy,
+  validateCatalogArgs,
+  validateCodArgs,
   validateMerchantArgs,
   validateNoArgs,
+  validatePosArgs,
   validateRollupArgs,
 } from "../contract";
 
 describe("AI-1 read-only dispatcher contracts", () => {
   it("keeps the registry namespaced and free of dangerous actions", () => {
-    expect(READONLY_TOOL_NAMES.size).toBe(6);
+    expect(READONLY_TOOL_NAMES.size).toBe(11);
     expect([...READONLY_TOOL_NAMES].every((name) => name.includes("."))).toBe(true);
     expect([...DENIED_ACTION_CLASSES]).not.toContain("read");
   });
@@ -33,6 +37,12 @@ describe("AI-1 read-only dispatcher contracts", () => {
     expect(validateMerchantArgs({ rpc_name: "save_product" })).not.toBeNull();
     expect(validateRollupArgs({ from: "2026-08-01", to: "2026-08-26", limit: 30 })).toBeNull();
     expect(validateRollupArgs({ from: "2026-08-01", to: "2026-08-26", limit: 31 })).not.toBeNull();
+    expect(validateCatalogArgs({ query: "قهوة", limit: 40, offset: 0 })).toBeNull();
+    expect(validateCatalogArgs({ url: "https://unsafe.invalid" })).not.toBeNull();
+    expect(validateCodArgs({ business_date: "2026-08-26", limit: 30 })).toBeNull();
+    expect(validateCodArgs({ business_date: "2026-08-26", limit: 31 })).not.toBeNull();
+    expect(validatePosArgs({ from: "2026-08-01T00:00:00Z", to: "2026-08-26T00:00:00Z" })).toBeNull();
+    expect(validatePosArgs({ from: "yesterday" })).not.toBeNull();
   });
 
   it("accepts only JSON objects as provider tool arguments", () => {
@@ -67,9 +77,25 @@ describe("AI-1 read-only dispatcher contracts", () => {
     expect(Object.keys(objectOrEmpty([]))).toHaveLength(0);
   });
 
+  it("accepts only a bounded structured draft envelope", () => {
+    const valid = parseDraftEnvelope(JSON.stringify({
+      summary: "مسودة وصف جاهزة للمراجعة.",
+      drafts: [{
+        kind: "product_description",
+        title: "وصف المنتج",
+        content: "وصف عربي قصير.",
+        language: "ar",
+        source_product_id: "product-1",
+      }],
+    }));
+    expect(valid?.drafts).toHaveLength(1);
+    expect(parseDraftEnvelope(JSON.stringify({ summary: "x", drafts: [{ kind: "reversible_write", title: "x", content: "x", language: "ar", source_product_id: null }] }))).toBeNull();
+    expect(parseDraftEnvelope(JSON.stringify({ summary: "x", drafts: Array.from({ length: 7 }, () => ({ kind: "quote_note", title: "x", content: "x", language: "ar", source_product_id: null })) }))).toBeNull();
+  });
+
   it("keeps customer, merchant, and developer tool namespaces separated", () => {
     expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("customer.")).length).toBe(1);
-    expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("merchant.")).length).toBe(3);
+    expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("merchant.")).length).toBe(8);
     expect([...READONLY_TOOL_NAMES].filter((name) => name.startsWith("developer.")).length).toBe(2);
   });
 });

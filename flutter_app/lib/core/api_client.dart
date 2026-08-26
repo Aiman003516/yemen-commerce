@@ -29,6 +29,60 @@ class MarketplaceApiClient {
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
+  Future<AiRunResponse> runMerchantAi({
+    required String shopId,
+    required String input,
+    required String intentKey,
+    required String mode,
+    required String idempotencyKey,
+    List<Map<String, dynamic>> messages = const [],
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('يتطلب مساعد التاجر اتصال Supabase.');
+    }
+    if (shopId.trim().isEmpty ||
+        input.trim().isEmpty ||
+        idempotencyKey.trim().isEmpty ||
+        (mode != 'read' && mode != 'draft')) {
+      throw ApiException('بيانات طلب المساعد غير صالحة.');
+    }
+    try {
+      final response = await supabase.client.functions.invoke(
+        'ai-run',
+        body: {
+          'app_surface': 'merchant',
+          'scope_type': 'shop',
+          'scope_id': shopId.trim(),
+          'intent_key': intentKey.trim().isEmpty ? 'general' : intentKey.trim(),
+          'input': input.trim(),
+          'mode': mode,
+          'locale': 'ar',
+          'idempotency_key': idempotencyKey.trim(),
+          if (messages.isNotEmpty) 'messages': messages,
+        },
+      );
+      if (response.status < 200 ||
+          response.status >= 300 ||
+          response.data is! Map) {
+        throw ApiException('تعذر إكمال طلب المساعد بأمان.');
+      }
+      return AiRunResponse.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on ApiException {
+      rethrow;
+    } on FunctionException catch (error) {
+      final details = error.details;
+      final code = details is Map ? details['code']?.toString() : null;
+      throw ApiException(_localizedAiError(code));
+    } catch (_) {
+      throw ApiException(
+        'تعذر الاتصال بمساعد التاجر حالياً. لم يتم تنفيذ أي تغيير.',
+      );
+    }
+  }
+
   Future<MarketConfig> activeMarket() async {
     final supabase = _supabase;
     if (supabase != null) {
@@ -1836,6 +1890,31 @@ String localizedSupabaseErrorForTest(
   PostgrestException error,
   String fallback,
 ) => _localizedSupabaseError(error, fallback);
+
+String _localizedAiError(String? code) {
+  switch (code) {
+    case 'AUTH_REQUIRED':
+      return 'انتهت الجلسة أو لم يتم تسجيل الدخول. سجّل الدخول مجدداً.';
+    case 'AI_SCOPE_REQUIRED':
+    case 'AI_SCOPE_FORBIDDEN':
+      return 'لا يمكن للمساعد الوصول إلى هذا المتجر بهذه الجلسة.';
+    case 'AI_POLICY_DENIED':
+    case 'AI_PROVIDER_POLICY_DISABLED':
+      return 'هذه الميزة غير مفعلة وفق سياسة المساعد الحالية.';
+    case 'AI_PROVIDER_NOT_CONFIGURED':
+      return 'مساعد التاجر غير مفعّل حالياً. لم يتم تنفيذ أي تغيير.';
+    case 'AI_PROVIDER_UNAVAILABLE':
+      return 'تعذر الاتصال بمساعد التاجر حالياً. لم يتم تنفيذ أي تغيير.';
+    case 'AI_DRAFT_INVALID':
+      return 'تعذر إعداد المسودة بصيغة آمنة. لم يتم نشر أي تغيير.';
+    case 'AI_INTENT_INVALID':
+      return 'هذا النوع من طلبات التاجر غير متاح حالياً.';
+    case 'AI_TOOL_ARGUMENTS_INVALID':
+      return 'لم تكن معاملات أداة المساعد صالحة، لذلك تم إيقاف الطلب.';
+    default:
+      return 'تعذر إكمال طلب المساعد بأمان. لم يتم تنفيذ أي تغيير.';
+  }
+}
 
 String _localizedSupabaseError(PostgrestException error, String fallback) {
   final signal = '${error.code} ${error.message}'.toUpperCase();

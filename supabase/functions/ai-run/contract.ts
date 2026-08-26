@@ -2,11 +2,37 @@ export type JsonObject = Record<string, unknown>;
 
 export const READONLY_TOOL_NAMES = new Set([
   "customer.list_own_quotes",
+  "merchant.ai_catalog",
   "merchant.order_workbench",
   "merchant.daily_rollups",
   "merchant.price_lists",
+  "merchant.b2b_analytics",
+  "merchant.cod_reconciliation",
+  "merchant.pos_analytics",
+  "merchant.quality_summary",
   "developer.provider_readiness",
   "developer.effective_policies",
+]);
+
+export const MERCHANT_INTENT_KEYS = new Set([
+  "general",
+  "merchant.dashboard_summary",
+  "merchant.product_copy",
+  "merchant.seo_copy",
+  "merchant.catalog_quality",
+  "merchant.reorder_explanation",
+  "merchant.promotion_draft",
+  "merchant.quote_draft",
+]);
+
+export const DRAFT_KINDS = new Set([
+  "product_description",
+  "seo_title",
+  "seo_description",
+  "analytics_summary",
+  "reorder_note",
+  "promotion_copy",
+  "quote_note",
 ]);
 
 export const DENIED_ACTION_CLASSES = new Set([
@@ -39,6 +65,15 @@ export const objectOrEmpty = (value: unknown): JsonObject => {
 export const validateNoArgs = (args: JsonObject): string | null =>
   Object.keys(args).length === 0 ? null : "NO_ARGUMENTS_ALLOWED";
 
+export const validateCatalogArgs = (args: JsonObject): string | null => {
+  const keys = Object.keys(args);
+  if (keys.some((key) => !["query", "limit", "offset"].includes(key))) return "UNKNOWN_ARGUMENT";
+  if (args.query !== undefined && requireString(args.query, 120) === null) return "INVALID_QUERY";
+  if (args.limit !== undefined && requireInteger(args.limit, 1, 40) === null) return "INVALID_LIMIT";
+  if (args.offset !== undefined && requireInteger(args.offset, 0, 10_000) === null) return "INVALID_OFFSET";
+  return null;
+};
+
 export const validateMerchantArgs = (args: JsonObject): string | null => {
   const keys = Object.keys(args);
   if (keys.some((key) => !["limit", "offset", "query", "fulfilment_status", "payment_status", "cod_status", "from", "to"].includes(key))) return "UNKNOWN_ARGUMENT";
@@ -47,6 +82,22 @@ export const validateMerchantArgs = (args: JsonObject): string | null => {
   for (const key of ["query", "fulfilment_status", "payment_status", "cod_status", "from", "to"]) {
     if (args[key] !== undefined && requireString(args[key], 120) === null) return "INVALID_FILTER";
   }
+  return null;
+};
+
+export const validateCodArgs = (args: JsonObject): string | null => {
+  const keys = Object.keys(args);
+  if (keys.some((key) => !["business_date", "limit", "offset"].includes(key))) return "UNKNOWN_ARGUMENT";
+  if (requireString(args.business_date, 10) === null) return "INVALID_DATE";
+  if (args.limit !== undefined && requireInteger(args.limit, 1, 30) === null) return "INVALID_LIMIT";
+  if (args.offset !== undefined && requireInteger(args.offset, 0, 10_000) === null) return "INVALID_OFFSET";
+  return null;
+};
+
+export const validatePosArgs = (args: JsonObject): string | null => {
+  const keys = Object.keys(args);
+  if (keys.some((key) => !["from", "to"].includes(key))) return "UNKNOWN_ARGUMENT";
+  if (requireString(args.from, 40) === null || requireString(args.to, 40) === null) return "INVALID_DATETIME";
   return null;
 };
 
@@ -85,6 +136,37 @@ export const redactToolResult = (value: unknown): unknown => {
     result[key] = redactToolResult(child);
   }
   return result;
+};
+
+export type DraftEnvelope = {
+  summary: string;
+  drafts: Array<{
+    kind: string;
+    title: string;
+    content: string;
+    language: "ar" | "en";
+    source_product_id: string | null;
+  }>;
+};
+
+export const parseDraftEnvelope = (value: string): DraftEnvelope | null => {
+  const parsed = parseJsonObject(value);
+  if (!parsed) return null;
+  const summary = requireString(parsed.summary, 1_200);
+  if (!summary || !Array.isArray(parsed.drafts) || parsed.drafts.length > 6) return null;
+  const drafts: DraftEnvelope["drafts"] = [];
+  for (const item of parsed.drafts) {
+    const draft = objectOrEmpty(item);
+    const kind = requireString(draft.kind, 40);
+    const title = requireString(draft.title, 160);
+    const content = requireString(draft.content, 2_000);
+    const language = draft.language;
+    const sourceProductId = draft.source_product_id;
+    if (!kind || !DRAFT_KINDS.has(kind) || !title || !content || (language !== "ar" && language !== "en")) return null;
+    if (sourceProductId !== null && sourceProductId !== undefined && requireString(sourceProductId, 80) === null) return null;
+    drafts.push({ kind, title, content, language, source_product_id: sourceProductId === undefined ? null : sourceProductId as string | null });
+  }
+  return { summary, drafts };
 };
 
 export type Policy = {

@@ -18,6 +18,7 @@ import '../core/supabase_marketplace_client.dart';
 import '../core/outbox_background_scheduler.dart';
 import '../core/outbox_replay_worker.dart';
 import '../core/secure_command_outbox.dart';
+import 'merchant_ai_copilot.dart';
 
 class MarketplaceShell extends StatefulWidget {
   const MarketplaceShell({
@@ -4358,6 +4359,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             },
           ),
           if (workspace.shops.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            MerchantAiCopilotCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
             _MerchantInsightsCard(
               shopId: workspace.shops.first.id,

@@ -126,6 +126,7 @@ assert_anon_denied ai_finish_run '{"p_run_id":"00000000-0000-0000-0000-000000000
 assert_anon_denied ai_publish_policy '{"p_policy_key":"anonymous","p_app_surface":"customer","p_principal_role":"customer","p_tool_name":"*","p_version":null,"p_status":"draft","p_rules":{},"p_reason":"anonymous policy"}'
 assert_anon_denied ai_list_effective_policies '{"p_app_surface":"customer"}'
 assert_anon_denied ai_get_effective_policy '{"p_app_surface":"customer","p_tool_name":"*"}'
+assert_anon_denied merchant_ai_catalog '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_query":null,"p_limit":1,"p_offset":0}'
 
 assert_anon_denied ai_get_run '{"p_run_id":"00000000-0000-0000-0000-000000000000"}'
 assert_anon_denied ai_list_run_tool_calls '{"p_run_id":"00000000-0000-0000-0000-000000000000"}'

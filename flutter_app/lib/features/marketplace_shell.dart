@@ -39,6 +39,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
       Icons.store_mall_directory_outlined,
       Icons.store_mall_directory,
     ),
+    _Destination('الخدمات', Icons.auto_awesome_outlined, Icons.auto_awesome),
     _Destination(
       'الإدارة',
       Icons.admin_panel_settings_outlined,
@@ -156,6 +157,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
     1 => _CartPage(user: widget.user),
     2 => _OrdersPage(user: widget.user),
     3 => _MerchantPage(user: widget.user),
+    4 => const _ServicesPage(),
     _ => _AdminPage(user: widget.user),
   };
 
@@ -2961,6 +2963,105 @@ class _OperationsCard extends StatelessWidget {
         ],
       ),
     ),
+  );
+}
+
+class _ServicesPage extends StatelessWidget {
+  const _ServicesPage();
+
+  static const services = [
+    (
+      title: 'توصيل وتتبع الطلب',
+      detail: 'اختر التوصيل أو الاستلام من نقطة قريبة، مع حالات تجريبية من الاستلام حتى التسليم.',
+      icon: Icons.local_shipping_outlined,
+      status: 'جاهز للمعاينة',
+    ),
+    (
+      title: 'تنبيهات واتساب و SMS',
+      detail: 'معاينة رسائل تأكيد الطلب والتحديثات. لن تُرسل أي رسالة بدون تفعيل مزود معتمد وموافقة العميل.',
+      icon: Icons.notifications_active_outlined,
+      status: 'Mock فقط',
+    ),
+    (
+      title: 'نقاط الولاء والإحالات',
+      detail: 'عرض تجريبي للنقاط، مكافأة الإحالة، والقسائم. لا توجد قيمة مالية مخزنة أو مستحقة في النسخة التجريبية.',
+      icon: Icons.card_giftcard_outlined,
+      status: 'تجريبي',
+    ),
+    (
+      title: 'قنوات اجتماعية',
+      detail: 'معاينة مشاركة المنتج والكتالوج الخارجي. النشر والمزامنة يتطلبان حساباً وموافقة من القناة.',
+      icon: Icons.share_outlined,
+      status: 'قيد الإعداد',
+    ),
+    (
+      title: 'خيارات تمويل',
+      detail: 'معلومات توعوية فقط. لا يوجد عرض ائتماني أو قرار تمويل أو طلب بيانات مالية هنا.',
+      icon: Icons.account_balance_outlined,
+      status: 'محجوب',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.fromLTRB(20, 18, 20, 48),
+    children: [
+      Text(
+        'الخدمات المتقدمة',
+        style: Theme.of(context).textTheme.headlineSmall
+            ?.copyWith(fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'ميزات إضافية نجهزها للسوق اليمني. بعضها يعتمد على مزودي خدمات خارجيين، لذلك تعرض هذه الصفحة بيانات توضيحية فقط.',
+      ),
+      const SizedBox(height: 18),
+      Card(
+        color: const Color(0xFFEAF4F2),
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'حماية المستخدم أولاً: لا دفع تلقائي، لا نقل أموال، ولا مشاركة بيانات مع مزود خارجي في وضع المعاينة.',
+          ),
+        ),
+      ),
+      const SizedBox(height: 18),
+      ...services.map(
+        (service) => Card(
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(14),
+            leading: CircleAvatar(
+              backgroundColor: const Color(0xFFE5F3EE),
+              child: Icon(service.icon, color: const Color(0xFF006A63)),
+            ),
+            title: Text(
+              service.title,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(service.detail),
+            ),
+            trailing: Chip(label: Text(service.status)),
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text(service.title),
+                content: Text(
+                  '${service.detail}\\n\\nهذه شاشة Mock؛ لن يتم تنفيذ أي اتصال خارجي أو عملية مالية حتى تفعيل مزود موثق.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
   );
 }
 

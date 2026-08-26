@@ -609,6 +609,87 @@ class CreatorRepository {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, dynamic>>> erpComposableModules() async {
+    final result = await _client.rpc('erp_list_composable_modules');
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>?> erpEventMeshDashboard(
+    String organizationId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_get_event_mesh_dashboard',
+      params: {'p_organization_id': organizationId},
+    );
+    if (result == null) return null;
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> erpUniversalJournal({
+    required String organizationId,
+    String? fromDate,
+    String? toDate,
+    int limit = 50,
+  }) async {
+    final result = await _client.rpc(
+      'erp_list_universal_journal',
+      params: {
+        'p_organization_id': organizationId,
+        'p_from_date': fromDate,
+        'p_to_date': toDate,
+        'p_limit': limit,
+      },
+    );
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> erpProjectPostedJournalBatch({
+    required String batchId,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'erp_project_posted_journal_batch',
+      params: {'p_batch_id': batchId, 'p_reason': reason.trim()},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpSaveExtensionManifest({
+    String? organizationId,
+    required String extensionKey,
+    required String nameAr,
+    required String version,
+    String runtime = 'metadata_only',
+    String? artifactSha256,
+    List<dynamic> requestedCapabilities = const [],
+    List<dynamic> hookKeys = const [],
+    Map<String, dynamic> rolloutScope = const {},
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'erp_save_extension_manifest',
+      params: {
+        'p_organization_id': organizationId,
+        'p_extension_key': extensionKey.trim(),
+        'p_name_ar': nameAr.trim(),
+        'p_version': version.trim(),
+        'p_runtime': runtime,
+        'p_artifact_sha256': artifactSha256?.trim().isEmpty == true
+            ? null
+            : artifactSha256?.trim(),
+        'p_requested_capabilities': requestedCapabilities,
+        'p_hook_keys': hookKeys,
+        'p_rollout_scope': rolloutScope,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>?> erpOrganizationDashboard(
     String organizationId,
   ) async {

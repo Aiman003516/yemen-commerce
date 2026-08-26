@@ -6,4 +6,10 @@ void main() {
     expect(creatorErpAuthoringSafetyMessage, contains('حيازة أموال'));
     expect(creatorErpAuthoringSafetyMessage, contains('لا يتم تحديد الدفع'));
   });
+
+  test('Composable extension safety message stays metadata-only', () {
+    expect(creatorErpComposableSafetyMessage, contains('metadata فقط'));
+    expect(creatorErpComposableSafetyMessage, contains('WASM'));
+    expect(creatorErpComposableSafetyMessage, contains('كتابة مباشرة'));
+  });
 }

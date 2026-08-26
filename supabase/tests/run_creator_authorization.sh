@@ -158,7 +158,11 @@ assert_anon_denied erp_create_account '{"p_book_id":"00000000-0000-0000-0000-000
 assert_anon_denied erp_create_journal_batch '{"p_organization_id":"00000000-0000-0000-0000-000000000000","p_book_id":"00000000-0000-0000-0000-000000000000","p_source_type":"test","p_source_id":null,"p_idempotency_key":"anonymous-erp-journal-key","p_reason":"anonymous","p_description_ar":"اختبار"}'
 assert_anon_denied erp_add_journal_line '{"p_batch_id":"00000000-0000-0000-0000-000000000000","p_account_id":"00000000-0000-0000-0000-000000000000","p_line_number":1,"p_debit_minor":100,"p_credit_minor":0,"p_description_ar":"اختبار","p_dimensions":{}}'
 assert_anon_denied erp_post_journal_batch '{"p_batch_id":"00000000-0000-0000-0000-000000000000","p_reason":"anonymous"}'
-
+assert_anon_denied erp_list_composable_modules '{}'
+assert_anon_denied erp_get_event_mesh_dashboard '{"p_organization_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied erp_list_universal_journal '{"p_organization_id":"00000000-0000-0000-0000-000000000000","p_from_date":null,"p_to_date":null,"p_limit":10}'
+assert_anon_denied erp_project_posted_journal_batch '{"p_batch_id":"00000000-0000-0000-0000-000000000000","p_reason":"anonymous"}'
+assert_anon_denied erp_save_extension_manifest '{"p_organization_id":null,"p_extension_key":"anonymous.ext","p_name_ar":"امتداد مجهول","p_version":"1.0.0","p_runtime":"metadata_only","p_artifact_sha256":null,"p_requested_capabilities":[],"p_hook_keys":[],"p_rollout_scope":{},"p_reason":"anonymous"}'
 assert_anon_denied ai_get_run '{"p_run_id":"00000000-0000-0000-0000-000000000000"}'
 assert_anon_denied ai_list_run_tool_calls '{"p_run_id":"00000000-0000-0000-0000-000000000000"}'
 assert_anon_denied ai_list_my_approvals '{"p_status":"pending"}'

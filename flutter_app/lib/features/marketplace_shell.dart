@@ -7621,6 +7621,7 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
   late Future<List<dynamic>> _load = Future.wait<dynamic>([
     MarketplaceApiClient().erpFeatureCatalog(),
     MarketplaceApiClient().erpMyOrganizationDashboard(),
+    MarketplaceApiClient().erpComposableModules(),
   ]);
 
   void _reload() {
@@ -7628,6 +7629,7 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
       _load = Future.wait<dynamic>([
         MarketplaceApiClient().erpFeatureCatalog(),
         MarketplaceApiClient().erpMyOrganizationDashboard(),
+        MarketplaceApiClient().erpComposableModules(),
       ]);
     });
   }
@@ -7655,6 +7657,8 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
           final rows = (snapshot.data![0] as List<dynamic>)
               .cast<Map<String, dynamic>>();
           final dashboard = snapshot.data![1] as Map<String, dynamic>?;
+          final modules = (snapshot.data![2] as List<dynamic>)
+              .cast<Map<String, dynamic>>();
           final foundation = rows
               .where((row) => row['implementation_status'] == 'foundation')
               .length;
@@ -7705,6 +7709,35 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
               const SizedBox(height: 12),
               const Text(
                 'الوحدات المؤسسية تبدأ بحالة مراجعة ولا تُفعل تلقائياً. لا يملك النظام أموال التاجر، ولا يحول إثبات الدفع إلى حالة دفع مؤكدة.',
+              ),
+              const SizedBox(height: 8),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('الوحدات القابلة للتركيب'),
+                subtitle: Text('${modules.length} وحدات بعقود API معلنة'),
+                children: modules
+                    .take(12)
+                    .map(
+                      (module) => ListTile(
+                        dense: true,
+                        title: Text(
+                          '${module['name_ar'] ?? module['module_key'] ?? '-'}',
+                        ),
+                        subtitle: Text(
+                          '${module['bounded_context'] ?? '-'} · ${module['api_version'] ?? 'v1'} · ${module['implementation_status'] ?? '-'}',
+                        ),
+                        trailing: Chip(
+                          label: Text(
+                            module['provider_required'] == true
+                                ? 'مزود معطل'
+                                : module['enabled'] == true
+                                ? 'متاح'
+                                : 'مؤجل',
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 8),
               ExpansionTile(

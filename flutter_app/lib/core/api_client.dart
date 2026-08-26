@@ -2037,6 +2037,20 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<List<Map<String, dynamic>>> erpComposableModules() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب وحدات ERP القابلة للتركيب اتصال Supabase.');
+    }
+    try {
+      return await supabase.erpComposableModules();
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل وحدات ERP القابلة للتركيب.'),
+      );
+    }
+  }
+
   Future<Map<String, dynamic>?> erpMyOrganizationDashboard() async {
     final supabase = _supabase;
     if (supabase == null) {

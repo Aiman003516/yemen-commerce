@@ -1750,6 +1750,13 @@ class SupabaseMarketplaceClient {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, dynamic>>> erpComposableModules() async {
+    final rows = await _client.rpc('erp_list_composable_modules');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>?> erpMyOrganizationDashboard() async {
     final result = await _client.rpc('erp_get_my_organization_dashboard');
     if (result == null) return null;

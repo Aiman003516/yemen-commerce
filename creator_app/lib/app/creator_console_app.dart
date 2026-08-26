@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 const creatorErpAuthoringSafetyMessage =
     'لا يتم تحديد الدفع أو حيازة أموال عبر هذه الشاشة.';
+const creatorErpComposableSafetyMessage =
+    'الامتدادات تحفظ metadata فقط ولا تشغّل WASM أو شبكة أو كتابة مباشرة.';
 
 class CreatorConsoleApp extends StatelessWidget {
   const CreatorConsoleApp({super.key});
@@ -2986,13 +2988,16 @@ class CreatorErpOperationsPage extends StatefulWidget {
 class _CreatorErpOperationsPageState extends State<CreatorErpOperationsPage> {
   final repository = CreatorRepository();
   late Future<List<Map<String, dynamic>>> features;
+  late Future<List<Map<String, dynamic>>> composableModules;
   final organizationController = TextEditingController();
   Future<Map<String, dynamic>?>? dashboard;
+  Future<Map<String, dynamic>?>? eventMesh;
 
   @override
   void initState() {
     super.initState();
     features = repository.erpFeatureRegistry();
+    composableModules = repository.erpComposableModules();
   }
 
   @override
@@ -3006,6 +3011,7 @@ class _CreatorErpOperationsPageState extends State<CreatorErpOperationsPage> {
     if (organizationId.isEmpty) return;
     setState(() {
       dashboard = repository.erpOrganizationDashboard(organizationId);
+      eventMesh = repository.erpEventMeshDashboard(organizationId);
     });
   }
 
@@ -3138,8 +3144,29 @@ class _CreatorErpOperationsPageState extends State<CreatorErpOperationsPage> {
             onChanged: () {
               setState(() {
                 features = repository.erpFeatureRegistry();
+                composableModules = repository.erpComposableModules();
                 if (organizationController.text.trim().isNotEmpty) {
                   dashboard = repository.erpOrganizationDashboard(
+                    organizationController.text.trim(),
+                  );
+                  eventMesh = repository.erpEventMeshDashboard(
+                    organizationController.text.trim(),
+                  );
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          _ComposableErpPanel(
+            repository: repository,
+            modules: composableModules,
+            eventMesh: eventMesh,
+            organizationId: organizationController.text.trim(),
+            onChanged: () {
+              setState(() {
+                composableModules = repository.erpComposableModules();
+                if (organizationController.text.trim().isNotEmpty) {
+                  eventMesh = repository.erpEventMeshDashboard(
                     organizationController.text.trim(),
                   );
                 }
@@ -3588,6 +3615,241 @@ class _ErpAuthoringPanelState extends State<_ErpAuthoringPanel> {
               padding: EdgeInsets.only(top: 12),
               child: LinearProgressIndicator(),
             ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ComposableErpPanel extends StatefulWidget {
+  const _ComposableErpPanel({
+    required this.repository,
+    required this.modules,
+    required this.eventMesh,
+    required this.organizationId,
+    required this.onChanged,
+  });
+
+  final CreatorRepository repository;
+  final Future<List<Map<String, dynamic>>> modules;
+  final Future<Map<String, dynamic>?>? eventMesh;
+  final String organizationId;
+  final VoidCallback onChanged;
+
+  @override
+  State<_ComposableErpPanel> createState() => _ComposableErpPanelState();
+}
+
+class _ComposableErpPanelState extends State<_ComposableErpPanel> {
+  bool busy = false;
+
+  Future<Map<String, String>?> _manifestDialog() async {
+    final controllers = <String, TextEditingController>{
+      for (final field in const ['extensionKey', 'nameAr', 'version', 'reason'])
+        field: TextEditingController(),
+    };
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إضافة امتداد قابل للمراجعة'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final field in controllers.keys)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: controllers[field],
+                      textDirection:
+                          field == 'extensionKey' || field == 'version'
+                          ? TextDirection.ltr
+                          : TextDirection.rtl,
+                      minLines: field == 'reason' ? 2 : 1,
+                      maxLines: field == 'reason' ? 4 : 1,
+                      decoration: InputDecoration(
+                        labelText: switch (field) {
+                          'extensionKey' => 'مفتاح الامتداد (LTR)',
+                          'nameAr' => 'اسم الامتداد بالعربية',
+                          'version' => 'الإصدار (LTR)',
+                          _ => 'سبب المراجعة (مطلوب)',
+                        },
+                      ),
+                    ),
+                  ),
+                const Text(
+                  'يتم تسجيل الوصف فقط. لا يتم تشغيل WASM أو تحميل كود خارجي، ولا توجد صلاحية شبكة أو قاعدة بيانات للامتداد.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final values = <String, String>{
+                for (final entry in controllers.entries)
+                  entry.key: entry.value.text.trim(),
+              };
+              if (values.values.any((value) => value.length < 3)) return;
+              Navigator.pop(dialogContext, values);
+            },
+            child: const Text('إرسال للمراجعة'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    return result;
+  }
+
+  Future<void> _saveManifest() async {
+    if (busy) return;
+    final values = await _manifestDialog();
+    if (values == null) return;
+    setState(() => busy = true);
+    try {
+      await widget.repository.erpSaveExtensionManifest(
+        organizationId: widget.organizationId.isEmpty
+            ? null
+            : widget.organizationId,
+        extensionKey: values['extensionKey']!,
+        nameAr: values['nameAr']!,
+        version: values['version']!,
+        reason: values['reason']!,
+      );
+      if (!mounted) return;
+      widget.onChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تسجيل الامتداد للمراجعة، ولم يتم تشغيل أي كود.'),
+        ),
+      );
+    } on PostgrestException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('رفض Supabase الامتداد: ${error.message}')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر تسجيل الامتداد للمراجعة.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Widget _moduleStatus(Map<String, dynamic> row) {
+    final enabled = row['enabled'] == true;
+    final provider = row['provider_required'] == true;
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        enabled ? Icons.extension_outlined : Icons.extension_off_outlined,
+      ),
+      title: Text('${row['name_ar'] ?? row['module_key'] ?? '-'}'),
+      subtitle: Text(
+        '${row['bounded_context'] ?? '-'} · ${row['api_version'] ?? 'v1'} · ${row['implementation_status'] ?? '-'}',
+      ),
+      trailing: Chip(
+        label: Text(
+          provider
+              ? 'مزود معطل'
+              : enabled
+              ? 'متاح'
+              : 'مؤجل',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'مركز ERP القابل للتركيب',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'تعمل الوحدات حالياً داخل بنية Supabase معيارية بحدود عقود واضحة. لا يعني ظهور الوحدة أنها تمنح صلاحية أو تشغّل مزوداً خارجياً.',
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: widget.modules,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LinearProgressIndicator();
+              }
+              if (snapshot.hasError) {
+                return const Text('تعذر تحميل سجل الوحدات القابلة للتركيب.');
+              }
+              final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+              return Column(children: rows.map(_moduleStatus).toList());
+            },
+          ),
+          const Divider(height: 24),
+          Text(
+            'صحة شبكة الأحداث والإسقاطات',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          if (widget.eventMesh == null)
+            const Text('أدخل معرّف منظمة مرئية ثم حمّل المؤشرات لعرض الحالة.')
+          else
+            FutureBuilder<Map<String, dynamic>?>(
+              future: widget.eventMesh,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const LinearProgressIndicator();
+                }
+                if (snapshot.hasError || snapshot.data == null) {
+                  return const Text('لا توجد صحة أحداث مرئية بهذه المنظمة.');
+                }
+                final item = snapshot.data!;
+                return Wrap(
+                  spacing: 14,
+                  runSpacing: 8,
+                  children: [
+                    Text('أحداث معلقة: ${item['pending_event_count'] ?? 0}'),
+                    Text('رسائل فاشلة: ${item['inbox_failed_count'] ?? 0}'),
+                    Text(
+                      'Dead-letter: ${item['dead_letter_event_count'] ?? 0}',
+                    ),
+                    Text('الإسقاطات: ${item['checkpoint_count'] ?? 0}'),
+                    const Chip(label: Text('الإرسال الخارجي معطل')),
+                  ],
+                );
+              },
+            ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: busy ? null : _saveManifest,
+            icon: const Icon(Icons.extension_outlined),
+            label: const Text('تسجيل امتداد للمراجعة فقط'),
+          ),
+          if (busy)
+            const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: LinearProgressIndicator(),
+            ),
+          const SizedBox(height: 8),
+          const Text(creatorErpComposableSafetyMessage),
         ],
       ),
     ),

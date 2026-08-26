@@ -672,12 +672,19 @@ class SupabaseMarketplaceClient {
     int limit = 100,
     int offset = 0,
   }) async {
+    if (offset < 0 || offset > 10000) {
+      throw ArgumentError.value(
+        offset,
+        'offset',
+        'must be between 0 and 10000',
+      );
+    }
     final rows = await _client.rpc(
       'export_merchant_b2b',
       params: {
         'p_shop_id': shopId,
         'p_limit': limit.clamp(1, 500),
-        'p_offset': offset < 0 ? 0 : offset,
+        'p_offset': offset,
       },
     );
     return (rows as List<dynamic>)
@@ -708,6 +715,13 @@ class SupabaseMarketplaceClient {
     int limit = 100,
     int offset = 0,
   }) async {
+    if (offset < 0 || offset > 10000) {
+      throw ArgumentError.value(
+        offset,
+        'offset',
+        'must be between 0 and 10000',
+      );
+    }
     final rows = await _client.rpc(
       'export_merchant_pos',
       params: {
@@ -715,7 +729,7 @@ class SupabaseMarketplaceClient {
         'p_from': from.toUtc().toIso8601String(),
         'p_to': to.toUtc().toIso8601String(),
         'p_limit': limit.clamp(1, 500),
-        'p_offset': offset < 0 ? 0 : offset,
+        'p_offset': offset,
       },
     );
     return (rows as List<dynamic>)
@@ -1282,11 +1296,16 @@ class SupabaseMarketplaceClient {
   Future<Map<String, dynamic>> applyOrderPromotion({
     required String merchantOrderId,
     required String code,
+    String? commandKey,
   }) async {
-    final result = await _client.rpc(
-      'apply_order_promotion',
-      params: {'p_merchant_order_id': merchantOrderId, 'p_code': code},
-    );
+    final params = <String, dynamic>{
+      'p_merchant_order_id': merchantOrderId,
+      'p_code': code,
+    };
+    if (commandKey != null && commandKey.trim().isNotEmpty) {
+      params['p_command_key'] = commandKey;
+    }
+    final result = await _client.rpc('apply_order_promotion', params: params);
     return Map<String, dynamic>.from(result as Map);
   }
 

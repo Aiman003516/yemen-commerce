@@ -3,9 +3,18 @@ import 'package:commerce_core/commerce_core.dart';
 import 'api_client.dart';
 
 class OutboxDiagnostic {
-  const OutboxDiagnostic({required this.command, required this.state});
+  const OutboxDiagnostic({
+    required this.idempotencyKey,
+    required this.kind,
+    required this.attempts,
+    required this.hasError,
+    required this.state,
+  });
 
-  final QueuedCommand command;
+  final String idempotencyKey;
+  final String kind;
+  final int attempts;
+  final bool hasError;
   final String state;
 }
 
@@ -29,10 +38,19 @@ class OutboxReplaySummary {
 /// Payment-proof submission and payment finalization are intentionally not
 /// supported here. Checkout replay is protected by the server idempotency key.
 class OutboxReplayWorker {
-  OutboxReplayWorker({required this.outbox, MarketplaceApiClient? api})
-    : _api = api ?? MarketplaceApiClient();
+  OutboxReplayWorker({
+    required this.outbox,
+    required String userScope,
+    MarketplaceApiClient? api,
+  }) : _userScope = userScope.trim(),
+       _api = api ?? MarketplaceApiClient() {
+    if (_userScope.isEmpty) {
+      throw ArgumentError.value(userScope, 'userScope', 'must be non-empty');
+    }
+  }
 
   final CommandOutbox outbox;
+  final String _userScope;
   final MarketplaceApiClient _api;
 
   static const _maxAttempts = 5;
@@ -42,7 +60,10 @@ class OutboxReplayWorker {
     return commands
         .map(
           (command) => OutboxDiagnostic(
-            command: command,
+            idempotencyKey: command.idempotencyKey,
+            kind: command.kind,
+            attempts: command.attempts,
+            hasError: command.lastError != null,
             state: command.attempts >= _maxAttempts
                 ? 'blocked'
                 : command.attempts > 0
@@ -58,15 +79,17 @@ class OutboxReplayWorker {
   Future<void> discard(String idempotencyKey) =>
       outbox.markCompleted(idempotencyKey);
 
-  static Future<OutboxReplaySummary>? _activeReplay;
+  static final Map<String, Future<OutboxReplaySummary>> _activeReplays = {};
 
   Future<OutboxReplaySummary> replay() {
-    final active = _activeReplay;
+    final active = _activeReplays[_userScope];
     if (active != null) return active;
     final current = _replayInternal();
-    _activeReplay = current;
+    _activeReplays[_userScope] = current;
     return current.whenComplete(() {
-      if (identical(_activeReplay, current)) _activeReplay = null;
+      if (identical(_activeReplays[_userScope], current)) {
+        _activeReplays.remove(_userScope);
+      }
     });
   }
 
@@ -113,6 +136,7 @@ class OutboxReplayWorker {
         await _api.applyOrderPromotion(
           merchantOrderId: command.payload['merchantOrderId'].toString(),
           code: command.payload['code'].toString(),
+          commandKey: command.idempotencyKey,
         );
       default:
         throw StateError('Unsupported offline command: ${command.kind}');

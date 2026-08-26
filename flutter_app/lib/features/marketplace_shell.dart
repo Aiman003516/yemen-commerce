@@ -2148,6 +2148,16 @@ Future<void> _saveCsv(
   required List<String> headers,
   required List<Map<String, dynamic>> rows,
 }) async {
+  if (rows.isEmpty) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد سجلات تشغيلية ضمن النطاق المحدد.'),
+        ),
+      );
+    }
+    return;
+  }
   final csv = _csvDocument(headers, rows);
   final savedPath = await FilePicker.platform.saveFile(
     dialogTitle: 'تصدير CSV آمن',
@@ -4374,7 +4384,10 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
     final userId = widget.user?.id;
     worker = userId == null
         ? null
-        : OutboxReplayWorker(outbox: SecureCommandOutbox(userScope: userId));
+        : OutboxReplayWorker(
+            outbox: SecureCommandOutbox(userScope: userId),
+            userScope: userId,
+          );
     diagnostics = worker?.diagnostics() ?? Future.value(const []);
   }
 
@@ -4389,7 +4402,10 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
     if (oldUserId == newUserId) return;
     worker = newUserId == null
         ? null
-        : OutboxReplayWorker(outbox: SecureCommandOutbox(userScope: newUserId));
+        : OutboxReplayWorker(
+            outbox: SecureCommandOutbox(userScope: newUserId),
+            userScope: newUserId,
+          );
     lastSummary = null;
     diagnostics = worker?.diagnostics() ?? Future.value(const []);
   }
@@ -4413,6 +4429,33 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> discard(OutboxDiagnostic item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الأمر المشفر؟'),
+        content: const Text(
+          'سيُحذف الأمر من هذا الجهاز ولن تتم محاولة إرساله لاحقاً. لا تحذف الأمر إذا كنت تريد إكمال الطلب أو العرض عند عودة الاتصال.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('حذف نهائياً'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final currentWorker = worker;
+    if (currentWorker == null) return;
+    await currentWorker.discard(item.idempotencyKey);
+    refresh();
   }
 
   @override
@@ -4499,11 +4542,12 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
                               ? Icons.warning_amber_outlined
                               : Icons.schedule,
                         ),
-                        title: Text(_kindLabel(item.command.kind)),
+                        title: Text(_kindLabel(item.kind)),
                         subtitle: Text(
-                          'الحالة: ${_stateLabel(item.state)} · محاولات: ${item.command.attempts}\nالمعرف: ${_maskKey(item.command.idempotencyKey)}${item.command.lastError == null ? '' : '\nتعذر التنفيذ؛ أعد المحاولة أو احذف الأمر.'}',
+                          'الحالة: ${_stateLabel(item.state)} · محاولات: ${item.attempts}\nالمعرف: ${_maskKey(item.idempotencyKey)}${item.hasError ? '\nتعذر التنفيذ؛ أعد المحاولة أو احذف الأمر.' : ''}',
                         ),
-                        isThreeLine: item.command.lastError != null,
+                        isThreeLine: item.hasError,
+
                         trailing: Wrap(
                           spacing: 4,
                           children: [
@@ -4511,23 +4555,15 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
                               onPressed: () async {
                                 final currentWorker = worker;
                                 if (currentWorker == null) return;
-                                await currentWorker.retry(
-                                  item.command.idempotencyKey,
-                                );
+                                await currentWorker.retry(item.idempotencyKey);
+
                                 refresh();
                               },
                               icon: const Icon(Icons.replay),
                               tooltip: 'إعادة المحاولة',
                             ),
                             IconButton(
-                              onPressed: () async {
-                                final currentWorker = worker;
-                                if (currentWorker == null) return;
-                                await currentWorker.discard(
-                                  item.command.idempotencyKey,
-                                );
-                                refresh();
-                              },
+                              onPressed: busy ? null : () => discard(item),
                               icon: const Icon(Icons.delete_outline),
                               tooltip: 'حذف الأمر',
                             ),

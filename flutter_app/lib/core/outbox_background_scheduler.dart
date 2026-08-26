@@ -18,6 +18,7 @@ const _connectivityTask = 'yemen-commerce-outbox-connectivity';
 void outboxBackgroundCallback() {
   Workmanager().executeTask((task, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
+    if (task != _periodicTask && task != _connectivityTask) return true;
     if (!SupabaseConfig.isConfigured) return true;
     try {
       await SupabaseRuntime.initialize();
@@ -25,6 +26,7 @@ void outboxBackgroundCallback() {
       if (userId == null || userId.isEmpty) return true;
       final summary = await OutboxReplayWorker(
         outbox: SecureCommandOutbox(userScope: userId),
+        userScope: userId,
       ).replay();
       return summary.failed == 0;
     } on Object {

@@ -605,6 +605,13 @@ class MarketplaceApiClient {
     int limit = 100,
     int offset = 0,
   }) async {
+    if (offset < 0 || offset > 10000) {
+      throw ArgumentError.value(
+        offset,
+        'offset',
+        'must be between 0 and 10000',
+      );
+    }
     final supabase = _supabase;
     if (supabase == null) {
       throw ApiException('يتطلب تصدير B2B اتصال Supabase.');
@@ -612,7 +619,7 @@ class MarketplaceApiClient {
     return supabase.exportMerchantB2b(
       shopId,
       limit: limit.clamp(1, 500),
-      offset: offset < 0 ? 0 : offset,
+      offset: offset,
     );
   }
 
@@ -635,6 +642,13 @@ class MarketplaceApiClient {
     int limit = 100,
     int offset = 0,
   }) async {
+    if (offset < 0 || offset > 10000) {
+      throw ArgumentError.value(
+        offset,
+        'offset',
+        'must be between 0 and 10000',
+      );
+    }
     final supabase = _supabase;
     if (supabase == null) {
       throw ApiException('يتطلب تصدير POS اتصال Supabase.');
@@ -644,7 +658,7 @@ class MarketplaceApiClient {
       from: from,
       to: to,
       limit: limit.clamp(1, 500),
-      offset: offset < 0 ? 0 : offset,
+      offset: offset,
     );
   }
 
@@ -1335,6 +1349,7 @@ class MarketplaceApiClient {
   Future<void> applyOrderPromotion({
     required String merchantOrderId,
     required String code,
+    String? commandKey,
   }) async {
     final supabase = _supabase;
     if (supabase == null) {
@@ -1343,6 +1358,7 @@ class MarketplaceApiClient {
     await supabase.applyOrderPromotion(
       merchantOrderId: merchantOrderId,
       code: code,
+      commandKey: commandKey,
     );
   }
 

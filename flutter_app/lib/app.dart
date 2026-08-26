@@ -46,8 +46,10 @@ class YemenCommerceApp extends StatelessWidget {
     _lastReplayUserId = userId;
     _lastReplayStartedAt = now;
     try {
-      await OutboxReplayWorker(outbox: SecureCommandOutbox(userScope: userId))
-          .replay();
+      await OutboxReplayWorker(
+        outbox: SecureCommandOutbox(userScope: userId),
+        userScope: userId,
+      ).replay();
     } on Object {
       // Replay is best-effort. The encrypted queue remains available for the
       // next authenticated session event and never blocks app startup.

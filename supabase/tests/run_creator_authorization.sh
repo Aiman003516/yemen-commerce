@@ -84,6 +84,7 @@ assert_anon_denied open_pos_session '{"p_shop_id":"00000000-0000-0000-0000-00000
 assert_anon_denied record_pos_sale '{"p_pos_session_id":"00000000-0000-0000-0000-000000000000","p_total_minor":100,"p_payment_mode":"mock","p_line_items":[],"p_note":"Test sale"}'
 assert_anon_denied checkout_create_orders_idempotent '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_fulfilment_by_shop":[],"p_payment_by_merchant":[],"p_delivery_by_shop":[],"p_command_key":"anonymous-test-command-key"}'
 assert_anon_denied apply_order_promotion '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_code":"TEST10"}'
+assert_anon_denied apply_order_promotion '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_code":"TEST10","p_command_key":"anonymous-promotion-command-key"}'
 assert_anon_denied record_courier_dispatch_event '{"p_assignment_id":"00000000-0000-0000-0000-000000000000","p_event_type":"note","p_note":"Test dispatch note"}'
 assert_anon_denied save_wholesale_price_list '{"p_id":null,"p_shop_id":"00000000-0000-0000-0000-000000000000","p_name_ar":"قائمة اختبار","p_currency":"YER","p_status":"draft","p_reason":"Test reason"}'
 assert_anon_denied save_wholesale_price_list_item '{"p_id":null,"p_price_list_id":"00000000-0000-0000-0000-000000000000","p_product_id":"00000000-0000-0000-0000-000000000000","p_variant_id":null,"p_unit_price_minor":100,"p_min_quantity":1,"p_status":"active","p_reason":"Test reason"}'

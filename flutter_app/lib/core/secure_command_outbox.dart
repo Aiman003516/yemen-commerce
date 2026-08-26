@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:commerce_core/commerce_core.dart';
@@ -18,6 +19,7 @@ class SecureCommandOutbox implements CommandOutbox {
   static const _storageKeyPrefix = 'commerce_command_outbox_v1_';
   final FlutterSecureStorage _storage;
   final String _storageKey;
+  static final Map<String, Future<void>> _operationQueues = {};
 
   static String _scopedStorageKey(String userScope) {
     final normalized = userScope.trim();
@@ -29,30 +31,30 @@ class SecureCommandOutbox implements CommandOutbox {
   }
 
   @override
-  Future<void> enqueue(QueuedCommand command) async {
+  Future<void> enqueue(QueuedCommand command) => _serialize(() async {
     final commands = await _read();
     commands.putIfAbsent(command.idempotencyKey, () => command);
     await _write(commands);
-  }
+  });
 
   @override
-  Future<List<QueuedCommand>> pending() async {
+  Future<List<QueuedCommand>> pending() => _serialize(() async {
     final commands = await _read();
     final result = commands.values.toList(growable: false)
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return result;
-  }
+  });
 
   @override
-  Future<void> markCompleted(String idempotencyKey) async {
+  Future<void> markCompleted(String idempotencyKey) => _serialize(() async {
     final commands = await _read();
     if (commands.remove(idempotencyKey) != null) {
       await _write(commands);
     }
-  }
+  });
 
   @override
-  Future<void> retry(String idempotencyKey) async {
+  Future<void> retry(String idempotencyKey) => _serialize(() async {
     final commands = await _read();
     final command = commands[idempotencyKey];
     if (command == null) return;
@@ -63,18 +65,35 @@ class SecureCommandOutbox implements CommandOutbox {
       createdAt: command.createdAt,
     );
     await _write(commands);
-  }
+  });
 
   @override
-  Future<void> markFailed(String idempotencyKey, String error) async {
-    final commands = await _read();
-    final command = commands[idempotencyKey];
-    if (command == null) return;
-    commands[idempotencyKey] = command.copyWith(
-      attempts: command.attempts + 1,
-      lastError: error,
-    );
-    await _write(commands);
+  Future<void> markFailed(String idempotencyKey, String error) =>
+      _serialize(() async {
+        final commands = await _read();
+        final command = commands[idempotencyKey];
+        if (command == null) return;
+        commands[idempotencyKey] = command.copyWith(
+          attempts: command.attempts + 1,
+          lastError: error,
+        );
+        await _write(commands);
+      });
+
+  Future<T> _serialize<T>(Future<T> Function() operation) {
+    final previous = _operationQueues[_storageKey] ?? Future<void>.value();
+    final gate = Completer<void>();
+    _operationQueues[_storageKey] = gate.future;
+    return previous.then((_) async {
+      try {
+        return await operation();
+      } finally {
+        if (!gate.isCompleted) gate.complete();
+        if (identical(_operationQueues[_storageKey], gate.future)) {
+          _operationQueues.remove(_storageKey);
+        }
+      }
+    });
   }
 
   Future<Map<String, QueuedCommand>> _read() async {

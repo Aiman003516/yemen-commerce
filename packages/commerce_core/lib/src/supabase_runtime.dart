@@ -20,7 +20,7 @@ class SupabaseRuntime {
       client.auth.onAuthStateChange;
 
   static Future<void> initialize() async {
-    if (!isConfigured) return;
+    if (!isConfigured || Supabase.instance.isInitialized) return;
     await Supabase.initialize(url: url, publishableKey: publishableKey);
   }
 

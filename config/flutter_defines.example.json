@@ -1,0 +1,6 @@
+{
+  "SUPABASE_URL": "https://your-project-ref.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_replace_with_your_public_key",
+  "SUPABASE_AUTH_REDIRECT_URL": "",
+  "API_BASE_URL": ""
+}

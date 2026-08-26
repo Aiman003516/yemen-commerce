@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/core/contracts.dart';
+import 'package:yemen_commerce/core/contracts.dart';
 
 void main() {
   test('parses a proposal as a redacted Arabic review envelope', () {

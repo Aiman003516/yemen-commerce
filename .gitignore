@@ -79,5 +79,6 @@ client/public/__manus__/version.json
 .project-config.json
 
 # Local Flutter build-time Supabase configuration
+config/flutter_defines.json
 flutter_app/config/*.json
 flutter_app/config/*.yaml

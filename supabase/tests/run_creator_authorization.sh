@@ -54,6 +54,16 @@ assert_anon_denied creator_list_capabilities '{"p_market_id":"00000000-0000-0000
 assert_anon_denied creator_set_market_capability '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_capability_id":"00000000-0000-0000-0000-000000000000","p_enabled":true,"p_reason":"test"}'
 assert_anon_denied save_merchant_payment_method '{"p_id":null,"p_name":"Jaib","p_account_holder_name":"Test Merchant","p_receiving_identifier":"0000000000","p_instructions":"Use the Jaib QR or POS reference and submit the transaction reference.","p_proof_requirement":"reference","p_provider_code":"jaib","p_provider_metadata":{"payment_channel":"qr_or_pos","integration_mode":"manual","verification_state":"manual_only"}}'
 
+assert_anon_denied save_customer_address '{"p_id":null,"p_market_id":"00000000-0000-0000-0000-000000000000","p_service_area_id":null,"p_label":"Home","p_recipient_name":"Test Customer","p_phone":"700000000","p_address_line":"Test address near the market","p_landmark":"Main landmark","p_city":"Ibb","p_district":null,"p_is_default":true}'
+assert_anon_denied save_product_variant '{"p_id":null,"p_product_id":"00000000-0000-0000-0000-000000000000","p_name":"Default","p_sku":"TEST-DEFAULT","p_price_minor":100,"p_stock_quantity":1,"p_status":"draft"}'
+assert_anon_denied open_order_case '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_case_type":"dispute","p_reason":"Test dispute reason"}'
+assert_anon_denied review_order_case '{"p_case_id":"00000000-0000-0000-0000-000000000000","p_decision":"rejected","p_resolution_note":"Test review","p_merchant_note":"Test note"}'
+assert_anon_denied assign_order_courier '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_courier_user_id":"00000000-0000-0000-0000-000000000000","p_delivery_note":"Test delivery"}'
+assert_anon_denied record_courier_handoff '{"p_assignment_id":"00000000-0000-0000-0000-000000000000","p_status":"delivered","p_delivery_note":"Test handoff"}'
+assert_anon_denied submit_product_review '{"p_product_id":"00000000-0000-0000-0000-000000000000","p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_rating":5,"p_comment":"Test review"}'
+assert_anon_denied save_merchant_promotion '{"p_id":null,"p_shop_id":"00000000-0000-0000-0000-000000000000","p_code":"TEST10","p_kind":"percent","p_value_minor":10,"p_starts_at":null,"p_ends_at":null,"p_max_redemptions":10,"p_status":"draft"}'
+assert_anon_denied mark_notification_read '{"p_notification_id":"00000000-0000-0000-0000-000000000000"}'
+
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"
   if [[ "$status" == "401" ]]; then

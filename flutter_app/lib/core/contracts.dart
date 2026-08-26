@@ -218,6 +218,125 @@ class MarketConfig {
   );
 }
 
+class MarketServiceArea {
+  const MarketServiceArea({
+    required this.id,
+    required this.marketId,
+    required this.nameAr,
+    required this.areaCode,
+    required this.status,
+    required this.deliveryEnabled,
+    required this.pickupEnabled,
+  });
+
+  final String id;
+  final String marketId;
+  final String nameAr;
+  final String areaCode;
+  final String status;
+  final bool deliveryEnabled;
+  final bool pickupEnabled;
+
+  factory MarketServiceArea.fromJson(Map<String, dynamic> json) =>
+      MarketServiceArea(
+        id: _stringValue(json['id']),
+        marketId: _stringValue(json['marketId'] ?? json['market_id']),
+        nameAr: json['nameAr'] as String? ?? json['name_ar'] as String,
+        areaCode: json['areaCode'] as String? ?? json['area_code'] as String,
+        status: json['status'] as String? ?? 'draft',
+        deliveryEnabled:
+            json['deliveryEnabled'] as bool? ??
+            json['delivery_enabled'] as bool? ??
+            true,
+        pickupEnabled:
+            json['pickupEnabled'] as bool? ??
+            json['pickup_enabled'] as bool? ??
+            true,
+      );
+}
+
+class PickupPoint {
+  const PickupPoint({
+    required this.id,
+    required this.marketId,
+    required this.nameAr,
+    required this.addressDetails,
+    this.serviceAreaId,
+    this.contactPhone,
+    this.operatingHours,
+  });
+
+  final String id;
+  final String marketId;
+  final String nameAr;
+  final String addressDetails;
+  final String? serviceAreaId;
+  final String? contactPhone;
+  final String? operatingHours;
+
+  factory PickupPoint.fromJson(Map<String, dynamic> json) => PickupPoint(
+    id: _stringValue(json['id']),
+    marketId: _stringValue(json['marketId'] ?? json['market_id']),
+    nameAr: json['nameAr'] as String? ?? json['name_ar'] as String,
+    addressDetails:
+        json['addressDetails'] as String? ?? json['address_details'] as String,
+    serviceAreaId:
+        json['serviceAreaId'] as String? ?? json['service_area_id'] as String?,
+    contactPhone:
+        json['contactPhone'] as String? ?? json['contact_phone'] as String?,
+    operatingHours:
+        json['operatingHours'] as String? ?? json['operating_hours'] as String?,
+  );
+}
+
+class CustomerAddress {
+  const CustomerAddress({
+    required this.id,
+    required this.marketId,
+    required this.label,
+    required this.recipientName,
+    required this.phone,
+    required this.addressLine,
+    required this.city,
+    required this.isDefault,
+    this.serviceAreaId,
+    this.landmark,
+    this.district,
+  });
+
+  final String id;
+  final String marketId;
+  final String label;
+  final String recipientName;
+  final String phone;
+  final String addressLine;
+  final String city;
+  final bool isDefault;
+  final String? serviceAreaId;
+  final String? landmark;
+  final String? district;
+
+  factory CustomerAddress.fromJson(
+    Map<String, dynamic> json,
+  ) => CustomerAddress(
+    id: _stringValue(json['id']),
+    marketId: _stringValue(json['marketId'] ?? json['market_id']),
+    label: json['label'] as String,
+    recipientName:
+        json['recipientName'] as String? ?? json['recipient_name'] as String,
+    phone: json['phone'] as String,
+    addressLine:
+        json['addressLine'] as String? ?? json['address_line'] as String,
+    city: json['city'] as String,
+    isDefault:
+        json['isDefault'] as bool? ?? json['is_default'] as bool? ?? false,
+    serviceAreaId:
+        json['serviceAreaId'] as String? ?? json['service_area_id'] as String?,
+    landmark: json['landmark'] as String?,
+    district: json['district'] as String?,
+  );
+}
+
 class FeatureAvailability {
   const FeatureAvailability({
     required this.key,
@@ -227,6 +346,206 @@ class FeatureAvailability {
   final String key;
   final bool enabled;
   final String? reasonAr;
+}
+
+class MerchantAnalytics {
+  const MerchantAnalytics({
+    required this.shopId,
+    required this.ordersCount,
+    required this.paidOrdersCount,
+    required this.completedOrdersCount,
+    required this.grossPaidMinor,
+    required this.activeProductsCount,
+    required this.lowStockProductsCount,
+    required this.openCasesCount,
+  });
+
+  final String shopId;
+  final int ordersCount;
+  final int paidOrdersCount;
+  final int completedOrdersCount;
+  final int grossPaidMinor;
+  final int activeProductsCount;
+  final int lowStockProductsCount;
+  final int openCasesCount;
+
+  factory MerchantAnalytics.fromJson(Map<String, dynamic> json) =>
+      MerchantAnalytics(
+        shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+        ordersCount: _intValue(json['ordersCount'] ?? json['orders_count']),
+        paidOrdersCount: _intValue(
+          json['paidOrdersCount'] ?? json['paid_orders_count'],
+        ),
+        completedOrdersCount: _intValue(
+          json['completedOrdersCount'] ?? json['completed_orders_count'],
+        ),
+        grossPaidMinor: _intValue(
+          json['grossPaidMinor'] ?? json['gross_paid_minor'],
+        ),
+        activeProductsCount: _intValue(
+          json['activeProductsCount'] ?? json['active_products_count'],
+        ),
+        lowStockProductsCount: _intValue(
+          json['lowStockProductsCount'] ?? json['low_stock_products_count'],
+        ),
+        openCasesCount: _intValue(
+          json['openCasesCount'] ?? json['open_cases_count'],
+        ),
+      );
+}
+
+class StorefrontSettings {
+  const StorefrontSettings({
+    required this.shopId,
+    required this.themeKey,
+    required this.primaryColor,
+    required this.isPublished,
+    this.displayName,
+    this.tagline,
+    this.logoStorageKey,
+    this.customSlug,
+    this.customDomain,
+  });
+
+  final String shopId;
+  final String? displayName;
+  final String? tagline;
+  final String themeKey;
+  final String primaryColor;
+  final String? logoStorageKey;
+  final String? customSlug;
+  final String? customDomain;
+  final bool isPublished;
+
+  factory StorefrontSettings.fromJson(
+    Map<String, dynamic> json,
+  ) => StorefrontSettings(
+    shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+    displayName:
+        json['displayName'] as String? ?? json['display_name'] as String?,
+    tagline: json['tagline'] as String?,
+    themeKey:
+        json['themeKey'] as String? ??
+        json['theme_key'] as String? ??
+        'yemen_teal',
+    primaryColor:
+        json['primaryColor'] as String? ??
+        json['primary_color'] as String? ??
+        '#006A63',
+    logoStorageKey:
+        json['logoStorageKey'] as String? ??
+        json['logo_storage_key'] as String?,
+    customSlug: json['customSlug'] as String? ?? json['custom_slug'] as String?,
+    customDomain:
+        json['customDomain'] as String? ?? json['custom_domain'] as String?,
+    isPublished:
+        json['isPublished'] as bool? ?? json['is_published'] as bool? ?? false,
+  );
+}
+
+class InventoryLocation {
+  const InventoryLocation({
+    required this.id,
+    required this.shopId,
+    required this.name,
+    required this.status,
+    required this.isDefault,
+    this.areaLabel,
+  });
+
+  final String id;
+  final String shopId;
+  final String name;
+  final String? areaLabel;
+  final String status;
+  final bool isDefault;
+
+  factory InventoryLocation.fromJson(Map<String, dynamic> json) =>
+      InventoryLocation(
+        id: _stringValue(json['id']),
+        shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+        name: json['name'] as String,
+        areaLabel:
+            json['areaLabel'] as String? ?? json['area_label'] as String?,
+        status: json['status'] as String? ?? 'active',
+        isDefault:
+            json['isDefault'] as bool? ?? json['is_default'] as bool? ?? false,
+      );
+}
+
+class MerchantProductSummary {
+  const MerchantProductSummary({
+    required this.id,
+    required this.shopId,
+    required this.shopName,
+    required this.name,
+    required this.priceMinor,
+    required this.stockQuantity,
+    required this.status,
+    this.description,
+    this.currency = 'YER',
+  });
+
+  final String id;
+  final String shopId;
+  final String shopName;
+  final String name;
+  final String? description;
+  final int priceMinor;
+  final int stockQuantity;
+  final String status;
+  final String currency;
+
+  factory MerchantProductSummary.fromJson(Map<String, dynamic> json) {
+    final shop = json['shops'] is Map
+        ? Map<String, dynamic>.from(json['shops'] as Map)
+        : const <String, dynamic>{};
+    return MerchantProductSummary(
+      id: _stringValue(json['id']),
+      shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+      shopName:
+          json['shopName'] as String? ??
+          json['shop_name'] as String? ??
+          shop['name'] as String? ??
+          '',
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      priceMinor: _intValue(json['priceMinor'] ?? json['price_minor']),
+      stockQuantity: _intValue(json['stockQuantity'] ?? json['stock_quantity']),
+      status: json['status'] as String? ?? 'draft',
+      currency: json['currency'] as String? ?? 'YER',
+    );
+  }
+}
+
+class ProductVariant {
+  const ProductVariant({
+    required this.id,
+    required this.productId,
+    required this.name,
+    required this.priceMinor,
+    required this.stockQuantity,
+    required this.status,
+    this.sku,
+  });
+
+  final String id;
+  final String productId;
+  final String name;
+  final String? sku;
+  final int priceMinor;
+  final int stockQuantity;
+  final String status;
+
+  factory ProductVariant.fromJson(Map<String, dynamic> json) => ProductVariant(
+    id: _stringValue(json['id']),
+    productId: _stringValue(json['productId'] ?? json['product_id']),
+    name: json['name'] as String,
+    sku: json['sku'] as String?,
+    priceMinor: _intValue(json['priceMinor'] ?? json['price_minor']),
+    stockQuantity: _intValue(json['stockQuantity'] ?? json['stock_quantity']),
+    status: json['status'] as String? ?? 'draft',
+  );
 }
 
 class MarketplaceProduct {
@@ -285,6 +604,117 @@ class SessionUser {
     name: json['name'] as String? ?? json['display_name'] as String?,
     role: json['role'] as String,
   );
+}
+
+class ProductReview {
+  const ProductReview({
+    required this.id,
+    required this.productId,
+    required this.rating,
+    required this.status,
+    this.comment,
+  });
+
+  final String id;
+  final String productId;
+  final int rating;
+  final String status;
+  final String? comment;
+
+  factory ProductReview.fromJson(Map<String, dynamic> json) => ProductReview(
+    id: _stringValue(json['id']),
+    productId: _stringValue(json['productId'] ?? json['product_id']),
+    rating: _intValue(json['rating']),
+    status: json['status'] as String? ?? 'pending',
+    comment: json['comment'] as String?,
+  );
+}
+
+class MerchantPromotion {
+  const MerchantPromotion({
+    required this.id,
+    required this.shopId,
+    required this.code,
+    required this.kind,
+    required this.valueMinor,
+    required this.status,
+  });
+
+  final String id;
+  final String shopId;
+  final String code;
+  final String kind;
+  final int valueMinor;
+  final String status;
+
+  factory MerchantPromotion.fromJson(Map<String, dynamic> json) =>
+      MerchantPromotion(
+        id: _stringValue(json['id']),
+        shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+        code: json['code'] as String,
+        kind: json['kind'] as String,
+        valueMinor: _intValue(json['valueMinor'] ?? json['value_minor']),
+        status: json['status'] as String? ?? 'draft',
+      );
+}
+
+class NotificationEvent {
+  const NotificationEvent({
+    required this.id,
+    required this.kind,
+    required this.payload,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  final String id;
+  final String kind;
+  final Map<String, dynamic> payload;
+  final String createdAt;
+  final String? readAt;
+
+  bool get isRead => readAt != null;
+
+  factory NotificationEvent.fromJson(Map<String, dynamic> json) =>
+      NotificationEvent(
+        id: _stringValue(json['id']),
+        kind: json['kind'] as String,
+        payload: Map<String, dynamic>.from(json['payload'] as Map? ?? const {}),
+        createdAt: json['createdAt'] as String? ?? json['created_at'] as String,
+        readAt: json['readAt'] as String? ?? json['read_at'] as String?,
+      );
+}
+
+class OrderCaseSummary {
+  const OrderCaseSummary({
+    required this.id,
+    required this.merchantOrderId,
+    required this.caseType,
+    required this.status,
+    required this.reason,
+    this.resolutionNote,
+  });
+
+  final String id;
+  final String merchantOrderId;
+  final String caseType;
+  final String status;
+  final String reason;
+  final String? resolutionNote;
+
+  factory OrderCaseSummary.fromJson(Map<String, dynamic> json) =>
+      OrderCaseSummary(
+        id: _stringValue(json['id']),
+        merchantOrderId: _stringValue(
+          json['merchantOrderId'] ?? json['merchant_order_id'],
+        ),
+        caseType: json['caseType'] as String? ?? json['case_type'] as String,
+        status: json['status'] as String? ?? 'open',
+        reason: json['reason'] as String,
+        resolutionNote:
+            json['resolutionNote'] as String? ??
+            json['resolution_note'] as String?,
+      );
 }
 
 class MerchantOrderSummary {

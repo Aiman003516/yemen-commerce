@@ -54,6 +54,84 @@ class SupabaseMarketplaceClient {
     return row == null ? null : SupabaseMarket.fromJson(row);
   }
 
+  Future<List<Map<String, dynamic>>> serviceAreas(String marketId) async {
+    final rows = await _client
+        .from('market_service_areas')
+        .select(
+          'id,market_id,name_ar,name_en,area_code,status,delivery_enabled,pickup_enabled',
+        )
+        .eq('market_id', marketId)
+        .eq('status', 'active')
+        .order('name_ar');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> pickupPoints(String marketId) async {
+    final rows = await _client
+        .from('pickup_points')
+        .select(
+          'id,market_id,service_area_id,name_ar,name_en,address_details,contact_phone,operating_hours',
+        )
+        .eq('market_id', marketId)
+        .eq('status', 'active')
+        .order('name_ar');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> customerAddresses(String marketId) async {
+    final user = currentAuthUser;
+    if (user == null) throw const SupabaseMarketplaceException('AUTH_REQUIRED');
+    final rows = await _client
+        .from('customer_addresses')
+        .select(
+          'id,customer_user_id,market_id,service_area_id,label,recipient_name,phone,address_line,landmark,city,district,is_default,is_active',
+        )
+        .eq('customer_user_id', user.id)
+        .eq('market_id', marketId)
+        .eq('is_active', true)
+        .order('is_default', ascending: false)
+        .order('created_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveCustomerAddress({
+    String? id,
+    required String marketId,
+    String? serviceAreaId,
+    required String label,
+    required String recipientName,
+    required String phone,
+    required String addressLine,
+    String? landmark,
+    required String city,
+    String? district,
+    required bool isDefault,
+  }) async {
+    final result = await _client.rpc(
+      'save_customer_address',
+      params: {
+        'p_id': id,
+        'p_market_id': marketId,
+        'p_service_area_id': serviceAreaId,
+        'p_label': label,
+        'p_recipient_name': recipientName,
+        'p_phone': phone,
+        'p_address_line': addressLine,
+        'p_landmark': landmark,
+        'p_city': city,
+        'p_district': district,
+        'p_is_default': isDefault,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<List<SupabaseProduct>> products({
     String? query,
     String? marketId,
@@ -122,6 +200,151 @@ class SupabaseMarketplaceClient {
       params: {
         'p_merchant_order_id': merchantOrderId,
         'p_transaction_reference': transactionReference,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> productReviews(String productId) async {
+    final rows = await _client
+        .from('product_reviews')
+        .select('id,product_id,rating,comment,status')
+        .eq('product_id', productId)
+        .eq('status', 'published')
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> submitProductReview({
+    required String productId,
+    required String merchantOrderId,
+    required int rating,
+    String? comment,
+  }) async {
+    final result = await _client.rpc(
+      'submit_product_review',
+      params: {
+        'p_product_id': productId,
+        'p_merchant_order_id': merchantOrderId,
+        'p_rating': rating,
+        'p_comment': comment,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantPromotions(String shopId) async {
+    final rows = await _client
+        .from('merchant_promotions')
+        .select('id,merchant_id,shop_id,code,kind,value_minor,status')
+        .eq('shop_id', shopId)
+        .order('created_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveMerchantPromotion({
+    String? id,
+    required String shopId,
+    required String code,
+    required String kind,
+    required int valueMinor,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    int? maxRedemptions,
+    required String status,
+  }) async {
+    final result = await _client.rpc(
+      'save_merchant_promotion',
+      params: {
+        'p_id': id,
+        'p_shop_id': shopId,
+        'p_code': code,
+        'p_kind': kind,
+        'p_value_minor': valueMinor,
+        'p_starts_at': startsAt?.toUtc().toIso8601String(),
+        'p_ends_at': endsAt?.toUtc().toIso8601String(),
+        'p_max_redemptions': maxRedemptions,
+        'p_status': status,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> notifications({
+    bool unreadOnly = false,
+  }) async {
+    final user = currentAuthUser;
+    if (user == null) throw const SupabaseMarketplaceException('AUTH_REQUIRED');
+    var request = _client
+        .from('notification_events')
+        .select('id,kind,payload,read_at,created_at')
+        .eq('recipient_user_id', user.id);
+    if (unreadOnly) request = request.isFilter('read_at', null);
+    final rows = await request.order('created_at', ascending: false).limit(50);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> markNotificationRead(
+    String notificationId,
+  ) async {
+    final result = await _client.rpc(
+      'mark_notification_read',
+      params: {'p_notification_id': notificationId},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> orderCases() async {
+    final user = currentAuthUser;
+    if (user == null) throw const SupabaseMarketplaceException('AUTH_REQUIRED');
+    final rows = await _client
+        .from('order_cases')
+        .select('id,merchant_order_id,case_type,status,reason,resolution_note')
+        .eq('opened_by_user_id', user.id)
+        .order('created_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> openOrderCase({
+    required String merchantOrderId,
+    required String caseType,
+    required String reason,
+    int? requestedQuantity,
+  }) async {
+    final result = await _client.rpc(
+      'open_order_case',
+      params: {
+        'p_merchant_order_id': merchantOrderId,
+        'p_case_type': caseType,
+        'p_reason': reason,
+        'p_requested_quantity': requestedQuantity,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> reviewOrderCase({
+    required String caseId,
+    required String decision,
+    required String resolutionNote,
+    String? merchantNote,
+  }) async {
+    final result = await _client.rpc(
+      'review_order_case',
+      params: {
+        'p_case_id': caseId,
+        'p_decision': decision,
+        'p_resolution_note': resolutionNote,
+        'p_merchant_note': merchantNote,
       },
     );
     return Map<String, dynamic>.from(result as Map);
@@ -249,6 +472,80 @@ class SupabaseMarketplaceClient {
     return row == null ? null : Map<String, dynamic>.from(row);
   }
 
+  Future<Map<String, dynamic>> merchantAnalytics(String shopId) async {
+    final result = await _client.rpc(
+      'merchant_dashboard_metrics',
+      params: {'p_shop_id': shopId},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>?> storefrontSettings(String shopId) async {
+    final row = await _client
+        .from('storefront_settings')
+        .select(
+          'shop_id,display_name,tagline,theme_key,primary_color,logo_storage_key,custom_slug,custom_domain,is_published',
+        )
+        .eq('shop_id', shopId)
+        .maybeSingle();
+    return row == null ? null : Map<String, dynamic>.from(row);
+  }
+
+  Future<Map<String, dynamic>> saveStorefrontSettings({
+    required String shopId,
+    String? displayName,
+    String? tagline,
+    required String themeKey,
+    required String primaryColor,
+    String? logoStorageKey,
+    String? customSlug,
+    String? customDomain,
+    required bool isPublished,
+  }) async {
+    final result = await _client.rpc(
+      'save_storefront_settings',
+      params: {
+        'p_shop_id': shopId,
+        'p_display_name': displayName,
+        'p_tagline': tagline,
+        'p_theme_key': themeKey,
+        'p_primary_color': primaryColor,
+        'p_logo_storage_key': logoStorageKey,
+        'p_custom_slug': customSlug,
+        'p_custom_domain': customDomain,
+        'p_is_published': isPublished,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> inventoryLocations(String shopId) async {
+    final rows = await _client
+        .from('inventory_locations')
+        .select('id,shop_id,name,area_label,status,is_default')
+        .eq('shop_id', shopId)
+        .order('is_default', ascending: false)
+        .order('name');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantProducts() async {
+    final merchant = await merchantContext();
+    if (merchant == null) return const [];
+    final rows = await _client
+        .from('products')
+        .select(
+          'id,shop_id,name,description,price_minor,currency,stock_quantity,status,shops!inner(name,merchant_id)',
+        )
+        .eq('shops.merchant_id', merchant['id'])
+        .order('created_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>> merchantWorkspace() async {
     final merchant = await merchantContext();
     if (merchant == null) {
@@ -337,6 +634,41 @@ class SupabaseMarketplaceClient {
         'p_category_id': categoryId,
         'p_name': name,
         'p_description': description,
+        'p_price_minor': priceMinor,
+        'p_stock_quantity': stockQuantity,
+        'p_status': status,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> productVariants(String productId) async {
+    final rows = await _client
+        .from('product_variants')
+        .select('id,product_id,name,sku,price_minor,stock_quantity,status')
+        .eq('product_id', productId)
+        .order('created_at');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveProductVariant({
+    String? id,
+    required String productId,
+    required String name,
+    String? sku,
+    required int priceMinor,
+    required int stockQuantity,
+    required String status,
+  }) async {
+    final result = await _client.rpc(
+      'save_product_variant',
+      params: {
+        'p_id': id,
+        'p_product_id': productId,
+        'p_name': name,
+        'p_sku': sku,
         'p_price_minor': priceMinor,
         'p_stock_quantity': stockQuantity,
         'p_status': status,

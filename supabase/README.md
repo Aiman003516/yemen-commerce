@@ -40,6 +40,14 @@ The creator-control plane is deployed after the foundation migrations in this or
 20260825_0006_creator_control_rpc.sql
 20260825_0007_creator_governance.sql
 20260825_0008_payment_provider_boundary.sql
+20260825_0009_market_delivery_foundation.sql
+20260826_0010_product_variants.sql
+20260826_0011_order_cases.sql
+20260826_0012_courier_operations.sql
+20260826_0013_notification_events.sql
+20260826_0014_reviews_promotions.sql
+20260826_0015_storefront_inventory.sql
+20260826_0016_merchant_analytics.sql
 ```
 
 Migrations 0005 and 0006 add explicit access controls, capabilities, delegated operator assignments, creator-only access helpers, people search, dashboard summaries, role delegation/revocation, account suspension/restoration, and capability grants. Migration 0007 adds creator-only RPCs for merchant verification, shop status moderation, market status moderation, market/policy/capability listing, policy-version creation, and per-market capability toggles. These operations are audited and remain behind creator authorization checks; the Creator Console exposes them through the Merchant Governance and Global Policies screens. Privileged implementations remain in the `private` schema; Flutter sees only narrow public RPC wrappers. The migrations do not create a creator account and do not grant a creator role automatically.
@@ -65,3 +73,5 @@ The Flutter customer/merchant app now shares a provider catalog and lets merchan
 Jaib’s official public consumer pages describe purchase payments, QR/POS identifiers, transfers, cash-in/cash-out, online shopping, and a service network, but no public developer API, webhook, SDK, sandbox, or settlement specification was identified. A formal Jaib provider implementation must wait for AHD/Alhazmi documentation, merchant-acquiring approval, sandbox credentials, callback security, settlement/reconciliation rules, refund behavior, and legal/compliance review. Until that gate is complete, use the manual/QR/POS flow.
 
 The provider catalog is shared through `packages/commerce_core/lib/src/payment_providers.dart`, so future approved providers can be added without putting provider-specific logic into checkout or order state transitions.
+
+Migrations 0009 through 0016 extend the pilot with market service areas, pickup points, private customer address ownership, merchant delivery zones, product variants, customer order cases for cancellation/return/dispute review, courier assignment and handoff operations, durable recipient-scoped notification events, completed-order product reviews, merchant promotion configuration, storefront/theme settings, inventory locations, and aggregate merchant analytics. These additions remain optional and fail safely when no service area, courier, notification, or storefront adapter is configured.

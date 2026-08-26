@@ -299,11 +299,314 @@ class _HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _CatalogSection(user: user),
+              const SizedBox(height: 20),
+              _AddressBookSection(user: user),
+              const SizedBox(height: 20),
+              _NotificationSection(user: user),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+class _NotificationSection extends StatefulWidget {
+  const _NotificationSection({required this.user});
+
+  final SessionUser? user;
+
+  @override
+  State<_NotificationSection> createState() => _NotificationSectionState();
+}
+
+class _NotificationSectionState extends State<_NotificationSection> {
+  late Future<List<NotificationEvent>> _notifications = MarketplaceApiClient()
+      .notifications();
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user == null) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: FutureBuilder<List<NotificationEvent>>(
+          future: _notifications,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const LinearProgressIndicator(minHeight: 2);
+            }
+            if (snapshot.hasError) {
+              return const Text('تعذر تحميل الإشعارات حالياً.');
+            }
+            final notifications = snapshot.data ?? const <NotificationEvent>[];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _SectionHeader(
+                  title: 'التنبيهات',
+                  subtitle: 'تحديثات الطلبات والدفع والتنفيذ في مكان واحد.',
+                ),
+                const SizedBox(height: 10),
+                if (notifications.isEmpty)
+                  const Text('لا توجد تنبيهات جديدة.')
+                else
+                  ...notifications
+                      .take(5)
+                      .map(
+                        (notification) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            notification.isRead
+                                ? Icons.notifications_none
+                                : Icons.notifications_active_outlined,
+                          ),
+                          title: Text(_notificationTitle(notification)),
+                          subtitle: Text(
+                            notification.payload['next_value']?.toString() ??
+                                notification.payload['event_type']
+                                    ?.toString() ??
+                                'تحديث جديد',
+                          ),
+                          onTap: notification.isRead
+                              ? null
+                              : () async {
+                                  await MarketplaceApiClient()
+                                      .markNotificationRead(notification.id);
+                                  if (mounted) {
+                                    setState(
+                                      () => _notifications =
+                                          MarketplaceApiClient()
+                                              .notifications(),
+                                    );
+                                  }
+                                },
+                        ),
+                      ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  String _notificationTitle(NotificationEvent notification) {
+    switch (notification.kind) {
+      case 'payment_review':
+        return 'تحديث مراجعة الدفع';
+      case 'delivery_update':
+        return 'تحديث التنفيذ والتوصيل';
+      case 'case_update':
+        return 'تحديث حالة الطلب';
+      case 'system':
+        return 'تنبيه من المنصة';
+      default:
+        return 'تحديث طلب';
+    }
+  }
+}
+
+class _AddressBookSection extends StatefulWidget {
+  const _AddressBookSection({required this.user});
+
+  final SessionUser? user;
+
+  @override
+  State<_AddressBookSection> createState() => _AddressBookSectionState();
+}
+
+class _AddressBookSectionState extends State<_AddressBookSection> {
+  Future<List<CustomerAddress>>? _addresses;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    if (widget.user != null) {
+      _addresses = MarketplaceApiClient().customerAddresses();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user == null) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: FutureBuilder<List<CustomerAddress>>(
+          future: _addresses,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const LinearProgressIndicator(minHeight: 2);
+            }
+            final addresses = snapshot.data ?? const <CustomerAddress>[];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: _SectionHeader(
+                        title: 'عناوين التوصيل',
+                        subtitle: 'احفظ العناوين والملامح التي يحتاجها التاجر أو مندوب التوصيل.',
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _addAddress,
+                      icon: const Icon(Icons.add_location_alt_outlined),
+                      label: const Text('إضافة'),
+                    ),
+                  ],
+                ),
+                if (snapshot.hasError)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text('تعذر تحميل العناوين. يمكنك المحاولة لاحقاً.'),
+                  )
+                else if (addresses.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text('لم تحفظ عنواناً بعد.'),
+                  )
+                else
+                  ...addresses.map(
+                    (address) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        address.isDefault
+                            ? Icons.home_rounded
+                            : Icons.location_on_outlined,
+                      ),
+                      title: Text(
+                        '${address.label}${address.isDefault ? ' · افتراضي' : ''}',
+                      ),
+                      subtitle: Text(
+                        '${address.recipientName} · ${address.addressLine} · ${address.city}',
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addAddress() async {
+    final label = TextEditingController(text: 'المنزل');
+    final recipient = TextEditingController();
+    final phone = TextEditingController();
+    final addressLine = TextEditingController();
+    final landmark = TextEditingController();
+    final city = TextEditingController(text: 'إب');
+    final district = TextEditingController();
+    var isDefault = true;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إضافة عنوان توصيل'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: label,
+                  decoration: const InputDecoration(labelText: 'اسم العنوان'),
+                ),
+                TextField(
+                  controller: recipient,
+                  decoration: const InputDecoration(labelText: 'اسم المستلم'),
+                ),
+                TextField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'رقم الهاتف'),
+                ),
+                TextField(
+                  controller: addressLine,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'العنوان والوصف',
+                  ),
+                ),
+                TextField(
+                  controller: landmark,
+                  decoration: const InputDecoration(
+                    labelText: 'أقرب معلم أو نقطة دالة',
+                  ),
+                ),
+                TextField(
+                  controller: city,
+                  decoration: const InputDecoration(labelText: 'المدينة'),
+                ),
+                TextField(
+                  controller: district,
+                  decoration: const InputDecoration(labelText: 'المديرية'),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: isDefault,
+                  title: const Text('اجعل هذا العنوان افتراضياً'),
+                  onChanged: (value) =>
+                      setDialogState(() => isDefault = value ?? true),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (recipient.text.trim().length < 2 ||
+                    phone.text.trim().length < 5 ||
+                    addressLine.text.trim().length < 4 ||
+                    city.text.trim().length < 2) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveCustomerAddress(
+                    label: label.text.trim(),
+                    recipientName: recipient.text.trim(),
+                    phone: phone.text.trim(),
+                    addressLine: addressLine.text.trim(),
+                    landmark: landmark.text.trim(),
+                    city: city.text.trim(),
+                    district: district.text.trim(),
+                    isDefault: isDefault,
+                  );
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  setState(_refresh);
+                } on ApiException catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ العنوان'),
+            ),
+          ],
+        ),
+      ),
+    );
+    label.dispose();
+    recipient.dispose();
+    phone.dispose();
+    addressLine.dispose();
+    landmark.dispose();
+    city.dispose();
+    district.dispose();
   }
 }
 
@@ -964,6 +1267,11 @@ class _OrdersPageState extends State<_OrdersPage> {
                             onPressed: () => _showPayment(order),
                             child: const Text('تعليمات الدفع'),
                           ),
+                        if (order.fulfilmentStatus != 'cancelled')
+                          TextButton(
+                            onPressed: () => _openCase(order),
+                            child: const Text('طلب إلغاء أو مساعدة'),
+                          ),
                       ],
                     ),
                   ),
@@ -973,6 +1281,85 @@ class _OrdersPageState extends State<_OrdersPage> {
         );
       },
     );
+  }
+
+  Future<void> _openCase(MerchantOrderSummary order) async {
+    final reason = TextEditingController();
+    var caseType = 'dispute';
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('طلب إلغاء أو مساعدة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: caseType,
+                decoration: const InputDecoration(labelText: 'نوع الطلب'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'cancellation',
+                    child: Text('طلب إلغاء'),
+                  ),
+                  DropdownMenuItem(value: 'return', child: Text('طلب إرجاع')),
+                  DropdownMenuItem(
+                    value: 'dispute',
+                    child: Text('شكوى أو نزاع'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => caseType = value ?? 'dispute'),
+              ),
+              TextField(
+                controller: reason,
+                minLines: 3,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'اشرح السبب بالتفصيل',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (reason.text.trim().length < 5) return;
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('إرسال الطلب'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (submitted != true) {
+      reason.dispose();
+      return;
+    }
+    try {
+      await MarketplaceApiClient().openOrderCase(
+        merchantOrderId: order.id,
+        caseType: caseType,
+        reason: reason.text.trim(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إرسال الطلب للمراجعة.')),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      reason.dispose();
+    }
   }
 
   Future<void> _showPayment(MerchantOrderSummary order) async {
@@ -1433,10 +1820,16 @@ class _MerchantOperationsPanel extends StatefulWidget {
 class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
   late Future<MerchantWorkspace> _workspace = MarketplaceApiClient()
       .merchantWorkspace();
+  late Future<List<MerchantProductSummary>> _products = MarketplaceApiClient()
+      .merchantProducts();
   final Set<String> _updatingOrders = <String>{};
 
-  void _reload() =>
-      setState(() => _workspace = MarketplaceApiClient().merchantWorkspace());
+  void _reload() {
+    setState(() {
+      _workspace = MarketplaceApiClient().merchantWorkspace();
+      _products = MarketplaceApiClient().merchantProducts();
+    });
+  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<MerchantWorkspace>(
@@ -1499,6 +1892,65 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 20),
+          FutureBuilder<List<MerchantProductSummary>>(
+            future: _products,
+            builder: (context, productSnapshot) {
+              final products =
+                  productSnapshot.data ?? const <MerchantProductSummary>[];
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: _SectionHeader(
+                              title: 'الكتالوج',
+                              subtitle: 'أضف منتجاتك الآن، ثم وسّعها لاحقاً بالصور والمتغيرات والمخزون متعدد المواقع.',
+                            ),
+                          ),
+                          FilledButton.icon(
+                            onPressed: workspace.shops.isEmpty
+                                ? null
+                                : () => _createProduct(workspace.shops),
+                            icon: const Icon(Icons.add_box_outlined),
+                            label: const Text('إضافة منتج'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (productSnapshot.connectionState ==
+                          ConnectionState.waiting)
+                        const LinearProgressIndicator(minHeight: 2)
+                      else if (productSnapshot.hasError)
+                        const Text('تعذر تحميل منتجاتك حالياً.')
+                      else if (products.isEmpty)
+                        const Text(
+                          'لا توجد منتجات بعد. أضف أول منتج بعد اعتماد المتجر.',
+                        )
+                      else
+                        ...products
+                            .take(8)
+                            .map(
+                              (product) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.inventory_2_outlined),
+                                title: Text(product.name),
+                                subtitle: Text(
+                                  '${product.shopName} · ${product.priceMinor} ${product.currency} · المخزون: ${product.stockQuantity}',
+                                ),
+                                trailing: Text(product.status),
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 20),
           Text(
@@ -1601,6 +2053,120 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
       );
     },
   );
+
+  Future<void> _createProduct(List<MerchantShopSummary> shops) async {
+    final name = TextEditingController();
+    final description = TextEditingController();
+    final price = TextEditingController();
+    final stock = TextEditingController(text: '0');
+    var shopId = shops.first.id;
+    var status = 'draft';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إضافة منتج'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: shopId,
+                  decoration: const InputDecoration(labelText: 'المتجر'),
+                  items: shops
+                      .map(
+                        (shop) => DropdownMenuItem(
+                          value: shop.id,
+                          child: Text(shop.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => shopId = value ?? shops.first.id),
+                ),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'اسم المنتج'),
+                ),
+                TextField(
+                  controller: description,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'الوصف'),
+                ),
+                TextField(
+                  controller: price,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'السعر بالريال اليمني',
+                  ),
+                ),
+                TextField(
+                  controller: stock,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'الكمية المتاحة',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'حالة المنتج'),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(value: 'active', child: Text('نشط')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => status = value ?? 'draft'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final parsedPrice = int.tryParse(price.text.trim());
+                final parsedStock = int.tryParse(stock.text.trim());
+                if (name.text.trim().length < 2 ||
+                    parsedPrice == null ||
+                    parsedPrice <= 0 ||
+                    parsedStock == null ||
+                    parsedStock < 0) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveProduct(
+                    shopId: shopId,
+                    name: name.text.trim(),
+                    description: description.text.trim(),
+                    priceMinor: parsedPrice,
+                    stockQuantity: parsedStock,
+                    status: status,
+                  );
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  _reload();
+                } on ApiException catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ المنتج'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    description.dispose();
+    price.dispose();
+    stock.dispose();
+  }
 
   Future<void> _createShop() async {
     final name = TextEditingController();

@@ -53,6 +53,194 @@ class MarketplaceApiClient {
     );
   }
 
+  Future<List<ProductReview>> productReviews(String productId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مراجعات المنتجات اتصال Supabase.');
+    }
+    final rows = await supabase.productReviews(productId);
+    return rows
+        .map((row) => ProductReview.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> submitProductReview({
+    required String productId,
+    required String merchantOrderId,
+    required int rating,
+    String? comment,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مراجعات المنتجات اتصال Supabase.');
+    }
+    await supabase.submitProductReview(
+      productId: productId,
+      merchantOrderId: merchantOrderId,
+      rating: rating,
+      comment: comment,
+    );
+  }
+
+  Future<List<MerchantPromotion>> merchantPromotions(String shopId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب العروض اتصال Supabase.');
+    }
+    final rows = await supabase.merchantPromotions(shopId);
+    return rows
+        .map((row) => MerchantPromotion.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> saveMerchantPromotion({
+    String? id,
+    required String shopId,
+    required String code,
+    required String kind,
+    required int valueMinor,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    int? maxRedemptions,
+    required String status,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب العروض اتصال Supabase.');
+    }
+    await supabase.saveMerchantPromotion(
+      id: id,
+      shopId: shopId,
+      code: code,
+      kind: kind,
+      valueMinor: valueMinor,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      maxRedemptions: maxRedemptions,
+      status: status,
+    );
+  }
+
+  Future<List<NotificationEvent>> notifications({
+    bool unreadOnly = false,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب الإشعارات اتصال Supabase.');
+    }
+    final rows = await supabase.notifications(unreadOnly: unreadOnly);
+    return rows
+        .map((row) => NotificationEvent.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> markNotificationRead(String notificationId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب الإشعارات اتصال Supabase.');
+    }
+    await supabase.markNotificationRead(notificationId);
+  }
+
+  Future<List<OrderCaseSummary>> orderCases() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إدارة حالات الطلب اتصال Supabase.');
+    }
+    final rows = await supabase.orderCases();
+    return rows
+        .map((row) => OrderCaseSummary.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> openOrderCase({
+    required String merchantOrderId,
+    required String caseType,
+    required String reason,
+    int? requestedQuantity,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إدارة حالات الطلب اتصال Supabase.');
+    }
+    await supabase.openOrderCase(
+      merchantOrderId: merchantOrderId,
+      caseType: caseType,
+      reason: reason,
+      requestedQuantity: requestedQuantity,
+    );
+  }
+
+  Future<List<MarketServiceArea>> serviceAreas() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مناطق الخدمة اتصال Supabase.');
+    }
+    final market = await supabase.activeMarket();
+    if (market == null) return const [];
+    final rows = await supabase.serviceAreas(market.id);
+    return rows
+        .map((row) => MarketServiceArea.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<List<PickupPoint>> pickupPoints() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب نقاط الاستلام اتصال Supabase.');
+    }
+    final market = await supabase.activeMarket();
+    if (market == null) return const [];
+    final rows = await supabase.pickupPoints(market.id);
+    return rows.map((row) => PickupPoint.fromJson(row)).toList(growable: false);
+  }
+
+  Future<List<CustomerAddress>> customerAddresses() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب عناوين العملاء اتصال Supabase.');
+    }
+    final market = await supabase.activeMarket();
+    if (market == null) return const [];
+    final rows = await supabase.customerAddresses(market.id);
+    return rows
+        .map((row) => CustomerAddress.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> saveCustomerAddress({
+    String? id,
+    String? serviceAreaId,
+    required String label,
+    required String recipientName,
+    required String phone,
+    required String addressLine,
+    String? landmark,
+    required String city,
+    String? district,
+    required bool isDefault,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب عناوين العملاء اتصال Supabase.');
+    }
+    final market = await supabase.activeMarket();
+    if (market == null) throw ApiException('لا يوجد سوق نشط حالياً.');
+    await supabase.saveCustomerAddress(
+      id: id,
+      marketId: market.id,
+      serviceAreaId: serviceAreaId,
+      label: label,
+      recipientName: recipientName,
+      phone: phone,
+      addressLine: addressLine,
+      landmark: landmark,
+      city: city,
+      district: district,
+      isDefault: isDefault,
+    );
+  }
+
   Future<List<MarketplaceProduct>> products({String? query}) async {
     final supabase = _supabase;
     if (supabase != null) {
@@ -219,6 +407,109 @@ class MarketplaceApiClient {
         'تعذر إرسال المتجر للمراجعة. تحقق من الاسم والرابط المختصر.',
       );
     }
+  }
+
+  Future<MerchantAnalytics> merchantAnalytics(String shopId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب تقارير المتجر اتصال Supabase.');
+    }
+    final row = await supabase.merchantAnalytics(shopId);
+    return MerchantAnalytics.fromJson(row);
+  }
+
+  Future<StorefrontSettings?> storefrontSettings(String shopId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إعدادات المتجر اتصال Supabase.');
+    }
+    final row = await supabase.storefrontSettings(shopId);
+    return row == null ? null : StorefrontSettings.fromJson(row);
+  }
+
+  Future<void> saveStorefrontSettings({
+    required String shopId,
+    String? displayName,
+    String? tagline,
+    required String themeKey,
+    required String primaryColor,
+    String? logoStorageKey,
+    String? customSlug,
+    String? customDomain,
+    required bool isPublished,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إعدادات المتجر اتصال Supabase.');
+    }
+    await supabase.saveStorefrontSettings(
+      shopId: shopId,
+      displayName: displayName,
+      tagline: tagline,
+      themeKey: themeKey,
+      primaryColor: primaryColor,
+      logoStorageKey: logoStorageKey,
+      customSlug: customSlug,
+      customDomain: customDomain,
+      isPublished: isPublished,
+    );
+  }
+
+  Future<List<InventoryLocation>> inventoryLocations(String shopId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مواقع المخزون اتصال Supabase.');
+    }
+    final rows = await supabase.inventoryLocations(shopId);
+    return rows
+        .map((row) => InventoryLocation.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<List<MerchantProductSummary>> merchantProducts() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إدارة الكتالوج اتصال Supabase.');
+    }
+    final rows = await supabase.merchantProducts();
+    return rows
+        .map((row) => MerchantProductSummary.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<List<ProductVariant>> productVariants(String productId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متغيرات المنتجات اتصال Supabase.');
+    }
+    final rows = await supabase.productVariants(productId);
+    return rows
+        .map((row) => ProductVariant.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> saveProductVariant({
+    String? id,
+    required String productId,
+    required String name,
+    String? sku,
+    required int priceMinor,
+    required int stockQuantity,
+    required String status,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متغيرات المنتجات اتصال Supabase.');
+    }
+    await supabase.saveProductVariant(
+      id: id,
+      productId: productId,
+      name: name,
+      sku: sku,
+      priceMinor: priceMinor,
+      stockQuantity: stockQuantity,
+      status: status,
+    );
   }
 
   Future<void> saveProduct({

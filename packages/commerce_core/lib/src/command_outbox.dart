@@ -11,6 +11,7 @@ class QueuedCommand {
     required this.createdAt,
     this.attempts = 0,
     this.lastError,
+    this.blocked = false,
   });
 
   final String idempotencyKey;
@@ -19,6 +20,7 @@ class QueuedCommand {
   final DateTime createdAt;
   final int attempts;
   final String? lastError;
+  final bool blocked;
 
   Map<String, dynamic> toJson() => {
     'idempotencyKey': idempotencyKey,
@@ -27,6 +29,7 @@ class QueuedCommand {
     'createdAt': createdAt.toUtc().toIso8601String(),
     'attempts': attempts,
     'lastError': lastError,
+    'blocked': blocked,
   };
 
   factory QueuedCommand.fromJson(Map<String, dynamic> json) => QueuedCommand(
@@ -36,16 +39,19 @@ class QueuedCommand {
     createdAt: DateTime.parse(json['createdAt'] as String),
     attempts: (json['attempts'] as num?)?.toInt() ?? 0,
     lastError: json['lastError'] as String?,
+    blocked: json['blocked'] as bool? ?? false,
   );
 
-  QueuedCommand copyWith({int? attempts, String? lastError}) => QueuedCommand(
-    idempotencyKey: idempotencyKey,
-    kind: kind,
-    payload: payload,
-    createdAt: createdAt,
-    attempts: attempts ?? this.attempts,
-    lastError: lastError ?? this.lastError,
-  );
+  QueuedCommand copyWith({int? attempts, String? lastError, bool? blocked}) =>
+      QueuedCommand(
+        idempotencyKey: idempotencyKey,
+        kind: kind,
+        payload: payload,
+        createdAt: createdAt,
+        attempts: attempts ?? this.attempts,
+        lastError: lastError ?? this.lastError,
+        blocked: blocked ?? this.blocked,
+      );
 }
 
 abstract interface class CommandOutbox {
@@ -54,6 +60,7 @@ abstract interface class CommandOutbox {
   Future<void> markCompleted(String idempotencyKey);
   Future<void> markFailed(String idempotencyKey, String error);
   Future<void> retry(String idempotencyKey);
+  Future<void> markBlocked(String idempotencyKey, String error);
 }
 
 /// Deterministic reference implementation for tests and non-persistent use.
@@ -85,6 +92,7 @@ class InMemoryCommandOutbox implements CommandOutbox {
       kind: command.kind,
       payload: command.payload,
       createdAt: command.createdAt,
+      blocked: false,
     );
   }
 
@@ -95,6 +103,17 @@ class InMemoryCommandOutbox implements CommandOutbox {
     _commands[idempotencyKey] = command.copyWith(
       attempts: command.attempts + 1,
       lastError: error,
+      blocked: false,
+    );
+  }
+
+  @override
+  Future<void> markBlocked(String idempotencyKey, String error) async {
+    final command = _commands[idempotencyKey];
+    if (command == null) return;
+    _commands[idempotencyKey] = command.copyWith(
+      lastError: error,
+      blocked: true,
     );
   }
 }

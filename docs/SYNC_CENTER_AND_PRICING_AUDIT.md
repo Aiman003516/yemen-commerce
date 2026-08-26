@@ -11,9 +11,9 @@
 | المجال | التنفيذ | الحد الأمني أو التشغيلي |
 |---|---|---|
 | نطاق صندوق الأوامر | مفتاح Secure Storage مستقل لكل `auth.uid`، مع ترميز محلي للنطاق | لا يمكن لحساب لاحق على الجهاز قراءة أو replay طابور الحساب السابق؛ الطابور القديم غير المعرّف لا يُنقل تلقائياً |
-| قائمة replay | `checkout_create_orders` و`apply_order_promotion` فقط | لا توجد payment proof أو payment finalization أو fund movement ضمن allowlist |
+| قائمة replay | `checkout_create_orders` و`apply_order_promotion` وعمليات `record_inventory_adjustment` و`complete_inventory_transfer` و`apply_inventory_count` | لا توجد payment proof أو payment finalization أو fund movement ضمن allowlist؛ عمليات المخزون ذرية وidempotent |
 | التزامن | قفل process-wide keyed by `userScope` داخل `OutboxReplayWorker`، مع تسلسل عمليات Secure Storage للنطاق نفسه | يمنع تداخل lifecycle وmanual sync داخل حساب واحد؛ وتغطي idempotency في RPC سباقات OS/foreground المنفصلة |
-| الفشل | حد أقصى خمس محاولات، ثم blocked مع retry/discard يدوي | لا توجد إعادة لا نهائية أو إعادة مالية تلقائية |
+| الفشل | أخطاء الاتصال تُحاول حتى خمس مرات؛ أخطاء المخزون/الصلاحية/قواعد العمل تُحوّل إلى blocked فوراً، مع retry/discard يدوي | لا توجد إعادة لا نهائية أو إعادة مالية تلقائية |
 | الاتصال | listener في foreground + WorkManager periodic/one-off بقيود network connected | إشارة الشبكة لا تعني reachability؛ RPC والمهلات يقرران النجاح |
 | Web | session/auth events وmanual sync وnetwork behavior المعتاد | لا يوجد OS job أصلي في متصفح عادي؛ لا يُدّعى replay بعد إغلاق المتصفح |
 | iOS/Android | إعداد WorkManager وInfo.plist للجدولة الخلفية | النظام يقرر التوقيت؛ iOS قد يؤجل أو يخنق أو ينهي المهمة، ولا يوجد ضمان لحظة عودة الاتصال |
@@ -38,7 +38,7 @@
 
 أضيفت migrations `20260826_0024_b2b_pos_analytics_export.sql` و`20260826_0026_export_pagination_guard.sql`. الدوال العامة الأربعة هي `merchant_b2b_analytics` و`export_merchant_b2b` و`merchant_pos_analytics` و`export_merchant_pos`. كل تنفيذ يمر عبر private security-definer ثابت `search_path` مع public security-invoker wrapper ضيق، ويتحقق من auth وملكية المتجر أو صلاحية الإدارة. يرفض backend الآن offset سالباً أو أكبر من 10,000 بدلاً من تصحيح الطلب بصمت، ويتطابق معه guard في Dart.
 
-أضيفت migrations `20260826_0027_promotion_command_idempotency.sql` و`20260826_0028_order_command_keys_deny_policy.sql`. أصبح replay الخاص بتطبيق العرض يرسل command key إلى جدول خادمي فريد ويعيد النتيجة السابقة عند التكرار، ما يحمي من سباق foreground/OS isolates؛ كما أن جدول المفاتيح الداخلي لا يملك client grants وله deny-all RLS policy صريحة.
+أضيفت migrations `20260826_0027_promotion_command_idempotency.sql` و`20260826_0028_order_command_keys_deny_policy.sql`، ثم migrations `20260826_0029_inventory_operations_bulk_catalog.sql` و`20260826_0030_product_barcodes.sql` و`20260826_0031_inventory_stock_consistency.sql` و`20260826_0032_inventory_fk_indexes.sql`. أصبح replay الخاص بتطبيق العرض يرسل command key إلى جدول خادمي فريد ويعيد النتيجة السابقة عند التكرار، ما يحمي من سباق foreground/OS isolates؛ كما أن جدول المفاتيح الداخلي لا يملك client grants وله deny-all RLS policy صريحة.
 
 يُسجل كل تصدير في `audit_events` مع النطاق والحد وعلامة صريحة بأن بيانات الهوية أو بنود line items غير موجودة. يفرض B2B حد 500 صفاً لكل صفحة، ويفرض POS حداً أقصى للنطاق مقداره 366 يوماً وحداً أقصى 500 صف. CSV يُنشأ محلياً من الصفوف المسموح بها ويستخدم quoting/escaping وUTF-8 BOM، ولا يطلب أو يعرض إثباتات دفع أو أرقام هواتف أو ملاحظات العملاء أو line items.
 
@@ -48,7 +48,7 @@
 
 تستخدم تحليلات POS نطاقاً افتراضياً لآخر 30 يوماً، وتمنع النطاق الأكبر من 366 يوماً. لا تُقرأ صفوف line items في دالة التصدير، وتُعاد أعمدة session summary الضرورية فقط. تحليلات B2B تُرجع aggregates بلا join إلى business profile في الاستجابة. ما زال من المناسب لاحقاً إضافة cursor-based pagination إذا تطلبت التجارة اليمنية ملفات أكبر من 500 صف.
 
-أُجريت مراجعة كاملة لنتيجة Performance Advisor: كانت تحتوي على 63 ملاحظة `unindexed_foreign_keys` و8 ملاحظات `multiple_permissive_policies` و64 ملاحظة `unused_index`. عالجت migration `20260826_0025_performance_advisor_remediation.sql` أول مجموعتين بإضافة 63 فهرساً مستهدفاً وتحويل سياسات القراءة إلى سياسة واحدة لكل role/action مع الحفاظ على اتحاد public/owner/admin السابق. بعد التطبيق اختفت ملاحظات المفاتيح غير المفهرسة والسياسات permissive بالكامل. بعد إضافة فهرس جدول command keys أصبح المتبقي 128 ملاحظة `unused_index` معلوماتية، منها الفهارس الجديدة التي لم تستخدمها حركة إنتاجية بعد؛ لا تُحذف قبل قياس query plans وحركة حقيقية. أما فحص Security Advisor بعد migrations 0027 و0028 فأعاد `lints: []`.
+أُجريت مراجعة كاملة لنتيجة Performance Advisor: كانت تحتوي على 63 ملاحظة `unindexed_foreign_keys` و8 ملاحظات `multiple_permissive_policies` و64 ملاحظة `unused_index`. عالجت migration `20260826_0025_performance_advisor_remediation.sql` أول مجموعتين بإضافة 63 فهرساً مستهدفاً وتحويل سياسات القراءة إلى سياسة واحدة لكل role/action مع الحفاظ على اتحاد public/owner/admin السابق. بعد إضافة عمليات المخزون ظهرت خمسة مفاتيح أجنبية جديدة غير مفهرسة، وعالجتها migration `20260826_0032_inventory_fk_indexes.sql`. بعد التطبيق اختفت ملاحظات المفاتيح غير المفهرسة والسياسات permissive بالكامل. المتبقي 141 ملاحظة `unused_index` معلوماتية، منها الفهارس الجديدة التي لم تستخدمها حركة إنتاجية بعد؛ لا تُحذف قبل قياس query plans وحركة حقيقية. أما فحص Security Advisor النهائي بعد migrations 0027–0032 فأعاد `lints: []`.
 
 ## منصة التنفيذ وحدود الضمان
 
@@ -64,12 +64,12 @@
 
 | الاختبار | النتيجة |
 |---|---|
-| تطبيق migrations 0024–0028 على Supabase ref `mtaujfgkqvzwauqiegkl` | نجح |
-| Security Advisor بعد migrations 0027/0028 | `0` lint |
-| Performance Advisor بعد migration 0028 | `0` unindexed-FK، `0` multiple-permissive-policy، و128 unused-index معلوماتية |
-| structural check للدوال العامة الأربع | الدوال الأربع موجودة وتعيد `jsonb` |
+| تطبيق migrations 0024–0032 على Supabase ref `mtaujfgkqvzwauqiegkl` | نجح |
+| Security Advisor بعد migrations 0027–0032 | `0` lint |
+| Performance Advisor بعد migration 0032 | `0` unindexed-FK، `0` multiple-permissive-policy، و141 unused-index معلوماتية |
+| structural check للدوال العامة الأربع | الدوال الأربع موجودة وتعيد `jsonb`؛ وعمليات inventory العامة موجودة وتعيد `jsonb` |
 | structural check للفهرسين الجديدين | الفهرسان موجودان |
-| anonymous protected-RPC runner | `61 passed / 5 skipped` بعد إضافة endpoints الجديدة |
+| anonymous protected-RPC runner | `68 passed / 5 skipped` بعد إضافة inventory/barcode RPCs |
 | Flutter customer analyze | نجح بلا issues |
 | اختبار الأدوار المصادق عليها | ما زال يحتاج tokens معزولة؛ لا تُنشأ حسابات اختبار في المشروع المشترك |
 | Android build فعلي | لم يُشغّل دون Android SDK/device validation |
@@ -77,10 +77,11 @@
 
 ## الإجراءات اللاحقة الموصى بها
 
-قبل الإنتاج، يجب تشغيل اختبارات RLS مستخدماً tokens معزولة من بيئة اختبار، واختبار session switch على جهاز حقيقي للتأكد من عدم ظهور أي طابور لحساب سابق. كما ينبغي اختبار battery saver وoffline/captive portal وانتهاء الجلسة أثناء replay على Android وiOS. يجب قياس خطط الاستعلام وحركة الفهارس بعد استخدام فعلي، ثم الاحتفاظ أو حذف unused indexes بناءً على دليل؛ لا تُزال الفهارس الجديدة لمجرد أنها لم تُستخدم في بيئة منخفضة البيانات.
+قبل الإنتاج، يجب تشغيل اختبارات RLS مستخدماً tokens معزولة من بيئة اختبار، واختبار session switch على جهاز حقيقي للتأكد من عدم ظهور أي طابور لحساب سابق. كما ينبغي اختبار battery saver وoffline/captive portal وانتهاء الجلسة أثناء replay على Android وiOS، واختبار أذونات الكاميرا وماسح الباركود على أجهزة فعلية ومتصفحات تدعم الكاميرا. يجب قياس خطط الاستعلام وحركة الفهارس بعد استخدام فعلي، ثم الاحتفاظ أو حذف unused indexes بناءً على دليل؛ لا تُزال الفهارس الجديدة لمجرد أنها لم تُستخدم في بيئة منخفضة البيانات.
 
 ## المراجع
 
 [1]: https://pub.dev/packages/workmanager "Workmanager package documentation"
 [2]: https://pub.dev/packages/connectivity_plus "connectivity_plus package documentation"
 [3]: https://docs.flutter.dev/packages-and-plugins/background-processes "Flutter background processes documentation"
+[4]: https://pub.dev/packages/mobile_scanner "mobile_scanner package documentation"

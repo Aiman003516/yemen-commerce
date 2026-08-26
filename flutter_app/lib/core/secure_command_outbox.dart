@@ -76,6 +76,20 @@ class SecureCommandOutbox implements CommandOutbox {
         commands[idempotencyKey] = command.copyWith(
           attempts: command.attempts + 1,
           lastError: error,
+          blocked: false,
+        );
+        await _write(commands);
+      });
+
+  @override
+  Future<void> markBlocked(String idempotencyKey, String error) =>
+      _serialize(() async {
+        final commands = await _read();
+        final command = commands[idempotencyKey];
+        if (command == null) return;
+        commands[idempotencyKey] = command.copyWith(
+          lastError: error,
+          blocked: true,
         );
         await _write(commands);
       });

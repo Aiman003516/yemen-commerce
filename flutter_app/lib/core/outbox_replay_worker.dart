@@ -1,6 +1,10 @@
 import 'package:commerce_core/commerce_core.dart';
 
 import 'api_client.dart';
+import 'inventory_command_queue.dart';
+
+/// Returns true only for errors that are plausibly caused by transport
+/// instability; business-rule and authorization errors must stay visible.
 
 class OutboxDiagnostic {
   const OutboxDiagnostic({
@@ -64,7 +68,7 @@ class OutboxReplayWorker {
             kind: command.kind,
             attempts: command.attempts,
             hasError: command.lastError != null,
-            state: command.attempts >= _maxAttempts
+            state: command.blocked || command.attempts >= _maxAttempts
                 ? 'blocked'
                 : command.attempts > 0
                 ? 'failed'
@@ -100,7 +104,7 @@ class OutboxReplayWorker {
     final commands = await outbox.pending();
     final pendingBefore = commands.length;
     for (final command in commands) {
-      if (command.attempts >= _maxAttempts) {
+      if (command.blocked || command.attempts >= _maxAttempts) {
         skipped++;
         continue;
       }
@@ -109,8 +113,13 @@ class OutboxReplayWorker {
         await outbox.markCompleted(command.idempotencyKey);
         completed++;
       } on Object catch (error) {
-        await outbox.markFailed(command.idempotencyKey, _safeError(error));
-        failed++;
+        if (isTransientNetworkError(error)) {
+          await outbox.markFailed(command.idempotencyKey, _safeError(error));
+          failed++;
+        } else {
+          await outbox.markBlocked(command.idempotencyKey, _safeError(error));
+          skipped++;
+        }
       }
     }
     final pendingAfter = (await outbox.pending()).length;
@@ -138,6 +147,32 @@ class OutboxReplayWorker {
           code: command.payload['code'].toString(),
           commandKey: command.idempotencyKey,
         );
+      case 'record_inventory_adjustment':
+        await _api.recordInventoryAdjustment(
+          shopId: command.payload['shopId'].toString(),
+          productId: command.payload['productId'].toString(),
+          locationId: command.payload['locationId'].toString(),
+          quantityDelta: _int(command.payload['quantityDelta']),
+          reason: command.payload['reason'].toString(),
+          idempotencyKey: command.idempotencyKey,
+        );
+      case 'complete_inventory_transfer':
+        await _api.completeInventoryTransfer(
+          shopId: command.payload['shopId'].toString(),
+          fromLocationId: command.payload['fromLocationId'].toString(),
+          toLocationId: command.payload['toLocationId'].toString(),
+          items: _list(command.payload['items']),
+          reason: command.payload['reason'].toString(),
+          idempotencyKey: command.idempotencyKey,
+        );
+      case 'apply_inventory_count':
+        await _api.applyInventoryCount(
+          shopId: command.payload['shopId'].toString(),
+          locationId: command.payload['locationId'].toString(),
+          items: _list(command.payload['items']),
+          reason: command.payload['reason'].toString(),
+          idempotencyKey: command.idempotencyKey,
+        );
       default:
         throw StateError('Unsupported offline command: ${command.kind}');
     }
@@ -148,6 +183,13 @@ class OutboxReplayWorker {
     return value
         .map((item) => Map<String, dynamic>.from(item as Map))
         .toList(growable: false);
+  }
+
+  int _int(Object? value) {
+    if (value is num) return value.toInt();
+    final parsed = int.tryParse(value?.toString() ?? '');
+    if (parsed == null) throw const FormatException('Invalid queued quantity');
+    return parsed;
   }
 
   String _safeError(Object error) => error.toString().length > 240

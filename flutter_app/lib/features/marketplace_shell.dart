@@ -4,10 +4,12 @@ import 'package:commerce_core/commerce_core.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
+import '../core/inventory_command_queue.dart';
 import '../core/contracts.dart';
 import '../core/supabase_config.dart';
 import '../core/supabase_marketplace_client.dart';
@@ -1718,7 +1720,9 @@ class _MerchantPageState extends State<_MerchantPage> {
             'يُحفظ حساب التاجر وبيانات متجره بشكل منفصل وآمن بعد تسجيل الدخول.',
       );
     }
-    if (_applicationSubmitted) return const _MerchantHub();
+    if (_applicationSubmitted) {
+      return _MerchantHub(userScope: widget.user!.id);
+    }
     return FutureBuilder<bool>(
       future: _hasMerchant,
       builder: (context, snapshot) {
@@ -1732,7 +1736,9 @@ class _MerchantPageState extends State<_MerchantPage> {
             detail: 'تحقق من الاتصال ثم حاول فتح صفحة التاجر مجدداً.',
           );
         }
-        if (snapshot.data == true) return const _MerchantHub();
+        if (snapshot.data == true) {
+          return _MerchantHub(userScope: widget.user!.id);
+        }
         return _applicationForm(context);
       },
     );
@@ -1808,7 +1814,9 @@ class _MerchantPageState extends State<_MerchantPage> {
 }
 
 class _MerchantHub extends StatelessWidget {
-  const _MerchantHub();
+  const _MerchantHub({required this.userScope});
+
+  final String userScope;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
@@ -1821,9 +1829,12 @@ class _MerchantHub extends StatelessWidget {
             Tab(text: 'إدارة المتجر'),
           ],
         ),
-        const Expanded(
+        Expanded(
           child: TabBarView(
-            children: [_IdentityMerchantPanel(), _MerchantOperationsPanel()],
+            children: [
+              _IdentityMerchantPanel(),
+              _MerchantOperationsPanel(userScope: userScope),
+            ],
           ),
         ),
       ],
@@ -3292,7 +3303,9 @@ class _MerchantProviderOperationsCard extends StatelessWidget {
 }
 
 class _MerchantOperationsPanel extends StatefulWidget {
-  const _MerchantOperationsPanel();
+  const _MerchantOperationsPanel({required this.userScope});
+
+  final String userScope;
 
   @override
   State<_MerchantOperationsPanel> createState() =>
@@ -3455,7 +3468,10 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             const SizedBox(height: 20),
             _MerchantPosAnalyticsCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
-            _MerchantInventoryCard(shopId: workspace.shops.first.id),
+            _MerchantInventoryCard(
+              shopId: workspace.shops.first.id,
+              userScope: widget.userScope,
+            ),
           ],
           const SizedBox(height: 20),
           Text(
@@ -3698,8 +3714,18 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                 ),
                 TextField(
                   controller: barcode,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'الباركود (اختياري)',
+                    suffixIcon: IconButton(
+                      tooltip: 'مسح الباركود بالكاميرا',
+                      icon: const Icon(Icons.qr_code_scanner_outlined),
+                      onPressed: () async {
+                        final scanned = await showBarcodeScanner(dialogContext);
+                        if (scanned != null) {
+                          setDialogState(() => barcode.text = scanned);
+                        }
+                      },
+                    ),
                   ),
                 ),
                 DropdownButtonFormField<String>(
@@ -4540,7 +4566,7 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
               return const _CatalogNotice(
                 icon: Icons.cloud_done_outlined,
                 title: 'لا توجد أوامر معلقة',
-                detail: 'ستظهر هنا أوامر checkout والعروض غير المالية إذا انقطع الاتصال أثناء الحفظ.',
+                detail: 'ستظهر هنا أوامر checkout والعروض وعمليات المخزون غير المالية إذا انقطع الاتصال أثناء الحفظ.',
               );
             }
             return Column(
@@ -4599,15 +4625,18 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
   }
 
   static String _kindLabel(String kind) => switch (kind) {
-    'checkout_create_orders' => 'إنشاء طلبات منفصلة',
+    'checkout_create_orders' => 'إنشاء الطلبات',
     'apply_order_promotion' => 'تطبيق عرض',
+    'record_inventory_adjustment' => 'تعديل مخزون',
+    'complete_inventory_transfer' => 'نقل مخزون',
+    'apply_inventory_count' => 'تطبيق جرد',
     _ => kind,
   };
 
   static String _stateLabel(String state) => switch (state) {
     'pending' => 'قيد الانتظار',
     'failed' => 'يحتاج إعادة محاولة',
-    'blocked' => 'محجوب بعد محاولات متعددة',
+    'blocked' => 'محجوب لخطأ غير قابل لإعادة المحاولة',
     _ => state,
   };
 }
@@ -5016,19 +5045,38 @@ class _AdminPageState extends State<_AdminPage> {
 }
 
 class _MerchantInventoryCard extends StatefulWidget {
-  const _MerchantInventoryCard({required this.shopId});
+  const _MerchantInventoryCard({required this.shopId, required this.userScope});
 
   final String shopId;
+  final String userScope;
 
   @override
   State<_MerchantInventoryCard> createState() => _MerchantInventoryCardState();
 }
 
 class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
-  late Future<List<InventoryLocation>> _locations = MarketplaceApiClient()
-      .inventoryLocations(widget.shopId);
-  late Future<List<MerchantProductSummary>> _products = MarketplaceApiClient()
-      .merchantProducts();
+  late InventoryCommandQueue _commands;
+  late Future<List<InventoryLocation>> _locations;
+  late Future<List<MerchantProductSummary>> _products;
+
+  @override
+  void initState() {
+    super.initState();
+    _commands = InventoryCommandQueue(userScope: widget.userScope);
+    _locations = MarketplaceApiClient().inventoryLocations(widget.shopId);
+    _products = MarketplaceApiClient().merchantProducts();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MerchantInventoryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopId != widget.shopId ||
+        oldWidget.userScope != widget.userScope) {
+      _commands = InventoryCommandQueue(userScope: widget.userScope);
+      _locations = MarketplaceApiClient().inventoryLocations(widget.shopId);
+      _products = MarketplaceApiClient().merchantProducts();
+    }
+  }
 
   void _reload() {
     setState(() {
@@ -5257,15 +5305,15 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
                   return;
                 }
                 try {
-                  await MarketplaceApiClient().recordInventoryAdjustment(
+                  final outcome = await _commands.recordAdjustment(
                     shopId: widget.shopId,
                     productId: productId,
                     locationId: locationId,
                     quantityDelta: value,
                     reason: reason.text.trim(),
-                    idempotencyKey: _commandKey('adjust'),
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _showInventoryOutcome(outcome);
                   _reload();
                 } on ApiException catch (error) {
                   _showError(error.message);
@@ -5287,49 +5335,111 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
     List<InventoryLocation> locations,
     List<MerchantProductSummary> products,
   ) async {
-    var productId = products.first.id;
     var fromLocationId = locations.first.id;
     var toLocationId = locations[1].id;
-    final quantity = TextEditingController();
+    final selectedProducts = <String>[products.first.id];
+    final quantities = <TextEditingController>[
+      TextEditingController(text: '1'),
+    ];
     final reason = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('نقل المخزون'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _productDropdown(
-                products,
-                productId,
-                (value) => setDialogState(() => productId = value ?? productId),
+          title: const Text('نقل متعدد المنتجات'),
+          content: SizedBox(
+            width: 620,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _locationDropdown(
+                    'من الموقع',
+                    locations,
+                    fromLocationId,
+                    (value) => setDialogState(
+                      () => fromLocationId = value ?? fromLocationId,
+                    ),
+                  ),
+                  _locationDropdown(
+                    'إلى الموقع',
+                    locations,
+                    toLocationId,
+                    (value) => setDialogState(
+                      () => toLocationId = value ?? toLocationId,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...List.generate(
+                    selectedProducts.length,
+                    (index) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: _productDropdown(
+                              products,
+                              selectedProducts[index],
+                              (value) => setDialogState(
+                                () => selectedProducts[index] =
+                                    value ?? selectedProducts[index],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: quantities[index],
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'الكمية',
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'حذف الصنف',
+                            onPressed: selectedProducts.length == 1
+                                ? null
+                                : () => setDialogState(() {
+                                    selectedProducts.removeAt(index);
+                                    final controller = quantities.removeAt(
+                                      index,
+                                    );
+                                    controller.dispose();
+                                  }),
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      onPressed: selectedProducts.length >= 25
+                          ? null
+                          : () => setDialogState(() {
+                              selectedProducts.add(products.first.id);
+                              quantities.add(TextEditingController(text: '1'));
+                            }),
+                      icon: const Icon(Icons.add),
+                      label: const Text('إضافة صنف آخر'),
+                    ),
+                  ),
+                  TextField(
+                    controller: reason,
+                    decoration: const InputDecoration(labelText: 'سبب النقل'),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'سيُرسل النقل كعملية ذرية واحدة؛ لا يتم تنفيذ جزء من القائمة عند فشل التحقق.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
               ),
-              _locationDropdown(
-                'من الموقع',
-                locations,
-                fromLocationId,
-                (value) => setDialogState(
-                  () => fromLocationId = value ?? fromLocationId,
-                ),
-              ),
-              _locationDropdown(
-                'إلى الموقع',
-                locations,
-                toLocationId,
-                (value) =>
-                    setDialogState(() => toLocationId = value ?? toLocationId),
-              ),
-              TextField(
-                controller: quantity,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'الكمية'),
-              ),
-              TextField(
-                controller: reason,
-                decoration: const InputDecoration(labelText: 'سبب النقل'),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -5338,25 +5448,39 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
             ),
             FilledButton(
               onPressed: () async {
-                final value = int.tryParse(quantity.text.trim());
-                if (value == null ||
-                    value <= 0 ||
-                    fromLocationId == toLocationId ||
-                    reason.text.trim().length < 3) {
+                final parsedQuantities = quantities
+                    .map((controller) => int.tryParse(controller.text.trim()))
+                    .toList(growable: false);
+                final hasDuplicate =
+                    selectedProducts.toSet().length != selectedProducts.length;
+                if (fromLocationId == toLocationId ||
+                    reason.text.trim().length < 3 ||
+                    hasDuplicate ||
+                    parsedQuantities.any(
+                      (quantity) => quantity == null || quantity <= 0,
+                    )) {
                   return;
                 }
                 try {
-                  await MarketplaceApiClient().completeInventoryTransfer(
+                  final outcome = await _commands.completeTransfer(
                     shopId: widget.shopId,
                     fromLocationId: fromLocationId,
                     toLocationId: toLocationId,
                     items: [
-                      {'product_id': productId, 'quantity': value},
+                      for (
+                        var index = 0;
+                        index < selectedProducts.length;
+                        index++
+                      )
+                        {
+                          'product_id': selectedProducts[index],
+                          'quantity': parsedQuantities[index],
+                        },
                     ],
                     reason: reason.text.trim(),
-                    idempotencyKey: _commandKey('transfer'),
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _showInventoryOutcome(outcome);
                   _reload();
                 } on ApiException catch (error) {
                   _showError(error.message);
@@ -5364,13 +5488,15 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
                   _showError('تعذر نقل المخزون.');
                 }
               },
-              child: const Text('نقل'),
+              child: const Text('نقل القائمة'),
             ),
           ],
         ),
       ),
     );
-    quantity.dispose();
+    for (final controller in quantities) {
+      controller.dispose();
+    }
     reason.dispose();
   }
 
@@ -5414,16 +5540,16 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
                   return;
                 }
                 try {
-                  await MarketplaceApiClient().applyInventoryCount(
+                  final outcome = await _commands.applyCount(
                     shopId: widget.shopId,
                     locationId: locationId,
                     items: [
                       {'product_id': productId, 'counted_quantity': value},
                     ],
                     reason: reason.text.trim(),
-                    idempotencyKey: _commandKey('count'),
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _showInventoryOutcome(outcome);
                   _reload();
                 } on ApiException catch (error) {
                   _showError(error.message);
@@ -5562,6 +5688,19 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
     onChanged: onChanged,
   );
 
+  void _showInventoryOutcome(InventoryQueueOutcome outcome) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          outcome.queued
+              ? 'حُفظت العملية محلياً وستُعاد عند استقرار الاتصال.'
+              : 'تم تنفيذ عملية المخزون بنجاح.',
+        ),
+      ),
+    );
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -5571,6 +5710,37 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
   String _commandKey(String prefix) =>
       '$prefix-${DateTime.now().microsecondsSinceEpoch}';
 }
+
+Future<String?> showBarcodeScanner(BuildContext context) => showDialog<String>(
+  context: context,
+  builder: (dialogContext) => AlertDialog(
+    title: const Text('مسح باركود المنتج'),
+    content: SizedBox(
+      width: 420,
+      height: 320,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: MobileScanner(
+          onDetect: (capture) {
+            for (final barcode in capture.barcodes) {
+              final value = barcode.rawValue?.trim();
+              if (value != null && value.isNotEmpty) {
+                Navigator.of(dialogContext).pop(value);
+                return;
+              }
+            }
+          },
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(dialogContext),
+        child: const Text('إلغاء'),
+      ),
+    ],
+  ),
+);
 
 List<Map<String, dynamic>> _parseSimpleCsv(String input) {
   final lines = input

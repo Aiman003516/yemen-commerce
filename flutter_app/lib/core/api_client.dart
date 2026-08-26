@@ -857,6 +857,102 @@ class MarketplaceApiClient {
     return InventoryCommandResult.fromJson(row);
   }
 
+  Future<List<MerchantOrderWorkbenchEntry>> merchantOrderWorkbench({
+    required String shopId,
+    String? fulfilmentStatus,
+    String? paymentStatus,
+    String? codStatus,
+    String? query,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب لوحة الطلبات اتصال Supabase.');
+    }
+    final rows = await supabase.merchantOrderWorkbench(
+      shopId: shopId,
+      fulfilmentStatus: fulfilmentStatus,
+      paymentStatus: paymentStatus,
+      codStatus: codStatus,
+      query: query,
+      limit: limit,
+      offset: offset,
+    );
+    return rows
+        .map((row) => MerchantOrderWorkbenchEntry.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<CodReconciliationBatch> openCodReconciliationBatch({
+    required String shopId,
+    required String businessDate,
+    String? note,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
+    }
+    final row = await supabase.openCodReconciliationBatch(
+      shopId: shopId,
+      businessDate: businessDate,
+      note: note,
+    );
+    return CodReconciliationBatch.fromJson(row);
+  }
+
+  Future<void> recordCodCollectionInBatch({
+    required String merchantOrderId,
+    required int collectedMinor,
+    required String reconciliationBatchId,
+    String? note,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
+    }
+    await supabase.recordCodCollectionInBatch(
+      merchantOrderId: merchantOrderId,
+      collectedMinor: collectedMinor,
+      reconciliationBatchId: reconciliationBatchId,
+      note: note,
+    );
+  }
+
+  Future<CodReconciliationCloseResult> closeCodReconciliationBatch({
+    required String batchId,
+    String? note,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
+    }
+    final row = await supabase.closeCodReconciliationBatch(
+      batchId: batchId,
+      note: note,
+    );
+    return CodReconciliationCloseResult.fromJson(row);
+  }
+
+  Future<CodReconciliationSnapshot> merchantCodReconciliation({
+    required String shopId,
+    required String businessDate,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
+    }
+    final row = await supabase.merchantCodReconciliation(
+      shopId: shopId,
+      businessDate: businessDate,
+      limit: limit,
+      offset: offset,
+    );
+    return CodReconciliationSnapshot.fromJson(row);
+  }
+
   Future<CatalogImportResult> bulkSaveProducts({
     required String shopId,
     required List<Map<String, dynamic>> rows,

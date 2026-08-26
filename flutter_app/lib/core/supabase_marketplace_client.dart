@@ -945,6 +945,95 @@ class SupabaseMarketplaceClient {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<List<Map<String, dynamic>>> merchantOrderWorkbench({
+    required String shopId,
+    String? fulfilmentStatus,
+    String? paymentStatus,
+    String? codStatus,
+    String? query,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_order_workbench',
+      params: {
+        'p_shop_id': shopId,
+        'p_fulfilment_status': fulfilmentStatus,
+        'p_payment_status': paymentStatus,
+        'p_cod_status': codStatus,
+        'p_query': query,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> openCodReconciliationBatch({
+    required String shopId,
+    required String businessDate,
+    String? note,
+  }) async {
+    final result = await _client.rpc(
+      'open_cod_reconciliation_batch',
+      params: {
+        'p_shop_id': shopId,
+        'p_business_date': businessDate,
+        'p_note': note,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordCodCollectionInBatch({
+    required String merchantOrderId,
+    required int collectedMinor,
+    required String reconciliationBatchId,
+    String? note,
+  }) async {
+    final result = await _client.rpc(
+      'record_cod_collection',
+      params: {
+        'p_merchant_order_id': merchantOrderId,
+        'p_collected_minor': collectedMinor,
+        'p_note': note,
+        'p_reconciliation_batch_id': reconciliationBatchId,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> closeCodReconciliationBatch({
+    required String batchId,
+    String? note,
+  }) async {
+    final result = await _client.rpc(
+      'close_cod_reconciliation_batch',
+      params: {'p_batch_id': batchId, 'p_note': note},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> merchantCodReconciliation({
+    required String shopId,
+    required String businessDate,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_cod_reconciliation',
+      params: {
+        'p_shop_id': shopId,
+        'p_business_date': businessDate,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>> bulkSaveProducts({
     required String shopId,
     required List<Map<String, dynamic>> rows,

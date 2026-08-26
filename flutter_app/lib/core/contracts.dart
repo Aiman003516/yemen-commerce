@@ -759,6 +759,246 @@ class InventoryCommandResult {
       );
 }
 
+class MerchantOrderWorkbenchEntry {
+  const MerchantOrderWorkbenchEntry({
+    required this.id,
+    required this.orderReference,
+    required this.shopId,
+    required this.paymentStatus,
+    required this.fulfilmentStatus,
+    required this.codStatus,
+    required this.currency,
+    required this.subtotalMinor,
+    required this.feeMinor,
+    required this.taxMinor,
+    required this.totalMinor,
+    required this.codExpectedMinor,
+    required this.codCollectedMinor,
+    required this.fulfilmentMethod,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.itemCount,
+    required this.hasOpenCase,
+    required this.hasActiveCourierAssignment,
+  });
+
+  final String id;
+  final String orderReference;
+  final String shopId;
+  final String paymentStatus;
+  final String fulfilmentStatus;
+  final String codStatus;
+  final String currency;
+  final int subtotalMinor;
+  final int feeMinor;
+  final int taxMinor;
+  final int totalMinor;
+  final int codExpectedMinor;
+  final int codCollectedMinor;
+  final String fulfilmentMethod;
+  final String createdAt;
+  final String updatedAt;
+  final int itemCount;
+  final bool hasOpenCase;
+  final bool hasActiveCourierAssignment;
+
+  factory MerchantOrderWorkbenchEntry.fromJson(
+    Map<String, dynamic> json,
+  ) => MerchantOrderWorkbenchEntry(
+    id: _stringValue(json['id']),
+    orderReference: _stringValue(
+      json['orderReference'] ?? json['order_reference'],
+    ),
+    shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+    paymentStatus:
+        json['paymentStatus'] as String? ??
+        json['payment_status'] as String? ??
+        'awaiting_payment',
+    fulfilmentStatus:
+        json['fulfilmentStatus'] as String? ??
+        json['fulfilment_status'] as String? ??
+        'pending',
+    codStatus:
+        json['codStatus'] as String? ??
+        json['cod_status'] as String? ??
+        'not_applicable',
+    currency: json['currency'] as String? ?? 'YER',
+    subtotalMinor: _intValue(json['subtotalMinor'] ?? json['subtotal_minor']),
+    feeMinor: _intValue(json['feeMinor'] ?? json['fee_minor']),
+    taxMinor: _intValue(json['taxMinor'] ?? json['tax_minor']),
+    totalMinor: _intValue(json['totalMinor'] ?? json['total_minor']),
+    codExpectedMinor: _intValue(
+      json['codExpectedMinor'] ?? json['cod_expected_minor'],
+    ),
+    codCollectedMinor: _intValue(
+      json['codCollectedMinor'] ?? json['cod_collected_minor'],
+    ),
+    fulfilmentMethod:
+        json['fulfilmentMethod'] as String? ??
+        json['fulfilment_method'] as String? ??
+        'collection',
+    createdAt: _stringValue(json['createdAt'] ?? json['created_at']),
+    updatedAt: _stringValue(json['updatedAt'] ?? json['updated_at']),
+    itemCount: _intValue(json['itemCount'] ?? json['item_count']),
+    hasOpenCase:
+        json['hasOpenCase'] as bool? ?? json['has_open_case'] as bool? ?? false,
+    hasActiveCourierAssignment:
+        json['hasActiveCourierAssignment'] as bool? ??
+        json['has_active_courier_assignment'] as bool? ??
+        false,
+  );
+}
+
+class CodReconciliationBatch {
+  const CodReconciliationBatch({
+    required this.id,
+    required this.shopId,
+    required this.businessDate,
+    required this.status,
+    required this.expectedTotalMinor,
+    required this.collectedTotalMinor,
+    required this.varianceMinor,
+    this.note,
+    this.closedAt,
+  });
+
+  final String id;
+  final String shopId;
+  final String businessDate;
+  final String status;
+  final int expectedTotalMinor;
+  final int collectedTotalMinor;
+  final int varianceMinor;
+  final String? note;
+  final String? closedAt;
+
+  factory CodReconciliationBatch.fromJson(
+    Map<String, dynamic> json,
+  ) => CodReconciliationBatch(
+    id: _stringValue(json['batchId'] ?? json['batch_id']),
+    shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+    businessDate: _stringValue(json['businessDate'] ?? json['business_date']),
+    status: json['status'] as String? ?? 'open',
+    expectedTotalMinor: _intValue(
+      json['expectedTotalMinor'] ?? json['expected_total_minor'],
+    ),
+    collectedTotalMinor: _intValue(
+      json['collectedTotalMinor'] ?? json['collected_total_minor'],
+    ),
+    varianceMinor: _intValue(json['varianceMinor'] ?? json['variance_minor']),
+    note: json['note'] as String?,
+    closedAt: json['closedAt'] as String? ?? json['closed_at'] as String?,
+  );
+}
+
+class CodReconciliationCloseResult {
+  const CodReconciliationCloseResult({
+    required this.batchId,
+    required this.status,
+    required this.expectedTotalMinor,
+    required this.collectedTotalMinor,
+    required this.varianceMinor,
+  });
+
+  final String batchId;
+  final String status;
+  final int expectedTotalMinor;
+  final int collectedTotalMinor;
+  final int varianceMinor;
+
+  factory CodReconciliationCloseResult.fromJson(Map<String, dynamic> json) =>
+      CodReconciliationCloseResult(
+        batchId: _stringValue(json['batchId'] ?? json['batch_id']),
+        status: json['status'] as String? ?? 'variance',
+        expectedTotalMinor: _intValue(
+          json['expectedTotalMinor'] ?? json['expected_total_minor'],
+        ),
+        collectedTotalMinor: _intValue(
+          json['collectedTotalMinor'] ?? json['collected_total_minor'],
+        ),
+        varianceMinor: _intValue(
+          json['varianceMinor'] ?? json['variance_minor'],
+        ),
+      );
+}
+
+class CodReconciliationEntry {
+  const CodReconciliationEntry({
+    required this.recordId,
+    required this.merchantOrderId,
+    required this.orderReference,
+    required this.expectedMinor,
+    required this.collectedMinor,
+    required this.status,
+    required this.createdAt,
+    this.note,
+  });
+
+  final String? recordId;
+  final String merchantOrderId;
+  final String orderReference;
+  final int expectedMinor;
+  final int collectedMinor;
+  final String status;
+  final String createdAt;
+  final String? note;
+
+  factory CodReconciliationEntry.fromJson(Map<String, dynamic> json) =>
+      CodReconciliationEntry(
+        recordId: json['recordId'] as String? ?? json['record_id'] as String?,
+        merchantOrderId: _stringValue(
+          json['merchantOrderId'] ?? json['merchant_order_id'],
+        ),
+        orderReference: _stringValue(
+          json['orderReference'] ?? json['order_reference'],
+        ),
+        expectedMinor: _intValue(
+          json['expectedMinor'] ?? json['expected_minor'],
+        ),
+        collectedMinor: _intValue(
+          json['collectedMinor'] ?? json['collected_minor'],
+        ),
+        status: json['status'] as String? ?? 'expected',
+        createdAt: _stringValue(json['createdAt'] ?? json['created_at']),
+        note: json['note'] as String?,
+      );
+}
+
+class CodReconciliationSnapshot {
+  const CodReconciliationSnapshot({
+    this.batch,
+    this.rows = const [],
+    this.limit = 50,
+    this.offset = 0,
+  });
+
+  final CodReconciliationBatch? batch;
+  final List<CodReconciliationEntry> rows;
+  final int limit;
+  final int offset;
+
+  factory CodReconciliationSnapshot.fromJson(Map<String, dynamic> json) {
+    final batchJson = json['batch'];
+    final rowsJson = json['rows'] as List<dynamic>? ?? const [];
+    return CodReconciliationSnapshot(
+      batch: batchJson is Map
+          ? CodReconciliationBatch.fromJson(
+              Map<String, dynamic>.from(batchJson),
+            )
+          : null,
+      rows: rowsJson
+          .whereType<Map>()
+          .map(
+            (row) =>
+                CodReconciliationEntry.fromJson(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false),
+      limit: _intValue(json['limit'] ?? 50),
+      offset: _intValue(json['offset'] ?? 0),
+    );
+  }
+}
+
 class CatalogImportResult {
   const CatalogImportResult({
     required this.batchId,

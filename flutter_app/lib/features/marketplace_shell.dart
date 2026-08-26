@@ -4471,6 +4471,75 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
     }
   }
 
+  Future<void> _showCommandDetail(OutboxDiagnostic item) async {
+    final retryable = item.state != 'blocked';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${_kindLabel(item.kind)} · تفاصيل المزامنة'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  item.state == 'blocked'
+                      ? Icons.block
+                      : Icons.sync_problem_outlined,
+                ),
+                title: Text('الحالة: ${outboxStateLabel(item.state)}'),
+                subtitle: Text('عدد المحاولات: ${item.attempts}'),
+              ),
+              Text('المعرف الآمن: ${_maskKey(item.idempotencyKey)}'),
+              const SizedBox(height: 12),
+              Text(
+                item.hasError
+                    ? outboxErrorHint(item.state)
+                    : 'لم تُسجّل تفاصيل خطأ لهذا الأمر بعد.',
+              ),
+              if (item.state == 'blocked') ...[
+                const SizedBox(height: 12),
+                const _InlineWarning(
+                  'لا تتم إعادة هذا الأمر تلقائياً. راجع المخزون أو الصلاحيات قبل طلب إعادة المحاولة.',
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إغلاق'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final currentWorker = worker;
+              if (currentWorker == null) return;
+              await currentWorker.discard(item.idempotencyKey);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              refresh();
+            },
+            child: const Text('حذف الأمر'),
+          ),
+          FilledButton(
+            onPressed: retryable
+                ? () async {
+                    final currentWorker = worker;
+                    if (currentWorker == null) return;
+                    await currentWorker.retry(item.idempotencyKey);
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    refresh();
+                  }
+                : null,
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> discard(OutboxDiagnostic item) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -4575,6 +4644,7 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
                   .map(
                     (item) => Card(
                       child: ListTile(
+                        onTap: () => _showCommandDetail(item),
                         leading: Icon(
                           item.state == 'blocked'
                               ? Icons.block
@@ -5491,27 +5561,138 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
     List<InventoryLocation> locations,
     List<MerchantProductSummary> products,
   ) async {
-    var productId = products.first.id;
     var locationId = locations.first.id;
-    final counted = TextEditingController();
+    final productIds = <String>[products.first.id];
+    final countedControllers = <TextEditingController>[TextEditingController()];
     final reason = TextEditingController();
+    String? validationMessage;
+
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('تطبيق جرد'),
-          content: _inventoryCommandFields(
-            products: products,
-            locations: locations,
-            productId: productId,
-            locationId: locationId,
-            onProductChanged: (value) =>
-                setDialogState(() => productId = value ?? productId),
-            onLocationChanged: (value) =>
-                setDialogState(() => locationId = value ?? locationId),
-            quantityLabel: 'الكمية المعدودة فعلياً',
-            quantityController: counted,
-            reasonController: reason,
+          title: const Text('تطبيق جرد متعدد المنتجات'),
+          content: SizedBox(
+            width: 620,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: locationId,
+                    decoration: const InputDecoration(labelText: 'موقع الجرد'),
+                    items: locations
+                        .map(
+                          (location) => DropdownMenuItem(
+                            value: location.id,
+                            child: Text(location.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => setDialogState(() {
+                      locationId = value ?? locationId;
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  ...List<Widget>.generate(productIds.length, (index) {
+                    final selectedId = productIds[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: selectedId,
+                              decoration: InputDecoration(
+                                labelText: 'المنتج ${index + 1}',
+                              ),
+                              items: products
+                                  .map(
+                                    (product) => DropdownMenuItem(
+                                      value: product.id,
+                                      child: Text(
+                                        '${product.name} · المتاح ${product.stockQuantity}',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) => setDialogState(() {
+                                productIds[index] = value ?? selectedId;
+                                validationMessage = null;
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: countedControllers[index],
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'الكمية المعدودة',
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'حذف السطر',
+                            onPressed: productIds.length == 1
+                                ? null
+                                : () => setDialogState(() {
+                                    productIds.removeAt(index);
+                                    countedControllers
+                                        .removeAt(index)
+                                        .dispose();
+                                    validationMessage = null;
+                                  }),
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      onPressed: productIds.length >= 50
+                          ? null
+                          : () => setDialogState(() {
+                              productIds.add(products.first.id);
+                              countedControllers.add(TextEditingController());
+                              validationMessage = null;
+                            }),
+                      icon: const Icon(Icons.add),
+                      label: const Text('إضافة منتج للجرد'),
+                    ),
+                  ),
+                  TextField(
+                    controller: reason,
+                    minLines: 1,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'سبب الجرد',
+                      hintText: 'مثال: جرد نهاية الوردية',
+                    ),
+                    onChanged: (_) => setDialogState(() {
+                      validationMessage = null;
+                    }),
+                  ),
+                  if (validationMessage != null) ...[
+                    const SizedBox(height: 8),
+                    _InlineWarning(validationMessage!),
+                  ],
+                  const SizedBox(height: 6),
+                  const Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      'حتى 50 منتجاً في عملية ذرية واحدة. لا تُقبل المنتجات المكررة.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
@@ -5520,19 +5701,39 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
             ),
             FilledButton(
               onPressed: () async {
-                final value = int.tryParse(counted.text.trim());
-                if (value == null ||
-                    value < 0 ||
-                    reason.text.trim().length < 3) {
+                final quantities = countedControllers
+                    .map((controller) => int.tryParse(controller.text.trim()))
+                    .toList(growable: false);
+                final duplicateProducts =
+                    productIds.toSet().length != productIds.length;
+                final invalidQuantity = quantities.any(
+                  (value) => value == null || value < 0 || value > 100000,
+                );
+                if (duplicateProducts || invalidQuantity) {
+                  setDialogState(() {
+                    validationMessage = duplicateProducts
+                        ? 'لا يمكن تكرار المنتج في أكثر من سطر.'
+                        : 'أدخل كميات صحيحة بين صفر و100000.';
+                  });
+                  return;
+                }
+                if (reason.text.trim().length < 3) {
+                  setDialogState(() {
+                    validationMessage = 'اكتب سبباً واضحاً للجرد.';
+                  });
                   return;
                 }
                 try {
                   final outcome = await _commands.applyCount(
                     shopId: widget.shopId,
                     locationId: locationId,
-                    items: [
-                      {'product_id': productId, 'counted_quantity': value},
-                    ],
+                    items: List.generate(
+                      productIds.length,
+                      (index) => {
+                        'product_id': productIds[index],
+                        'counted_quantity': quantities[index],
+                      },
+                    ),
                     reason: reason.text.trim(),
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
@@ -5550,7 +5751,9 @@ class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
         ),
       ),
     );
-    counted.dispose();
+    for (final controller in countedControllers) {
+      controller.dispose();
+    }
     reason.dispose();
   }
 

@@ -488,6 +488,70 @@ class SupabaseMarketplaceClient {
     return row == null ? null : Map<String, dynamic>.from(row);
   }
 
+  Future<List<Map<String, dynamic>>> providerCatalog() async {
+    final rows = await _client
+        .from('provider_catalog')
+        .select(
+          'provider_code,category,display_name_ar,display_name_en,integration_mode,readiness_state,supports_webhooks,notes_ar',
+        )
+        .eq('active', true)
+        .order('category')
+        .order('display_name_ar');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveMerchantIntegration({
+    required String shopId,
+    required String providerCode,
+    required String status,
+    Map<String, dynamic> configuration = const {},
+    String? credentialReference,
+    String? webhookEndpointReference,
+  }) async {
+    final result = await _client.rpc(
+      'save_merchant_integration',
+      params: {
+        'p_shop_id': shopId,
+        'p_provider_code': providerCode,
+        'p_status': status,
+        'p_configuration': configuration,
+        'p_credential_reference': credentialReference,
+        'p_webhook_endpoint_reference': webhookEndpointReference,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> merchantQualitySummary(String shopId) async {
+    final result = await _client.rpc(
+      'merchant_quality_summary',
+      params: {'p_shop_id': shopId},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> openSupportTicket({
+    required String category,
+    required String subject,
+    required String description,
+    String priority = 'normal',
+    String? merchantOrderId,
+  }) async {
+    final result = await _client.rpc(
+      'open_support_ticket',
+      params: {
+        'p_category': category,
+        'p_subject': subject,
+        'p_description': description,
+        'p_priority': priority,
+        'p_merchant_order_id': merchantOrderId,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>> merchantAnalytics(String shopId) async {
     final result = await _client.rpc(
       'merchant_dashboard_metrics',

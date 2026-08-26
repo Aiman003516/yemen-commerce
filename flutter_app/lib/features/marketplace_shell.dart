@@ -2100,8 +2100,71 @@ class _MetricChip extends StatelessWidget {
   );
 }
 
+class _MerchantQualityCard extends StatelessWidget {
+  const _MerchantQualityCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<MerchantQualitySummary>(
+        future: MarketplaceApiClient().merchantQualitySummary(shopId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Text('تعذر تحميل مؤشرات الجودة حالياً.');
+          }
+          final quality = snapshot.data!;
+          final rating = quality.averageRating == null
+              ? 'لا توجد تقييمات منشورة'
+              : '${quality.averageRating!.toStringAsFixed(1)} / 5';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionHeader(
+                title: 'جودة المتجر والثقة',
+                subtitle: 'مؤشرات تفسيرية تساعدك على تحسين الخدمة؛ لا يوجد حظر آلي أو تغيير للمدفوعات.',
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _MetricChip(label: 'التقييم', value: rating),
+                  _MetricChip(
+                    label: 'المكتملة',
+                    value: '${quality.completedOrdersCount}',
+                  ),
+                  _MetricChip(
+                    label: 'الملغاة',
+                    value: '${quality.cancelledOrdersCount}',
+                  ),
+                  _MetricChip(
+                    label: 'النزاعات',
+                    value: '${quality.disputedOrdersCount}',
+                  ),
+                  _MetricChip(
+                    label: 'إشارات مفتوحة',
+                    value: '${quality.openRiskSignalsCount}',
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
 class _MerchantProviderOperationsCard extends StatelessWidget {
-  const _MerchantProviderOperationsCard();
+  const _MerchantProviderOperationsCard({required this.shopId});
+
+  final String shopId;
 
   static const modules = [
     (
@@ -2158,10 +2221,85 @@ class _MerchantProviderOperationsCard extends StatelessWidget {
               onTap: () => _showModuleInfo(context, module.$1, module.$2),
             ),
           ),
+          const Divider(height: 24),
+          const Text(
+            'دليل المزودين المتاح للتهيئة',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          FutureBuilder<List<ProviderCatalogEntry>>(
+            future: MarketplaceApiClient().providerCatalog(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: LinearProgressIndicator(minHeight: 2),
+                );
+              }
+              if (snapshot.hasError) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('تعذر تحميل دليل المزودين حالياً.'),
+                );
+              }
+              return Column(
+                children: (snapshot.data ?? const <ProviderCatalogEntry>[])
+                    .map(
+                      (provider) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(provider.displayNameAr),
+                        subtitle: Text(
+                          '${provider.category} · ${provider.readinessState}${provider.supportsWebhooks ? ' · Webhook' : ''}',
+                        ),
+                        trailing: OutlinedButton(
+                          onPressed: () =>
+                              _savePreviewIntegration(context, provider),
+                          child: const Text('تهيئة آمنة'),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
         ],
       ),
     ),
   );
+
+  Future<void> _savePreviewIntegration(
+    BuildContext context,
+    ProviderCatalogEntry provider,
+  ) async {
+    final status = provider.readinessState == 'blocked'
+        ? 'blocked'
+        : provider.readinessState;
+    try {
+      await MarketplaceApiClient().saveMerchantIntegration(
+        shopId: shopId,
+        providerCode: provider.providerCode,
+        status: status,
+        configuration: {
+          'mode': 'preview',
+          'external_calls_enabled': false,
+          'provider_readiness': provider.readinessState,
+        },
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم حفظ ${provider.displayNameAr} بوضع المعاينة فقط.',
+            ),
+          ),
+        );
+      }
+    } on ApiException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
 
   static Future<void> _showModuleInfo(
     BuildContext context,
@@ -2334,7 +2472,9 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
               onAddPromotion: () => _createPromotion(workspace.shops.first.id),
             ),
             const SizedBox(height: 20),
-            const _MerchantProviderOperationsCard(),
+            _MerchantQualityCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
+            _MerchantProviderOperationsCard(shopId: workspace.shops.first.id),
           ],
           const SizedBox(height: 20),
           Text(
@@ -3282,6 +3422,99 @@ class _ServicesPage extends StatelessWidget {
     ),
   ];
 
+  Future<void> _openSupportDialog(BuildContext context) async {
+    final subject = TextEditingController();
+    final description = TextEditingController();
+    var category = 'order';
+    var priority = 'normal';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('فتح تذكرة دعم'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  decoration: const InputDecoration(labelText: 'التصنيف'),
+                  items: const [
+                    DropdownMenuItem(value: 'order', child: Text('طلب')),
+                    DropdownMenuItem(value: 'payment', child: Text('دفع')),
+                    DropdownMenuItem(value: 'delivery', child: Text('توصيل')),
+                    DropdownMenuItem(value: 'account', child: Text('حساب')),
+                    DropdownMenuItem(value: 'other', child: Text('أخرى')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => category = value ?? 'order'),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: priority,
+                  decoration: const InputDecoration(labelText: 'الأولوية'),
+                  items: const [
+                    DropdownMenuItem(value: 'normal', child: Text('عادية')),
+                    DropdownMenuItem(value: 'high', child: Text('مرتفعة')),
+                    DropdownMenuItem(value: 'urgent', child: Text('عاجلة')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => priority = value ?? 'normal'),
+                ),
+                TextField(
+                  controller: subject,
+                  decoration: const InputDecoration(labelText: 'العنوان'),
+                ),
+                TextField(
+                  controller: description,
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: const InputDecoration(labelText: 'وصف المشكلة'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (subject.text.trim().length < 3 ||
+                    description.text.trim().length < 8) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().openSupportTicket(
+                    category: category,
+                    subject: subject.text.trim(),
+                    description: description.text.trim(),
+                    priority: priority,
+                  );
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم فتح تذكرة الدعم.')),
+                    );
+                  }
+                } on ApiException catch (error) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('إرسال'),
+            ),
+          ],
+        ),
+      ),
+    );
+    subject.dispose();
+    description.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(20, 18, 20, 48),
@@ -3296,6 +3529,12 @@ class _ServicesPage extends StatelessWidget {
         'ميزات إضافية نجهزها للسوق اليمني. بعضها يعتمد على مزودي خدمات خارجيين، لذلك تعرض هذه الصفحة بيانات توضيحية فقط.',
       ),
       const SizedBox(height: 18),
+      FilledButton.icon(
+        onPressed: () => _openSupportDialog(context),
+        icon: const Icon(Icons.support_agent_outlined),
+        label: const Text('فتح تذكرة دعم'),
+      ),
+      const SizedBox(height: 12),
       Card(
         color: const Color(0xFFEAF4F2),
         child: const Padding(

@@ -206,6 +206,81 @@ class CreatorMarket {
   );
 }
 
+class CreatorServiceArea {
+  const CreatorServiceArea({
+    required this.id,
+    required this.marketId,
+    required this.nameAr,
+    required this.areaCode,
+    required this.status,
+    required this.deliveryEnabled,
+    required this.pickupEnabled,
+  });
+
+  final String id;
+  final String marketId;
+  final String nameAr;
+  final String areaCode;
+  final String status;
+  final bool deliveryEnabled;
+  final bool pickupEnabled;
+
+  factory CreatorServiceArea.fromJson(Map<String, dynamic> json) =>
+      CreatorServiceArea(
+        id: (json['id'] ?? '').toString(),
+        marketId: (json['market_id'] ?? json['marketId'] ?? '').toString(),
+        nameAr: (json['name_ar'] ?? json['nameAr'] ?? '').toString(),
+        areaCode: (json['area_code'] ?? json['areaCode'] ?? '').toString(),
+        status: (json['status'] ?? 'draft').toString(),
+        deliveryEnabled:
+            json['delivery_enabled'] as bool? ??
+            json['deliveryEnabled'] as bool? ??
+            true,
+        pickupEnabled:
+            json['pickup_enabled'] as bool? ??
+            json['pickupEnabled'] as bool? ??
+            true,
+      );
+}
+
+class CreatorPickupPoint {
+  const CreatorPickupPoint({
+    required this.id,
+    required this.marketId,
+    required this.nameAr,
+    required this.addressDetails,
+    required this.status,
+    this.serviceAreaId,
+    this.contactPhone,
+    this.operatingHours,
+  });
+
+  final String id;
+  final String marketId;
+  final String nameAr;
+  final String addressDetails;
+  final String status;
+  final String? serviceAreaId;
+  final String? contactPhone;
+  final String? operatingHours;
+
+  factory CreatorPickupPoint.fromJson(
+    Map<String, dynamic> json,
+  ) => CreatorPickupPoint(
+    id: (json['id'] ?? '').toString(),
+    marketId: (json['market_id'] ?? json['marketId'] ?? '').toString(),
+    nameAr: (json['name_ar'] ?? json['nameAr'] ?? '').toString(),
+    addressDetails: (json['address_details'] ?? json['addressDetails'] ?? '')
+        .toString(),
+    status: (json['status'] ?? 'draft').toString(),
+    serviceAreaId: (json['service_area_id'] ?? json['serviceAreaId'])
+        ?.toString(),
+    contactPhone: (json['contact_phone'] ?? json['contactPhone'])?.toString(),
+    operatingHours: (json['operating_hours'] ?? json['operatingHours'])
+        ?.toString(),
+  );
+}
+
 class CreatorPolicy {
   const CreatorPolicy({
     required this.id,

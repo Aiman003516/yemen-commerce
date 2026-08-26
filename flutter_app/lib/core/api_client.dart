@@ -422,6 +422,68 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<List<ProviderCatalogEntry>> providerCatalog() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب قائمة المزودين اتصال Supabase.');
+    }
+    final rows = await supabase.providerCatalog();
+    return rows
+        .map((row) => ProviderCatalogEntry.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<void> saveMerchantIntegration({
+    required String shopId,
+    required String providerCode,
+    required String status,
+    Map<String, dynamic> configuration = const {},
+    String? credentialReference,
+    String? webhookEndpointReference,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إعدادات المزود اتصال Supabase.');
+    }
+    await supabase.saveMerchantIntegration(
+      shopId: shopId,
+      providerCode: providerCode,
+      status: status,
+      configuration: configuration,
+      credentialReference: credentialReference,
+      webhookEndpointReference: webhookEndpointReference,
+    );
+  }
+
+  Future<MerchantQualitySummary> merchantQualitySummary(String shopId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مؤشرات جودة المتجر اتصال Supabase.');
+    }
+    final row = await supabase.merchantQualitySummary(shopId);
+    return MerchantQualitySummary.fromJson(row);
+  }
+
+  Future<void> openSupportTicket({
+    required String category,
+    required String subject,
+    required String description,
+    String priority = 'normal',
+    String? merchantOrderId,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('فتح تذكرة الدعم يتطلب اتصال Supabase.');
+    }
+    await supabase.openSupportTicket(
+      category: category,
+      subject: subject,
+      description: description,
+      priority: priority,
+      merchantOrderId: merchantOrderId,
+    );
+  }
+
   Future<MerchantAnalytics> merchantAnalytics(String shopId) async {
     final supabase = _supabase;
     if (supabase == null) {

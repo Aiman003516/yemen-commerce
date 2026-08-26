@@ -460,6 +460,112 @@ class MerchantAnalytics {
       );
 }
 
+class MerchantQualitySummary {
+  const MerchantQualitySummary({
+    required this.shopId,
+    required this.ordersCount,
+    required this.completedOrdersCount,
+    required this.cancelledOrdersCount,
+    required this.disputedOrdersCount,
+    required this.openRiskSignalsCount,
+    this.averageRating,
+  });
+
+  final String shopId;
+  final int ordersCount;
+  final int completedOrdersCount;
+  final int cancelledOrdersCount;
+  final int disputedOrdersCount;
+  final int openRiskSignalsCount;
+  final double? averageRating;
+
+  factory MerchantQualitySummary.fromJson(Map<String, dynamic> json) =>
+      MerchantQualitySummary(
+        shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+        ordersCount: _intValue(json['ordersCount'] ?? json['orders_count']),
+        completedOrdersCount: _intValue(
+          json['completedOrdersCount'] ?? json['completed_orders_count'],
+        ),
+        cancelledOrdersCount: _intValue(
+          json['cancelledOrdersCount'] ?? json['cancelled_orders_count'],
+        ),
+        disputedOrdersCount: _intValue(
+          json['disputedOrdersCount'] ?? json['disputed_orders_count'],
+        ),
+        openRiskSignalsCount: _intValue(
+          json['openRiskSignalsCount'] ?? json['open_risk_signals_count'],
+        ),
+        averageRating: (json['averageRating'] ?? json['average_rating']) is num
+            ? ((json['averageRating'] ?? json['average_rating']) as num)
+                  .toDouble()
+            : null,
+      );
+}
+
+class ProviderCatalogEntry {
+  const ProviderCatalogEntry({
+    required this.providerCode,
+    required this.category,
+    required this.displayNameAr,
+    required this.integrationMode,
+    required this.readinessState,
+    required this.supportsWebhooks,
+    this.notesAr,
+  });
+
+  final String providerCode;
+  final String category;
+  final String displayNameAr;
+  final String integrationMode;
+  final String readinessState;
+  final bool supportsWebhooks;
+  final String? notesAr;
+
+  factory ProviderCatalogEntry.fromJson(
+    Map<String, dynamic> json,
+  ) => ProviderCatalogEntry(
+    providerCode:
+        json['providerCode'] as String? ?? json['provider_code'] as String,
+    category: json['category'] as String,
+    displayNameAr:
+        json['displayNameAr'] as String? ?? json['display_name_ar'] as String,
+    integrationMode:
+        json['integrationMode'] as String? ??
+        json['integration_mode'] as String,
+    readinessState:
+        json['readinessState'] as String? ?? json['readiness_state'] as String,
+    supportsWebhooks:
+        json['supportsWebhooks'] as bool? ??
+        json['supports_webhooks'] as bool? ??
+        false,
+    notesAr: json['notesAr'] as String? ?? json['notes_ar'] as String?,
+  );
+}
+
+class SupportTicket {
+  const SupportTicket({
+    required this.id,
+    required this.category,
+    required this.subject,
+    required this.status,
+    required this.priority,
+  });
+
+  final String id;
+  final String category;
+  final String subject;
+  final String status;
+  final String priority;
+
+  factory SupportTicket.fromJson(Map<String, dynamic> json) => SupportTicket(
+    id: _stringValue(json['id']),
+    category: json['category'] as String,
+    subject: json['subject'] as String,
+    status: json['status'] as String,
+    priority: json['priority'] as String,
+  );
+}
+
 class StorefrontSettings {
   const StorefrontSettings({
     required this.shopId,

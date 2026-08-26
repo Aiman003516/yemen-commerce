@@ -107,11 +107,9 @@ class _CreatorConsoleShellState extends State<CreatorConsoleShell> {
       const CreatorPeoplePage(),
       const CreatorMerchantGovernancePage(),
       const CreatorGlobalPolicyPage(),
+      const CreatorMarketOperationsPage(),
       const CreatorProviderHubPage(),
-      _PlaceholderPage(
-        title: 'التقارير والتدقيق',
-        detail: 'ستظهر هنا التقارير وسجل التدقيق بعد إضافة استعلامات الإدارة.',
-      ),
+      const CreatorTrustSupportPage(),
     ];
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -191,6 +189,11 @@ class _CreatorRail extends StatelessWidget {
         label: Text('الأسواق'),
       ),
       NavigationRailDestination(
+        icon: Icon(Icons.alt_route_outlined),
+        selectedIcon: Icon(Icons.alt_route),
+        label: Text('التشغيل'),
+      ),
+      NavigationRailDestination(
         icon: Icon(Icons.hub_outlined),
         selectedIcon: Icon(Icons.hub),
         label: Text('التكاملات'),
@@ -229,6 +232,10 @@ class _CreatorBottomBar extends StatelessWidget {
       NavigationDestination(
         icon: Icon(Icons.public_outlined),
         label: 'الأسواق',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.alt_route_outlined),
+        label: 'التشغيل',
       ),
       NavigationDestination(icon: Icon(Icons.hub_outlined), label: 'التكاملات'),
       NavigationDestination(
@@ -844,34 +851,571 @@ class CreatorProviderHubPage extends StatelessWidget {
   );
 }
 
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.title, required this.detail});
-  final String title;
-  final String detail;
+class CreatorMarketOperationsPage extends StatefulWidget {
+  const CreatorMarketOperationsPage({super.key});
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+  State<CreatorMarketOperationsPage> createState() =>
+      _CreatorMarketOperationsPageState();
+}
+
+class _CreatorMarketOperationsPageState
+    extends State<CreatorMarketOperationsPage> {
+  final repository = CreatorRepository();
+  late Future<List<CreatorMarket>> markets;
+  String? selectedMarketId;
+
+  @override
+  void initState() {
+    super.initState();
+    markets = repository.listMarkets();
+  }
+
+  void refresh() {
+    setState(() => markets = repository.listMarkets());
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<CreatorMarket>>(
+    future: markets,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const _InlineLoading();
+      }
+      if (snapshot.hasError ||
+          snapshot.data == null ||
+          snapshot.data!.isEmpty) {
+        return const _FailurePage(
+          message: 'تعذر تحميل الأسواق لتشغيل مناطق الخدمة.',
+        );
+      }
+      final availableMarkets = snapshot.data!;
+      final selected = availableMarkets.firstWhere(
+        (market) => market.id == selectedMarketId,
+        orElse: () => availableMarkets.first,
+      );
+      if (selectedMarketId != selected.id) selectedMarketId = selected.id;
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Row(
             children: [
-              const Icon(Icons.construction_outlined, size: 48),
-              const SizedBox(height: 12),
+              const Expanded(
+                child: Text(
+                  'تشغيل مناطق الخدمة ونقاط الاستلام',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                ),
+              ),
+              IconButton(onPressed: refresh, icon: const Icon(Icons.refresh)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'أدر التغطية حسب السوق والحي. لا يتم توسيع التغطية تلقائياً، وكل تغيير يحتاج صلاحية manage_markets وسبباً وسجل تدقيق.',
+          ),
+          const SizedBox(height: 18),
+          DropdownButtonFormField<String>(
+            initialValue: selected.id,
+            decoration: const InputDecoration(labelText: 'السوق'),
+            items: availableMarkets
+                .map(
+                  (market) => DropdownMenuItem(
+                    value: market.id,
+                    child: Text('${market.city} · ${market.governorate}'),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => selectedMarketId = value),
+          ),
+          const SizedBox(height: 16),
+          FutureBuilder<List<dynamic>>(
+            future: Future.wait<dynamic>([
+              repository.listServiceAreas(selected.id),
+              repository.listPickupPoints(selected.id),
+            ]),
+            builder: (context, operationsSnapshot) {
+              if (operationsSnapshot.connectionState ==
+                  ConnectionState.waiting) {
+                return const _InlineLoading();
+              }
+              if (operationsSnapshot.hasError) {
+                return const _InlineError(
+                  message: 'تعذر تحميل مناطق الخدمة ونقاط الاستلام.',
+                );
+              }
+              final areas =
+                  operationsSnapshot.data?[0] as List<CreatorServiceArea>? ??
+                  const [];
+              final points =
+                  operationsSnapshot.data?[1] as List<CreatorPickupPoint>? ??
+                  const [];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _MarketOpsSection(
+                    title: 'مناطق الخدمة',
+                    icon: Icons.map_outlined,
+                    actionLabel: 'إضافة منطقة',
+                    onAction: () => _showAreaDialog(selected.id),
+                    children: areas.isEmpty
+                        ? [const Text('لا توجد مناطق مهيأة لهذا السوق.')]
+                        : areas
+                              .map(
+                                (area) => ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    '${area.nameAr} · ${area.areaCode}',
+                                  ),
+                                  subtitle: Text(
+                                    'الحالة: ${area.status} · توصيل: ${area.deliveryEnabled ? 'نعم' : 'لا'} · استلام: ${area.pickupEnabled ? 'نعم' : 'لا'}',
+                                  ),
+                                  trailing: IconButton(
+                                    onPressed: () => _showAreaDialog(
+                                      selected.id,
+                                      area: area,
+                                    ),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  _MarketOpsSection(
+                    title: 'نقاط الاستلام',
+                    icon: Icons.location_on_outlined,
+                    actionLabel: 'إضافة نقطة',
+                    onAction: () => _showPickupDialog(selected.id),
+                    children: points.isEmpty
+                        ? [const Text('لا توجد نقاط استلام مهيأة لهذا السوق.')]
+                        : points
+                              .map(
+                                (point) => ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(point.nameAr),
+                                  subtitle: Text(
+                                    '${point.addressDetails} · ${point.status}',
+                                  ),
+                                  trailing: IconButton(
+                                    onPressed: () => _showPickupDialog(
+                                      selected.id,
+                                      point: point,
+                                    ),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      );
+    },
+  );
+
+  Future<void> _showAreaDialog(
+    String marketId, {
+    CreatorServiceArea? area,
+  }) async {
+    final name = TextEditingController(text: area?.nameAr);
+    final code = TextEditingController(text: area?.areaCode);
+    final reason = TextEditingController();
+    var status = area?.status ?? 'draft';
+    var delivery = area?.deliveryEnabled ?? true;
+    var pickup = area?.pickupEnabled ?? true;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(area == null ? 'إضافة منطقة خدمة' : 'تعديل منطقة خدمة'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم بالعربية',
+                  ),
+                ),
+                TextField(
+                  controller: code,
+                  decoration: const InputDecoration(labelText: 'رمز المنطقة'),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(value: 'active', child: Text('نشطة')),
+                    DropdownMenuItem(value: 'paused', child: Text('متوقفة')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => status = value ?? 'draft'),
+                ),
+                SwitchListTile(
+                  title: const Text('تفعيل التوصيل'),
+                  value: delivery,
+                  onChanged: (value) => setDialogState(() => delivery = value),
+                ),
+                SwitchListTile(
+                  title: const Text('تفعيل الاستلام'),
+                  value: pickup,
+                  onChanged: (value) => setDialogState(() => pickup = value),
+                ),
+                TextField(
+                  controller: reason,
+                  decoration: const InputDecoration(labelText: 'سبب التغيير'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.trim().length < 2 ||
+                    code.text.trim().length < 2 ||
+                    reason.text.trim().length < 3) {
+                  return;
+                }
+                try {
+                  await repository.saveServiceArea(
+                    id: area?.id,
+                    marketId: marketId,
+                    nameAr: name.text,
+                    areaCode: code.text,
+                    status: status,
+                    deliveryEnabled: delivery,
+                    pickupEnabled: pickup,
+                    reason: reason.text,
+                  );
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  refresh();
+                } catch (_) {
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('تعذر حفظ منطقة الخدمة.')),
+                    );
+                  }
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    code.dispose();
+    reason.dispose();
+  }
+
+  Future<void> _showPickupDialog(
+    String marketId, {
+    CreatorPickupPoint? point,
+  }) async {
+    final name = TextEditingController(text: point?.nameAr);
+    final address = TextEditingController(text: point?.addressDetails);
+    final phone = TextEditingController(text: point?.contactPhone);
+    final hours = TextEditingController(text: point?.operatingHours);
+    final reason = TextEditingController();
+    var status = point?.status ?? 'draft';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(
+            point == null ? 'إضافة نقطة استلام' : 'تعديل نقطة استلام',
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم بالعربية',
+                  ),
+                ),
+                TextField(
+                  controller: address,
+                  decoration: const InputDecoration(
+                    labelText: 'تفاصيل العنوان',
+                  ),
+                ),
+                TextField(
+                  controller: phone,
+                  decoration: const InputDecoration(labelText: 'هاتف التواصل'),
+                ),
+                TextField(
+                  controller: hours,
+                  decoration: const InputDecoration(labelText: 'ساعات العمل'),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(value: 'active', child: Text('نشطة')),
+                    DropdownMenuItem(value: 'paused', child: Text('متوقفة')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => status = value ?? 'draft'),
+                ),
+                TextField(
+                  controller: reason,
+                  decoration: const InputDecoration(labelText: 'سبب التغيير'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.trim().length < 2 ||
+                    address.text.trim().length < 5 ||
+                    reason.text.trim().length < 3) {
+                  return;
+                }
+                try {
+                  await repository.savePickupPoint(
+                    id: point?.id,
+                    marketId: marketId,
+                    nameAr: name.text,
+                    addressDetails: address.text,
+                    contactPhone: phone.text,
+                    operatingHours: hours.text,
+                    status: status,
+                    reason: reason.text,
+                  );
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  refresh();
+                } catch (_) {
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('تعذر حفظ نقطة الاستلام.')),
+                    );
+                  }
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    address.dispose();
+    phone.dispose();
+    hours.dispose();
+    reason.dispose();
+  }
+}
+
+class _MarketOpsSection extends StatelessWidget {
+  const _MarketOpsSection({
+    required this.title,
+    required this.icon,
+    required this.actionLabel,
+    required this.onAction,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final String actionLabel;
+  final VoidCallback onAction;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              OutlinedButton(onPressed: onAction, child: Text(actionLabel)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...children,
+        ],
+      ),
+    ),
+  );
+}
+
+class CreatorTrustSupportPage extends StatelessWidget {
+  const CreatorTrustSupportPage({super.key});
+
+  static const tickets = [
+    ('YC-1042', 'تأخر التوصيل', 'عاجلة', 'مفتوحة'),
+    ('YC-1038', 'اختلاف تحصيل نقدي', 'مرتفعة', 'قيد المعالجة'),
+    ('YC-1031', 'تعديل بيانات متجر', 'عادية', 'بانتظار العميل'),
+  ];
+  static const signals = [
+    ('إشارة نمط مراجعات', 'متوسطة', 'تحتاج مراجعة بشرية'),
+    ('فشل تسليم متكرر', 'مرتفعة', 'لا يوجد حظر تلقائي'),
+    ('استخدام قسيمة غير معتاد', 'منخفضة', 'للمراقبة فقط'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(24),
+    children: [
+      const Text(
+        'الثقة والدعم والتشغيل',
+        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'واجهة تشغيلية تجريبية للفرق المصرح لها. الإشارات تساعد على المراجعة ولا تؤدي وحدها إلى حظر أو تغيير حالة دفع أو إلغاء طلب.',
+      ),
+      const SizedBox(height: 18),
+      Card(
+        color: const Color(0xFFFFF8E7),
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'كل قرار حساس يحتاج سبباً واضحاً، صلاحية مناسبة، وسجلاً تدقيقياً. البيانات الظاهرة هنا توضيحية إلى أن تُربط بقوائم RPC الحقيقية.',
+          ),
+        ),
+      ),
+      const SizedBox(height: 18),
+      _TrustSection(
+        title: 'تذاكر الدعم',
+        icon: Icons.support_agent_outlined,
+        children: tickets
+            .map(
+              (ticket) => ListTile(
+                leading: const Icon(Icons.confirmation_number_outlined),
+                title: Text('${ticket.$1} · ${ticket.$2}'),
+                subtitle: Text('${ticket.$3} · ${ticket.$4}'),
+                trailing: OutlinedButton(
+                  onPressed: () =>
+                      _showMockAction(context, 'فتح التذكرة ${ticket.$1}'),
+                  child: const Text('معاينة'),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+      const SizedBox(height: 16),
+      _TrustSection(
+        title: 'إشارات المخاطر',
+        icon: Icons.shield_outlined,
+        children: signals
+            .map(
+              (signal) => ListTile(
+                leading: const Icon(Icons.flag_outlined),
+                title: Text(signal.$1),
+                subtitle: Text('${signal.$2} · ${signal.$3}'),
+                trailing: OutlinedButton(
+                  onPressed: () => _showMockAction(context, signal.$1),
+                  child: const Text('مراجعة'),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+      const SizedBox(height: 16),
+      _TrustSection(
+        title: 'مؤشرات جودة المتاجر',
+        icon: Icons.insights_outlined,
+        children: const [
+          ListTile(
+            title: Text('متجر تجريبي · إب'),
+            subtitle: Text('إتمام 87% · متوسط تقييم 4.4 · نزاعان مفتوحان'),
+            trailing: Chip(label: Text('تفسيري')),
+          ),
+          ListTile(
+            title: Text('متجر تجريبي · إب'),
+            subtitle: Text('إتمام 72% · متوسط تقييم 3.8 · يحتاج دعماً'),
+            trailing: Chip(label: Text('مراقبة')),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  static Future<void> _showMockAction(BuildContext context, String title) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: const Text(
+            'هذه معاينة Mock. لن يتم تعديل حالة مستخدم أو طلب أو دفع حتى تُنفذ العملية من خلال RPC مصرح بها مع سبب وسجل تدقيق.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+}
+
+class _TrustSection extends StatelessWidget {
+  const _TrustSection({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 8),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(detail, textAlign: TextAlign.center),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          ...children,
+        ],
       ),
     ),
   );

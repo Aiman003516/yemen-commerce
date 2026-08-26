@@ -67,6 +67,15 @@ assert_anon_denied checkout_create_orders '{"p_market_id":"00000000-0000-0000-00
 assert_anon_denied record_cod_collection '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_collected_minor":0,"p_note":"test"}'
 assert_anon_denied release_order_stock '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_reason":"test"}'
 assert_anon_denied finalize_order_stock '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied open_support_ticket '{"p_category":"order","p_subject":"Test support","p_description":"Test support description","p_priority":"normal","p_merchant_order_id":null}'
+assert_anon_denied review_support_ticket '{"p_ticket_id":"00000000-0000-0000-0000-000000000000","p_status":"resolved","p_resolution_note":"Test resolution","p_assigned_to_user_id":null}'
+assert_anon_denied review_risk_signal '{"p_signal_id":"00000000-0000-0000-0000-000000000000","p_decision":"dismissed","p_resolution_note":"Test resolution"}'
+assert_anon_denied save_merchant_integration '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_provider_code":"whatsapp_business","p_status":"mock","p_configuration":{},"p_credential_reference":null,"p_webhook_endpoint_reference":null}'
+assert_anon_denied creator_set_integration_status '{"p_integration_id":"00000000-0000-0000-0000-000000000000","p_status":"blocked","p_reason":"Test reason"}'
+assert_anon_denied creator_set_feature_rollout '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_feature_key":"test_feature","p_enabled":false,"p_configuration":{},"p_reason":"Test reason"}'
+assert_anon_denied creator_save_service_area '{"p_id":null,"p_market_id":"00000000-0000-0000-0000-000000000000","p_name_ar":"منطقة اختبار","p_name_en":"Test Area","p_area_code":"TEST","p_status":"draft","p_delivery_enabled":true,"p_pickup_enabled":true,"p_reason":"Test reason"}'
+assert_anon_denied creator_save_pickup_point '{"p_id":null,"p_market_id":"00000000-0000-0000-0000-000000000000","p_service_area_id":null,"p_name_ar":"نقطة اختبار","p_name_en":"Test Point","p_address_details":"Test pickup address","p_contact_phone":"700000000","p_operating_hours":"09:00-17:00","p_status":"draft","p_reason":"Test reason"}'
+assert_anon_denied moderate_product_review '{"p_review_id":"00000000-0000-0000-0000-000000000000","p_status":"published","p_reason":"Test reason"}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

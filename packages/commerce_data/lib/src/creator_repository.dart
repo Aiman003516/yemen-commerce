@@ -229,6 +229,120 @@ class CreatorRepository {
     );
   }
 
+  Future<List<CreatorServiceArea>> listServiceAreas(String marketId) async {
+    final rows = await _client
+        .from('market_service_areas')
+        .select(
+          'id,market_id,name_ar,name_en,area_code,status,delivery_enabled,pickup_enabled',
+        )
+        .eq('market_id', marketId)
+        .order('name_ar');
+    return (rows as List<dynamic>)
+        .map(
+          (row) => CreatorServiceArea.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<CreatorPickupPoint>> listPickupPoints(String marketId) async {
+    final rows = await _client
+        .from('pickup_points')
+        .select(
+          'id,market_id,service_area_id,name_ar,name_en,address_details,contact_phone,operating_hours,status',
+        )
+        .eq('market_id', marketId)
+        .order('name_ar');
+    return (rows as List<dynamic>)
+        .map(
+          (row) => CreatorPickupPoint.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CreatorMutationResult> saveServiceArea({
+    String? id,
+    required String marketId,
+    required String nameAr,
+    String? nameEn,
+    required String areaCode,
+    required String status,
+    required bool deliveryEnabled,
+    required bool pickupEnabled,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'creator_save_service_area',
+      params: {
+        'p_id': id,
+        'p_market_id': marketId,
+        'p_name_ar': nameAr.trim(),
+        'p_name_en': nameEn?.trim(),
+        'p_area_code': areaCode.trim(),
+        'p_status': status,
+        'p_delivery_enabled': deliveryEnabled,
+        'p_pickup_enabled': pickupEnabled,
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<CreatorMutationResult> savePickupPoint({
+    String? id,
+    required String marketId,
+    String? serviceAreaId,
+    required String nameAr,
+    String? nameEn,
+    required String addressDetails,
+    String? contactPhone,
+    String? operatingHours,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'creator_save_pickup_point',
+      params: {
+        'p_id': id,
+        'p_market_id': marketId,
+        'p_service_area_id': serviceAreaId,
+        'p_name_ar': nameAr.trim(),
+        'p_name_en': nameEn?.trim(),
+        'p_address_details': addressDetails.trim(),
+        'p_contact_phone': contactPhone?.trim(),
+        'p_operating_hours': operatingHours?.trim(),
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
+  Future<CreatorMutationResult> moderateProductReview({
+    required String reviewId,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'moderate_product_review',
+      params: {
+        'p_review_id': reviewId,
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    return CreatorMutationResult.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
+  }
+
   Future<List<CreatorPolicy>> listPolicies(String marketId) async {
     final result = await _client.rpc(
       'creator_list_policies',

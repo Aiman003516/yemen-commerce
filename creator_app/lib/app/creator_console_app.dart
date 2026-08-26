@@ -107,6 +107,7 @@ class _CreatorConsoleShellState extends State<CreatorConsoleShell> {
       const CreatorPeoplePage(),
       const CreatorMerchantGovernancePage(),
       const CreatorGlobalPolicyPage(),
+      const CreatorProviderHubPage(),
       _PlaceholderPage(
         title: 'التقارير والتدقيق',
         detail: 'ستظهر هنا التقارير وسجل التدقيق بعد إضافة استعلامات الإدارة.',
@@ -190,6 +191,11 @@ class _CreatorRail extends StatelessWidget {
         label: Text('الأسواق'),
       ),
       NavigationRailDestination(
+        icon: Icon(Icons.hub_outlined),
+        selectedIcon: Icon(Icons.hub),
+        label: Text('التكاملات'),
+      ),
+      NavigationRailDestination(
         icon: Icon(Icons.fact_check_outlined),
         selectedIcon: Icon(Icons.fact_check),
         label: Text('التدقيق'),
@@ -224,6 +230,7 @@ class _CreatorBottomBar extends StatelessWidget {
         icon: Icon(Icons.public_outlined),
         label: 'الأسواق',
       ),
+      NavigationDestination(icon: Icon(Icons.hub_outlined), label: 'التكاملات'),
       NavigationDestination(
         icon: Icon(Icons.fact_check_outlined),
         label: 'التدقيق',
@@ -665,6 +672,174 @@ class _FailurePage extends StatelessWidget {
           ),
         ),
       ),
+    ),
+  );
+}
+
+class CreatorProviderHubPage extends StatelessWidget {
+  const CreatorProviderHubPage({super.key});
+
+  static const providers = [
+    (
+      name: 'واتساب للأعمال',
+      category: 'رسائل و CRM',
+      status: 'جاهز للربط',
+      mode: 'mock',
+      detail: 'قوالب حالة الطلب، موافقات العملاء، و Webhook للحالات الواردة.',
+    ),
+    (
+      name: 'SMS اليمن',
+      category: 'رسائل منخفضة النطاق',
+      status: 'تجريبي',
+      mode: 'mock',
+      detail:
+          'تجربة OTP والتنبيهات عبر مزود SMS قابل للاستبدال، بدون إرسال فعلي.',
+    ),
+    (
+      name: 'شبكة التوصيل المحلية',
+      category: 'شحن وتتبع',
+      status: 'تشغيل يدوي',
+      mode: 'manual',
+      detail: 'إنشاء شحنة يدوياً، رقم تتبع، حالات استلام وتسليم، ورسوم حسب المنطقة.',
+    ),
+    (
+      name: 'خرائط ومناطق الخدمة',
+      category: 'مواقع وعناوين',
+      status: 'مخطط',
+      mode: 'pending_approval',
+      detail: 'ترميز جغرافي اختياري مع بديل آمن يعتمد على الحي ونقطة الاستلام.',
+    ),
+    (
+      name: 'قنوات البيع الخارجية',
+      category: 'قنوات وتزامن',
+      status: 'Mock فقط',
+      mode: 'mock',
+      detail: 'كتالوج تجريبي لقنوات اجتماعية وأسواق خارجية، بلا نشر أو مزامنة حقيقية.',
+    ),
+    (
+      name: 'تمويل التجار',
+      category: 'خدمات مالية',
+      status: 'محجوب',
+      mode: 'blocked',
+      detail:
+          'واجهة عرض فقط إلى حين شريك مرخص، تقييم ائتماني، ومراجعة قانونية.',
+    ),
+    (
+      name: 'تحليلات متقدمة',
+      category: 'بيانات ونمو',
+      status: 'بيانات تجريبية',
+      mode: 'mock',
+      detail:
+          'شرائح العملاء، القنوات، ومؤشرات التحويل مبنية على بيانات توضيحية.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(24),
+    children: [
+      const Text(
+        'مركز التكاملات ومزودي الخدمات',
+        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'هذه لوحة تخطيط وتشغيل آمن. البيانات التجريبية لا ترسل رسائل، ولا تنشئ شحنات، ولا تتحقق من المدفوعات، ولا تنقل أموالاً.',
+      ),
+      const SizedBox(height: 18),
+      Card(
+        color: const Color(0xFFFFF8E7),
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'قبل تفعيل أي مزود: خزّن المفاتيح خارج التطبيق، تحقق من توقيع Webhook، ثبّت سياسة الموافقة، وراجع التسوية والامتثال في اليمن.',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 18),
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 420,
+          mainAxisExtent: 210,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+        ),
+        itemCount: providers.length,
+        itemBuilder: (context, index) {
+          final provider = providers[index];
+          final color = switch (provider.mode) {
+            'blocked' => Colors.red,
+            'manual' => Colors.orange,
+            'pending_approval' => Colors.indigo,
+            _ => Colors.teal,
+          };
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.extension_outlined, color: color),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          provider.name,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      Chip(
+                        label: Text(provider.status),
+                        side: BorderSide(color: color.withValues(alpha: .35)),
+                      ),
+                    ],
+                  ),
+                  Text(provider.category, style: TextStyle(color: color)),
+                  const SizedBox(height: 8),
+                  Expanded(child: Text(provider.detail)),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: OutlinedButton(
+                      onPressed: () => _showProviderDialog(context, provider),
+                      child: const Text('عرض الخطة التجريبية'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ],
+  );
+
+  static Future<void> _showProviderDialog(
+    BuildContext context,
+    dynamic provider,
+  ) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(provider.name),
+      content: Text(
+        'الحالة الحالية: ${provider.status}\n\n${provider.detail}\n\nلا يوجد اتصال خارجي في هذه النسخة التجريبية. عند توفر الاعتماد، سيُضاف Adapter مستقل مع Webhook موثق واختبارات عزل.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إغلاق'),
+        ),
+      ],
     ),
   );
 }

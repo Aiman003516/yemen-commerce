@@ -1905,6 +1905,90 @@ class _MetricChip extends StatelessWidget {
   );
 }
 
+class _MerchantProviderOperationsCard extends StatelessWidget {
+  const _MerchantProviderOperationsCard();
+
+  static const modules = [
+    (
+      'الشحن والتتبع',
+      '12 شحنة تجريبية · 8 تم التسليم',
+      Icons.local_shipping_outlined,
+      'Mock',
+    ),
+    (
+      'رسائل العملاء',
+      '24 قالباً · 91% تسليم تجريبي',
+      Icons.chat_bubble_outline,
+      'Mock',
+    ),
+    (
+      'الولاء والإحالات',
+      '47 عميلاً في البرنامج',
+      Icons.card_giftcard_outlined,
+      'تجريبي',
+    ),
+    (
+      'قنوات البيع',
+      'كتالوج اجتماعي جاهز للمعاينة',
+      Icons.share_outlined,
+      'Mock',
+    ),
+    (
+      'تمويل التاجر',
+      'غير متاح قبل شريك مرخص',
+      Icons.account_balance_outlined,
+      'محجوب',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionHeader(
+            title: 'مركز الخدمات المتقدمة',
+            subtitle: 'معاينات تشغيلية لمزودي الشحن والرسائل والولاء والقنوات والتمويل. هذه البيانات تجريبية ولا تنفذ أي إجراء خارج التطبيق.',
+          ),
+          const SizedBox(height: 12),
+          ...modules.map(
+            (module) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(module.$3, color: const Color(0xFF173B63)),
+              title: Text(module.$1),
+              subtitle: Text(module.$2),
+              trailing: Chip(label: Text(module.$4)),
+              onTap: () => _showModuleInfo(context, module.$1, module.$2),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  static Future<void> _showModuleInfo(
+    BuildContext context,
+    String title,
+    String detail,
+  ) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(
+        '$detail\\n\\nهذه معاينة Mock فقط. لن يتم إرسال رسالة أو إنشاء شحنة أو احتساب تمويل أو نشر كتالوج خارجي حتى تتم إضافة مزود معتمد وإكمال إعدادات الأمان والامتثال.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إغلاق'),
+        ),
+      ],
+    ),
+  );
+}
+
 class _MerchantOperationsPanel extends StatefulWidget {
   const _MerchantOperationsPanel();
 
@@ -2054,6 +2138,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
               shopId: workspace.shops.first.id,
               onAddPromotion: () => _createPromotion(workspace.shops.first.id),
             ),
+            const SizedBox(height: 20),
+            const _MerchantProviderOperationsCard(),
           ],
           const SizedBox(height: 20),
           Text(

@@ -1105,6 +1105,41 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<void> checkoutCartIdempotent({
+    required List<Map<String, dynamic>> fulfilmentByShop,
+    required List<Map<String, dynamic>> paymentMethodByMerchant,
+    required List<Map<String, dynamic>> deliveryByShop,
+    required String commandKey,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('إتمام الطلبات المتكررة يتطلب اتصال Supabase.');
+    }
+    final market = await supabase.activeMarket();
+    if (market == null) throw ApiException('لا يوجد سوق نشط حالياً.');
+    await supabase.checkoutCreateOrdersIdempotent(
+      marketId: market.id,
+      fulfilmentByShop: fulfilmentByShop,
+      paymentByMerchant: paymentMethodByMerchant,
+      deliveryByShop: deliveryByShop,
+      commandKey: commandKey,
+    );
+  }
+
+  Future<void> applyOrderPromotion({
+    required String merchantOrderId,
+    required String code,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تطبيق العرض يتطلب اتصال Supabase.');
+    }
+    await supabase.applyOrderPromotion(
+      merchantOrderId: merchantOrderId,
+      code: code,
+    );
+  }
+
   Future<void> recordCodCollection({
     required String merchantOrderId,
     required int collectedMinor,

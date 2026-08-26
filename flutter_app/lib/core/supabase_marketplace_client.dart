@@ -1040,6 +1040,37 @@ class SupabaseMarketplaceClient {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<Map<String, dynamic>> checkoutCreateOrdersIdempotent({
+    required String marketId,
+    required List<Map<String, dynamic>> fulfilmentByShop,
+    required List<Map<String, dynamic>> paymentByMerchant,
+    required List<Map<String, dynamic>> deliveryByShop,
+    required String commandKey,
+  }) async {
+    final result = await _client.rpc(
+      'checkout_create_orders_idempotent',
+      params: {
+        'p_market_id': marketId,
+        'p_fulfilment_by_shop': fulfilmentByShop,
+        'p_payment_by_merchant': paymentByMerchant,
+        'p_delivery_by_shop': deliveryByShop,
+        'p_command_key': commandKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> applyOrderPromotion({
+    required String merchantOrderId,
+    required String code,
+  }) async {
+    final result = await _client.rpc(
+      'apply_order_promotion',
+      params: {'p_merchant_order_id': merchantOrderId, 'p_code': code},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>> recordCodCollection({
     required String merchantOrderId,
     required int collectedMinor,

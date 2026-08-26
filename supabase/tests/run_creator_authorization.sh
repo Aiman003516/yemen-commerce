@@ -82,6 +82,8 @@ assert_anon_denied review_wholesale_request '{"p_request_id":"00000000-0000-0000
 assert_anon_denied earn_loyalty_points '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_points":10,"p_reason":"Test points"}'
 assert_anon_denied open_pos_session '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_opening_note":"Test opening"}'
 assert_anon_denied record_pos_sale '{"p_pos_session_id":"00000000-0000-0000-0000-000000000000","p_total_minor":100,"p_payment_mode":"mock","p_line_items":[],"p_note":"Test sale"}'
+assert_anon_denied checkout_create_orders_idempotent '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_fulfilment_by_shop":[],"p_payment_by_merchant":[],"p_delivery_by_shop":[],"p_command_key":"anonymous-test-command-key"}'
+assert_anon_denied apply_order_promotion '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_code":"TEST10"}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

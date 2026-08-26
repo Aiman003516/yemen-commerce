@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/inventory_command_queue.dart';
+import '../core/outbox_localization.dart';
 import '../core/contracts.dart';
 import '../core/supabase_config.dart';
 import '../core/supabase_marketplace_client.dart';
@@ -4566,7 +4567,7 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
               return const _CatalogNotice(
                 icon: Icons.cloud_done_outlined,
                 title: 'لا توجد أوامر معلقة',
-                detail: 'ستظهر هنا أوامر checkout والعروض وعمليات المخزون غير المالية إذا انقطع الاتصال أثناء الحفظ.',
+                detail: outboxEmptyStateDetail,
               );
             }
             return Column(
@@ -4583,7 +4584,7 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
                         ),
                         title: Text(_kindLabel(item.kind)),
                         subtitle: Text(
-                          'الحالة: ${_stateLabel(item.state)} · محاولات: ${item.attempts}\nالمعرف: ${_maskKey(item.idempotencyKey)}${item.hasError ? '\nتعذر التنفيذ؛ أعد المحاولة أو احذف الأمر.' : ''}',
+                          'الحالة: ${outboxStateLabel(item.state)} · محاولات: ${item.attempts}\nالمعرف: ${_maskKey(item.idempotencyKey)}${item.hasError ? '\n${outboxErrorHint(item.state)}' : ''}',
                         ),
                         isThreeLine: item.hasError,
 
@@ -4624,21 +4625,7 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
     return '${key.substring(0, 4)}…${key.substring(key.length - 4)}';
   }
 
-  static String _kindLabel(String kind) => switch (kind) {
-    'checkout_create_orders' => 'إنشاء الطلبات',
-    'apply_order_promotion' => 'تطبيق عرض',
-    'record_inventory_adjustment' => 'تعديل مخزون',
-    'complete_inventory_transfer' => 'نقل مخزون',
-    'apply_inventory_count' => 'تطبيق جرد',
-    _ => kind,
-  };
-
-  static String _stateLabel(String state) => switch (state) {
-    'pending' => 'قيد الانتظار',
-    'failed' => 'يحتاج إعادة محاولة',
-    'blocked' => 'محجوب لخطأ غير قابل لإعادة المحاولة',
-    _ => state,
-  };
+  static String _kindLabel(String kind) => outboxCommandLabel(kind);
 }
 
 class _ServicesPage extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'contracts.dart';
 import 'supabase_config.dart';
@@ -870,18 +871,24 @@ class MarketplaceApiClient {
     if (supabase == null) {
       throw ApiException('تتطلب لوحة الطلبات اتصال Supabase.');
     }
-    final rows = await supabase.merchantOrderWorkbench(
-      shopId: shopId,
-      fulfilmentStatus: fulfilmentStatus,
-      paymentStatus: paymentStatus,
-      codStatus: codStatus,
-      query: query,
-      limit: limit,
-      offset: offset,
-    );
-    return rows
-        .map((row) => MerchantOrderWorkbenchEntry.fromJson(row))
-        .toList(growable: false);
+    try {
+      final rows = await supabase.merchantOrderWorkbench(
+        shopId: shopId,
+        fulfilmentStatus: fulfilmentStatus,
+        paymentStatus: paymentStatus,
+        codStatus: codStatus,
+        query: query,
+        limit: limit,
+        offset: offset,
+      );
+      return rows
+          .map((row) => MerchantOrderWorkbenchEntry.fromJson(row))
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل لوحة الطلبات.'),
+      );
+    }
   }
 
   Future<CodReconciliationBatch> openCodReconciliationBatch({
@@ -893,12 +900,18 @@ class MarketplaceApiClient {
     if (supabase == null) {
       throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
     }
-    final row = await supabase.openCodReconciliationBatch(
-      shopId: shopId,
-      businessDate: businessDate,
-      note: note,
-    );
-    return CodReconciliationBatch.fromJson(row);
+    try {
+      final row = await supabase.openCodReconciliationBatch(
+        shopId: shopId,
+        businessDate: businessDate,
+        note: note,
+      );
+      return CodReconciliationBatch.fromJson(row);
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر فتح دفعة المطابقة.'),
+      );
+    }
   }
 
   Future<void> recordCodCollectionInBatch({
@@ -911,12 +924,18 @@ class MarketplaceApiClient {
     if (supabase == null) {
       throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
     }
-    await supabase.recordCodCollectionInBatch(
-      merchantOrderId: merchantOrderId,
-      collectedMinor: collectedMinor,
-      reconciliationBatchId: reconciliationBatchId,
-      note: note,
-    );
+    try {
+      await supabase.recordCodCollectionInBatch(
+        merchantOrderId: merchantOrderId,
+        collectedMinor: collectedMinor,
+        reconciliationBatchId: reconciliationBatchId,
+        note: note,
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تسجيل التحصيل في الدفعة.'),
+      );
+    }
   }
 
   Future<CodReconciliationCloseResult> closeCodReconciliationBatch({
@@ -927,11 +946,17 @@ class MarketplaceApiClient {
     if (supabase == null) {
       throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
     }
-    final row = await supabase.closeCodReconciliationBatch(
-      batchId: batchId,
-      note: note,
-    );
-    return CodReconciliationCloseResult.fromJson(row);
+    try {
+      final row = await supabase.closeCodReconciliationBatch(
+        batchId: batchId,
+        note: note,
+      );
+      return CodReconciliationCloseResult.fromJson(row);
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر إغلاق دفعة المطابقة.'),
+      );
+    }
   }
 
   Future<CodReconciliationSnapshot> merchantCodReconciliation({
@@ -944,13 +969,19 @@ class MarketplaceApiClient {
     if (supabase == null) {
       throw ApiException('تتطلب مطابقة التحصيل النقدي اتصال Supabase.');
     }
-    final row = await supabase.merchantCodReconciliation(
-      shopId: shopId,
-      businessDate: businessDate,
-      limit: limit,
-      offset: offset,
-    );
-    return CodReconciliationSnapshot.fromJson(row);
+    try {
+      final row = await supabase.merchantCodReconciliation(
+        shopId: shopId,
+        businessDate: businessDate,
+        limit: limit,
+        offset: offset,
+      );
+      return CodReconciliationSnapshot.fromJson(row);
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل مطابقة التحصيل النقدي.'),
+      );
+    }
   }
 
   Future<CatalogImportResult> bulkSaveProducts({
@@ -1189,12 +1220,14 @@ class MarketplaceApiClient {
   Future<void> updateMerchantFulfilment({
     required String merchantOrderId,
     required String fulfilmentStatus,
+    String? reason,
   }) async {
     final supabase = _supabase;
     if (supabase != null) {
       await supabase.updateMerchantFulfilment(
         merchantOrderId: merchantOrderId,
         fulfilmentStatus: fulfilmentStatus,
+        reason: reason,
       );
       return;
     }
@@ -1205,6 +1238,7 @@ class MarketplaceApiClient {
         'json': {
           'merchantOrderId': merchantOrderId,
           'fulfilmentStatus': fulfilmentStatus,
+          'reason': reason,
         },
       }),
     );
@@ -1621,6 +1655,53 @@ class MarketplaceApiClient {
       throw ApiException('تعذر إرسال مرجع التحويل.');
     }
   }
+}
+
+@visibleForTesting
+String localizedSupabaseErrorForTest(
+  PostgrestException error,
+  String fallback,
+) => _localizedSupabaseError(error, fallback);
+
+String _localizedSupabaseError(PostgrestException error, String fallback) {
+  final signal = '${error.code} ${error.message}'.toUpperCase();
+  if (signal.contains('AUTH_REQUIRED')) {
+    return 'انتهت الجلسة أو لم يتم تسجيل الدخول. سجّل الدخول مجدداً.';
+  }
+  if (signal.contains('SHOP_NOT_OWNED') || signal.contains('ORDER_NOT_FOUND')) {
+    return 'لا يمكن الوصول إلى هذا الطلب أو المتجر بهذه الجلسة.';
+  }
+  if (signal.contains('INVALID_ORDER_WORKBENCH_PAGINATION') ||
+      signal.contains('INVALID_COD_PAGINATION')) {
+    return 'نطاق البحث غير صالح. استخدم صفحة لا تتجاوز 500 سجلاً.';
+  }
+  if (signal.contains('INVALID_FULFILMENT_FILTER') ||
+      signal.contains('INVALID_PAYMENT_FILTER') ||
+      signal.contains('INVALID_COD_FILTER')) {
+    return 'مرشح الطلبات غير صالح. حدّث الشاشة ثم حاول مجدداً.';
+  }
+  if (signal.contains('COD_BATCH_NOT_FOUND')) {
+    return 'دفعة المطابقة غير موجودة أو لم تعد متاحة. حدّث الشاشة.';
+  }
+  if (signal.contains('COD_BATCH_ALREADY_CLOSED')) {
+    return 'أُغلقت دفعة المطابقة ولا يمكن تعديلها.';
+  }
+  if (signal.contains('COD_BATCH_NOT_OPEN')) {
+    return 'دفعة المطابقة ليست مفتوحة لتسجيل تحصيل جديد.';
+  }
+  if (signal.contains('COD_ORDER_BATCH_DATE_MISMATCH')) {
+    return 'لا يمكن تسجيل الطلب في دفعة بتاريخ مختلف عن تاريخ الطلب.';
+  }
+  if (signal.contains('COD_NOT_APPLICABLE')) {
+    return 'هذا الطلب ليس طلب تحصيل نقدي.';
+  }
+  if (signal.contains('COD_ALREADY_FINAL')) {
+    return 'تم اعتماد تحصيل هذا الطلب ولا يمكن تعديله.';
+  }
+  if (signal.contains('INVALID_COD_AMOUNT')) {
+    return 'مبلغ التحصيل غير صالح.';
+  }
+  return fallback;
 }
 
 class ApiException implements Exception {

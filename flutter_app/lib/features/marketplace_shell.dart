@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/inventory_command_queue.dart';
 import '../core/outbox_localization.dart';
+import '../core/order_workbench_localization.dart';
 import '../core/contracts.dart';
 import '../core/supabase_config.dart';
 import '../core/supabase_marketplace_client.dart';
@@ -3544,36 +3545,12 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                 ),
               ),
             ),
-          const SizedBox(height: 20),
-          Text(
-            'طلبات المتجر',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          if (workspace.orders.isEmpty)
-            const _CatalogNotice(
-              icon: Icons.receipt_long_outlined,
-              title: 'لا توجد طلبات للتاجر بعد',
-              detail: 'تظهر هنا فقط الطلبات الخاصة بمتجرك بعد قيام العملاء بإتمام طلباتهم المنفصلة.',
-            )
-          else
-            ...workspace.orders.map(
-              (order) => Card(
-                child: ListTile(
-                  title: Text('طلب #${order.id} · ${order.totalMinor} YER'),
-                  subtitle: Text(
-                    'الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}',
-                  ),
-                  trailing:
-                      (order.paymentStatus == 'paid' ||
-                          (order.codExpectedMinor > 0 &&
-                              order.codStatus != 'collected'))
-                      ? _orderActions(order)
-                      : null,
-                ),
-              ),
-            ),
+          if (workspace.shops.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _MerchantOrderWorkbenchCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
+            _MerchantCodReconciliationCard(shopId: workspace.shops.first.id),
+          ],
         ],
       );
     },
@@ -4219,6 +4196,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     instructions.dispose();
   }
 
+  // ignore: unused_element
   Widget _orderActions(MerchantManagedOrder order) {
     if (_updatingOrders.contains(order.id)) {
       return const SizedBox.square(
@@ -4696,6 +4674,641 @@ class _SyncCenterPageState extends State<_SyncCenterPage> {
   }
 
   static String _kindLabel(String kind) => outboxCommandLabel(kind);
+}
+
+class _MerchantOrderWorkbenchCard extends StatefulWidget {
+  const _MerchantOrderWorkbenchCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantOrderWorkbenchCard> createState() =>
+      _MerchantOrderWorkbenchCardState();
+}
+
+class _MerchantOrderWorkbenchCardState
+    extends State<_MerchantOrderWorkbenchCard> {
+  final _queryController = TextEditingController();
+  String? _fulfilmentStatus;
+  String? _paymentStatus;
+  String? _codStatus;
+  late Future<List<MerchantOrderWorkbenchEntry>> _orders = _load();
+
+  Future<List<MerchantOrderWorkbenchEntry>> _load() =>
+      MarketplaceApiClient().merchantOrderWorkbench(
+        shopId: widget.shopId,
+        fulfilmentStatus: _fulfilmentStatus,
+        paymentStatus: _paymentStatus,
+        codStatus: _codStatus,
+        query: _queryController.text.trim().isEmpty
+            ? null
+            : _queryController.text.trim(),
+        limit: 50,
+        offset: 0,
+      );
+
+  void _reload() {
+    setState(() => _orders = _load());
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  String _statusLabel(String status) => merchantOrderStatusLabel(status);
+
+  Future<void> _updateFulfilment(
+    MerchantOrderWorkbenchEntry order,
+    String nextStatus, {
+    String? reason,
+  }) async {
+    try {
+      await MarketplaceApiClient().updateMerchantFulfilment(
+        merchantOrderId: order.id,
+        fulfilmentStatus: nextStatus,
+        reason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم طلب تحديث حالة الطلب إلى ${_statusLabel(nextStatus)}.',
+          ),
+        ),
+      );
+      _reload();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر تحديث حالة تنفيذ الطلب.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showOrderDetail(MerchantOrderWorkbenchEntry order) async {
+    final reasonController = TextEditingController();
+    var selectedStatus =
+        const {
+          'ready',
+          'arranged',
+          'completed',
+          'cancelled',
+        }.contains(order.fulfilmentStatus)
+        ? order.fulfilmentStatus
+        : null;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text('طلب ${order.orderReference}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('الإجمالي: ${order.totalMinor} ${order.currency}'),
+              Text('الدفع: ${_statusLabel(order.paymentStatus)}'),
+              Text('التنفيذ: ${_statusLabel(order.fulfilmentStatus)}'),
+              if (order.codExpectedMinor > 0)
+                Text(
+                  'التحصيل النقدي: المتوقع ${order.codExpectedMinor} · المحصل ${order.codCollectedMinor}',
+                ),
+              Text('عدد البنود: ${order.itemCount}'),
+              if (order.hasOpenCase)
+                const Text('يوجد طلب إلغاء/إرجاع/نزاع مفتوح.'),
+              if (order.hasActiveCourierAssignment)
+                const Text('يوجد إسناد توصيل نشط.'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: selectedStatus,
+                decoration: const InputDecoration(labelText: 'الحالة التالية'),
+                items: const [
+                  DropdownMenuItem(value: 'ready', child: Text('جاهز')),
+                  DropdownMenuItem(
+                    value: 'arranged',
+                    child: Text('تم ترتيب التنفيذ'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'completed',
+                    child: Text('تم التنفيذ'),
+                  ),
+                  DropdownMenuItem(value: 'cancelled', child: Text('ملغى')),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => selectedStatus = value),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: reasonController,
+                minLines: 2,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'سبب التحديث (مطلوب)',
+                  hintText: 'اكتب سبباً واضحاً للتحديث',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إغلاق'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final reason = reasonController.text.trim();
+                if (selectedStatus == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('اختر الحالة التالية أولاً.')),
+                  );
+                  return;
+                }
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('اكتب سبباً واضحاً للتحديث.')),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext);
+                _updateFulfilment(order, selectedStatus!, reason: reason);
+              },
+              child: const Text('حفظ التحديث'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reasonController.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<List<MerchantOrderWorkbenchEntry>>(
+        future: _orders,
+        builder: (context, snapshot) {
+          final orders = snapshot.data ?? const <MerchantOrderWorkbenchEntry>[];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'لوحة تشغيل الطلبات',
+                      subtitle: 'تابع الدفع والتنفيذ والتحصيل النقدي من عرض تاجر واحد دون كشف بيانات حساسة.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed:
+                        snapshot.connectionState == ConnectionState.waiting
+                        ? null
+                        : _reload,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'تحديث الطلبات',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SizedBox(
+                    width: 220,
+                    child: TextField(
+                      controller: _queryController,
+                      onSubmitted: (_) => _reload(),
+                      decoration: const InputDecoration(
+                        labelText: 'بحث برقم الطلب',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 170,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _fulfilmentStatus,
+                      decoration: const InputDecoration(labelText: 'التنفيذ'),
+                      items: const [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('كل الحالات'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'pending',
+                          child: Text('قيد الانتظار'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'arranged',
+                          child: Text('تم ترتيب التنفيذ'),
+                        ),
+                        DropdownMenuItem(value: 'ready', child: Text('جاهز')),
+                        DropdownMenuItem(
+                          value: 'completed',
+                          child: Text('تم التنفيذ'),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _fulfilmentStatus = value;
+                        _orders = _load();
+                      }),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 170,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _paymentStatus,
+                      decoration: const InputDecoration(labelText: 'الدفع'),
+                      items: const [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('كل حالات الدفع'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'awaiting_payment',
+                          child: Text('بانتظار الدفع'),
+                        ),
+                        DropdownMenuItem(value: 'paid', child: Text('مدفوع')),
+                        DropdownMenuItem(
+                          value: 'payment_under_review',
+                          child: Text('مراجعة الدفع'),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _paymentStatus = value;
+                        _orders = _load();
+                      }),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 170,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _codStatus,
+                      decoration: const InputDecoration(
+                        labelText: 'التحصيل النقدي',
+                      ),
+                      items: const [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('كل الحالات'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'expected',
+                          child: Text('متوقع'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'collected',
+                          child: Text('تم التحصيل'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'mismatch',
+                          child: Text('فرق في التحصيل'),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _codStatus = value;
+                        _orders = _load();
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const LinearProgressIndicator(minHeight: 2)
+              else if (snapshot.hasError)
+                const _InlineWarning(
+                  'تعذر تحميل لوحة الطلبات. تحقق من الاتصال والصلاحيات ثم حاول مجدداً.',
+                )
+              else if (orders.isEmpty)
+                const _CatalogNotice(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'لا توجد طلبات مطابقة',
+                  detail: 'غيّر المرشحات أو انتظر إتمام طلب جديد من عميل.',
+                )
+              else
+                ...orders.map(
+                  (order) => ListTile(
+                    onTap: () => _showOrderDetail(order),
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(child: Text('${order.itemCount}')),
+                    title: Text(
+                      '${order.orderReference} · ${order.totalMinor} ${order.currency}',
+                    ),
+                    subtitle: Text(
+                      'الدفع: ${_statusLabel(order.paymentStatus)} · التنفيذ: ${_statusLabel(order.fulfilmentStatus)} · التحصيل: ${_statusLabel(order.codStatus)}',
+                    ),
+                    trailing: order.hasOpenCase
+                        ? const Icon(Icons.report_problem_outlined)
+                        : const Icon(Icons.chevron_left),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _MerchantCodReconciliationCard extends StatefulWidget {
+  const _MerchantCodReconciliationCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantCodReconciliationCard> createState() =>
+      _MerchantCodReconciliationCardState();
+}
+
+class _MerchantCodReconciliationCardState
+    extends State<_MerchantCodReconciliationCard> {
+  final _businessDate = DateTime.now().toIso8601String().substring(0, 10);
+  late Future<CodReconciliationSnapshot> _snapshot = _load();
+
+  Future<CodReconciliationSnapshot> _load() =>
+      MarketplaceApiClient().merchantCodReconciliation(
+        shopId: widget.shopId,
+        businessDate: _businessDate,
+        limit: 50,
+        offset: 0,
+      );
+
+  void _reload() {
+    setState(() => _snapshot = _load());
+  }
+
+  String _statusLabel(String status) => merchantOrderStatusLabel(status);
+
+  Future<void> _openBatch() async {
+    try {
+      await MarketplaceApiClient().openCodReconciliationBatch(
+        shopId: widget.shopId,
+        businessDate: _businessDate,
+        note: 'فتح من شاشة مطابقة التحصيل',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم فتح دفعة مطابقة التحصيل.')),
+        );
+        _reload();
+      }
+    } on ApiException catch (error) {
+      _showError(error.message);
+    } on Object {
+      _showError('تعذر فتح دفعة المطابقة.');
+    }
+  }
+
+  Future<void> _recordCollection(
+    CodReconciliationBatch batch,
+    CodReconciliationEntry row,
+  ) async {
+    final amount = TextEditingController(text: '${row.expectedMinor}');
+    final note = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('تسجيل تحصيل ${row.orderReference}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amount,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'المبلغ المحصل بالريال',
+              ),
+            ),
+            TextField(
+              controller: note,
+              decoration: const InputDecoration(
+                labelText: 'ملاحظة الفرق أو التحصيل',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final collected = int.tryParse(amount.text.trim());
+              if (collected == null || collected < 0 || collected > 100000000) {
+                return;
+              }
+              try {
+                await MarketplaceApiClient().recordCodCollectionInBatch(
+                  merchantOrderId: row.merchantOrderId,
+                  collectedMinor: collected,
+                  reconciliationBatchId: batch.id,
+                  note: note.text.trim().isEmpty ? null : note.text.trim(),
+                );
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم حفظ سجل التحصيل للمراجعة.'),
+                    ),
+                  );
+                  _reload();
+                }
+              } on ApiException catch (error) {
+                _showError(error.message);
+              } on Object {
+                _showError('تعذر تسجيل التحصيل في الدفعة.');
+              }
+            },
+            child: const Text('حفظ التحصيل'),
+          ),
+        ],
+      ),
+    );
+    amount.dispose();
+    note.dispose();
+  }
+
+  Future<void> _closeBatch(CodReconciliationBatch batch) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إغلاق دفعة المطابقة؟'),
+        content: const Text(
+          'بعد الإغلاق لن يمكن إضافة سجلات تحصيل جديدة. راجع الفروقات قبل المتابعة.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('إغلاق الدفعة'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final result = await MarketplaceApiClient().closeCodReconciliationBatch(
+        batchId: batch.id,
+        note: 'إغلاق من شاشة مطابقة التحصيل',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'أُغلقت الدفعة: ${_statusLabel(result.status)} · الفرق ${result.varianceMinor} YER',
+            ),
+          ),
+        );
+        _reload();
+      }
+    } on ApiException catch (error) {
+      _showError(error.message);
+    } on Object {
+      _showError('تعذر إغلاق دفعة المطابقة.');
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<CodReconciliationSnapshot>(
+        future: _snapshot,
+        builder: (context, snapshot) {
+          final data = snapshot.data;
+          final batch = data?.batch;
+          final open = batch?.status == 'open';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'مطابقة التحصيل النقدي',
+                      subtitle: 'طابق مبالغ COD المتوقعة مع ما استلمه التاجر. هذه الشاشة لا تنفذ تحويلاً مالياً.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed:
+                        snapshot.connectionState == ConnectionState.waiting
+                        ? null
+                        : _reload,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'تحديث المطابقة',
+                  ),
+                ],
+              ),
+              Text('التاريخ التشغيلي: $_businessDate'),
+              const SizedBox(height: 8),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const LinearProgressIndicator(minHeight: 2)
+              else if (snapshot.hasError)
+                const _InlineWarning(
+                  'تعذر تحميل مطابقة التحصيل. تحقق من الاتصال والصلاحيات ثم حاول مجدداً.',
+                )
+              else if (batch == null)
+                Card(
+                  color: const Color(0xFFFFFBF2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'لا توجد دفعة مفتوحة لهذا التاريخ',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'افتح دفعة قبل تسجيل تحصيلات الطلبات النقدية.',
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: FilledButton.icon(
+                            onPressed: _openBatch,
+                            icon: const Icon(Icons.playlist_add),
+                            label: const Text('فتح دفعة اليوم'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    Text('الحالة: ${_statusLabel(batch.status)}'),
+                    Text('المتوقع: ${batch.expectedTotalMinor} YER'),
+                    Text('المحصل: ${batch.collectedTotalMinor} YER'),
+                    Text('الفرق: ${batch.varianceMinor} YER'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (data!.rows.isEmpty)
+                  const Text('لا توجد طلبات COD مطابقة لهذا التاريخ.')
+                else
+                  ...data.rows.map(
+                    (row) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        row.status == 'mismatch'
+                            ? Icons.warning_amber_outlined
+                            : Icons.payments_outlined,
+                      ),
+                      title: Text(
+                        '${row.orderReference} · المتوقع ${row.expectedMinor} YER',
+                      ),
+                      subtitle: Text(
+                        'المحصل: ${row.collectedMinor} YER · ${_statusLabel(row.status)}',
+                      ),
+                      trailing: open
+                          ? TextButton(
+                              onPressed: () => _recordCollection(batch, row),
+                              child: const Text('تسجيل التحصيل'),
+                            )
+                          : null,
+                    ),
+                  ),
+                if (open)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: FilledButton.icon(
+                      onPressed: () => _closeBatch(batch),
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('إغلاق الدفعة'),
+                    ),
+                  ),
+              ],
+            ],
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _ServicesPage extends StatelessWidget {

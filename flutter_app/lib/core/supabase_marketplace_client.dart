@@ -1276,12 +1276,14 @@ class SupabaseMarketplaceClient {
   Future<Map<String, dynamic>> updateMerchantFulfilment({
     required String merchantOrderId,
     required String fulfilmentStatus,
+    String? reason,
   }) async {
     final result = await _client.rpc(
       'transition_fulfilment',
       params: {
         'p_merchant_order_id': merchantOrderId,
         'p_next_status': fulfilmentStatus,
+        'p_reason': reason,
       },
     );
     return Map<String, dynamic>.from(result as Map);

@@ -20,6 +20,24 @@ class QueuedCommand {
   final int attempts;
   final String? lastError;
 
+  Map<String, dynamic> toJson() => {
+    'idempotencyKey': idempotencyKey,
+    'kind': kind,
+    'payload': payload,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'attempts': attempts,
+    'lastError': lastError,
+  };
+
+  factory QueuedCommand.fromJson(Map<String, dynamic> json) => QueuedCommand(
+    idempotencyKey: json['idempotencyKey'] as String,
+    kind: json['kind'] as String,
+    payload: Map<String, dynamic>.from(json['payload'] as Map),
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    attempts: (json['attempts'] as num?)?.toInt() ?? 0,
+    lastError: json['lastError'] as String?,
+  );
+
   QueuedCommand copyWith({int? attempts, String? lastError}) => QueuedCommand(
     idempotencyKey: idempotencyKey,
     kind: kind,

@@ -1238,6 +1238,8 @@ class MerchantOrderSummary {
     this.codExpectedMinor = 0,
     this.codCollectedMinor = 0,
     this.codStatus = 'not_applicable',
+    this.shopId,
+    this.orderReference,
   });
   final String id;
   final int totalMinor;
@@ -1252,44 +1254,49 @@ class MerchantOrderSummary {
   final int codExpectedMinor;
   final int codCollectedMinor;
   final String codStatus;
-  factory MerchantOrderSummary.fromJson(Map<String, dynamic> json) =>
-      MerchantOrderSummary(
-        id: _stringValue(json['id']),
-        totalMinor: _intValue(json['totalMinor'] ?? json['total_minor']),
-        currency: json['currency'] as String,
-        paymentStatus:
-            json['paymentStatus'] as String? ??
-            json['payment_status'] as String,
-        fulfilmentStatus:
-            json['fulfilmentStatus'] as String? ??
-            json['fulfilment_status'] as String,
-        accountHolderName:
-            json['accountHolderName'] as String? ??
-            json['account_holder_name'] as String?,
-        receivingIdentifier:
-            json['receivingIdentifier'] as String? ??
-            json['receiving_identifier'] as String?,
-        paymentInstructions:
-            json['paymentInstructions'] as String? ??
-            json['payment_instructions'] as String?,
-        providerCode:
-            json['providerCode'] as String? ??
-            json['payment_provider_code'] as String? ??
-            'manual',
-        deliveryFeeMinor: _intValue(
-          json['deliveryFeeMinor'] ?? json['delivery_fee_minor'],
-        ),
-        codExpectedMinor: _intValue(
-          json['codExpectedMinor'] ?? json['cod_expected_minor'],
-        ),
-        codCollectedMinor: _intValue(
-          json['codCollectedMinor'] ?? json['cod_collected_minor'],
-        ),
-        codStatus:
-            json['codStatus'] as String? ??
-            json['cod_status'] as String? ??
-            'not_applicable',
-      );
+  final String? shopId;
+  final String? orderReference;
+  factory MerchantOrderSummary.fromJson(
+    Map<String, dynamic> json,
+  ) => MerchantOrderSummary(
+    id: _stringValue(json['id']),
+    totalMinor: _intValue(json['totalMinor'] ?? json['total_minor']),
+    currency: json['currency'] as String,
+    paymentStatus:
+        json['paymentStatus'] as String? ?? json['payment_status'] as String,
+    fulfilmentStatus:
+        json['fulfilmentStatus'] as String? ??
+        json['fulfilment_status'] as String,
+    accountHolderName:
+        json['accountHolderName'] as String? ??
+        json['account_holder_name'] as String?,
+    receivingIdentifier:
+        json['receivingIdentifier'] as String? ??
+        json['receiving_identifier'] as String?,
+    paymentInstructions:
+        json['paymentInstructions'] as String? ??
+        json['payment_instructions'] as String?,
+    providerCode:
+        json['providerCode'] as String? ??
+        json['payment_provider_code'] as String? ??
+        'manual',
+    deliveryFeeMinor: _intValue(
+      json['deliveryFeeMinor'] ?? json['delivery_fee_minor'],
+    ),
+    codExpectedMinor: _intValue(
+      json['codExpectedMinor'] ?? json['cod_expected_minor'],
+    ),
+    codCollectedMinor: _intValue(
+      json['codCollectedMinor'] ?? json['cod_collected_minor'],
+    ),
+    codStatus:
+        json['codStatus'] as String? ??
+        json['cod_status'] as String? ??
+        'not_applicable',
+    shopId: json['shopId'] as String? ?? json['shop_id'] as String?,
+    orderReference:
+        json['orderReference'] as String? ?? json['order_reference'] as String?,
+  );
 }
 
 class CartGroup {
@@ -1368,4 +1375,305 @@ class MerchantPaymentChoice {
             json['provider_code'] as String? ??
             'manual',
       );
+}
+
+class WholesalePriceListItemSummary {
+  const WholesalePriceListItemSummary({
+    required this.id,
+    required this.productId,
+    required this.productName,
+    required this.unitPriceMinor,
+    required this.minQuantity,
+    required this.status,
+    this.variantId,
+  });
+
+  final String id;
+  final String productId;
+  final String productName;
+  final String? variantId;
+  final int unitPriceMinor;
+  final int minQuantity;
+  final String status;
+
+  factory WholesalePriceListItemSummary.fromJson(Map<String, dynamic> json) =>
+      WholesalePriceListItemSummary(
+        id: _stringValue(json['price_list_item_id'] ?? json['id']),
+        productId: _stringValue(json['product_id']),
+        productName: json['product_name'] as String? ?? 'منتج',
+        variantId: json['variant_id'] as String?,
+        unitPriceMinor: _intValue(json['unit_price_minor']),
+        minQuantity: json['min_quantity'] is num
+            ? (json['min_quantity'] as num).toInt()
+            : 1,
+        status: json['status'] as String? ?? 'active',
+      );
+}
+
+class WholesalePriceListSummary {
+  const WholesalePriceListSummary({
+    required this.id,
+    required this.shopId,
+    required this.nameAr,
+    required this.currency,
+    required this.status,
+    required this.items,
+  });
+
+  final String id;
+  final String shopId;
+  final String nameAr;
+  final String currency;
+  final String status;
+  final List<WholesalePriceListItemSummary> items;
+
+  factory WholesalePriceListSummary.fromJson(Map<String, dynamic> json) =>
+      WholesalePriceListSummary(
+        id: _stringValue(json['price_list_id'] ?? json['id']),
+        shopId: _stringValue(json['shop_id']),
+        nameAr: json['name_ar'] as String? ?? 'قائمة أسعار',
+        currency: json['currency'] as String? ?? 'YER',
+        status: json['status'] as String? ?? 'draft',
+        items: (json['items'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map(
+              (item) => WholesalePriceListItemSummary.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList(growable: false),
+      );
+}
+
+class WholesaleQuoteItemSummary {
+  const WholesaleQuoteItemSummary({
+    required this.id,
+    required this.productId,
+    required this.productNameSnapshot,
+    required this.unitPriceMinor,
+    required this.quantity,
+    required this.lineTotalMinor,
+    this.variantId,
+  });
+
+  final String id;
+  final String productId;
+  final String productNameSnapshot;
+  final String? variantId;
+  final int unitPriceMinor;
+  final int quantity;
+  final int lineTotalMinor;
+
+  factory WholesaleQuoteItemSummary.fromJson(Map<String, dynamic> json) =>
+      WholesaleQuoteItemSummary(
+        id: _stringValue(json['id'] ?? json['quote_item_id']),
+        productId: _stringValue(json['product_id']),
+        productNameSnapshot: json['product_name_snapshot'] as String? ?? 'منتج',
+        variantId: json['variant_id'] as String?,
+        unitPriceMinor: _intValue(json['unit_price_minor']),
+        quantity: json['quantity'] is num
+            ? (json['quantity'] as num).toInt()
+            : 1,
+        lineTotalMinor: _intValue(json['line_total_minor']),
+      );
+}
+
+class WholesaleQuoteVersionSummary {
+  const WholesaleQuoteVersionSummary({
+    required this.id,
+    required this.quoteId,
+    required this.versionNo,
+    required this.status,
+    required this.currency,
+    required this.reason,
+    required this.items,
+    this.validUntil,
+    this.note,
+  });
+
+  final String id;
+  final String quoteId;
+  final int versionNo;
+  final String status;
+  final String currency;
+  final String reason;
+  final DateTime? validUntil;
+  final String? note;
+  final List<WholesaleQuoteItemSummary> items;
+
+  factory WholesaleQuoteVersionSummary.fromJson(Map<String, dynamic> json) =>
+      WholesaleQuoteVersionSummary(
+        id: _stringValue(json['quote_version_id'] ?? json['id']),
+        quoteId: _stringValue(json['quote_id']),
+        versionNo: json['version_no'] is num
+            ? (json['version_no'] as num).toInt()
+            : 0,
+        status: json['status'] as String? ?? 'sent',
+        currency: json['currency'] as String? ?? 'YER',
+        reason: json['reason'] as String? ?? '',
+        validUntil: DateTime.tryParse(json['valid_until']?.toString() ?? ''),
+        note: json['note'] as String?,
+        items: (json['items'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map(
+              (item) => WholesaleQuoteItemSummary.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList(growable: false),
+      );
+}
+
+class MerchantDailyRollup {
+  const MerchantDailyRollup({
+    required this.id,
+    required this.shopId,
+    required this.businessDate,
+    required this.orderCount,
+    required this.paidOrderCount,
+    required this.grossTotalMinor,
+    required this.codExpectedMinor,
+    required this.codCollectedMinor,
+    required this.wholesaleRequestCount,
+    required this.wholesaleApprovedCount,
+    required this.posSaleCount,
+    required this.posGrossTotalMinor,
+  });
+
+  final String id;
+  final String shopId;
+  final DateTime businessDate;
+  final int orderCount;
+  final int paidOrderCount;
+  final int grossTotalMinor;
+  final int codExpectedMinor;
+  final int codCollectedMinor;
+  final int wholesaleRequestCount;
+  final int wholesaleApprovedCount;
+  final int posSaleCount;
+  final int posGrossTotalMinor;
+
+  factory MerchantDailyRollup.fromJson(Map<String, dynamic> json) =>
+      MerchantDailyRollup(
+        id: _stringValue(json['id'] ?? json['rollup_id']),
+        shopId: _stringValue(json['shop_id']),
+        businessDate:
+            DateTime.tryParse(json['business_date']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        orderCount: _intValue(json['order_count']),
+        paidOrderCount: _intValue(json['paid_order_count']),
+        grossTotalMinor: _intValue(json['gross_total_minor']),
+        codExpectedMinor: _intValue(json['cod_expected_minor']),
+        codCollectedMinor: _intValue(json['cod_collected_minor']),
+        wholesaleRequestCount: _intValue(json['wholesale_request_count']),
+        wholesaleApprovedCount: _intValue(json['wholesale_approved_count']),
+        posSaleCount: _intValue(json['pos_sale_count']),
+        posGrossTotalMinor: _intValue(json['pos_gross_total_minor']),
+      );
+}
+
+class ProductAssetVariantSummary {
+  const ProductAssetVariantSummary({
+    required this.id,
+    required this.productId,
+    required this.format,
+    required this.status,
+    required this.width,
+    required this.height,
+    required this.byteSize,
+    this.sourceStorageKey,
+    this.optimizedStorageKey,
+  });
+
+  final String id;
+  final String productId;
+  final String format;
+  final String status;
+  final int width;
+  final int height;
+  final int byteSize;
+  final String? sourceStorageKey;
+  final String? optimizedStorageKey;
+
+  factory ProductAssetVariantSummary.fromJson(Map<String, dynamic> json) =>
+      ProductAssetVariantSummary(
+        id: _stringValue(json['id'] ?? json['asset_variant_id']),
+        productId: _stringValue(json['product_id']),
+        format: json['format'] as String? ?? 'webp',
+        status: json['status'] as String? ?? 'pending',
+        width: _intValue(json['width']),
+        height: _intValue(json['height']),
+        byteSize: _intValue(json['byte_size']),
+        sourceStorageKey: json['source_storage_key'] as String?,
+        optimizedStorageKey: json['optimized_storage_key'] as String?,
+      );
+}
+
+class ProviderAdapterOperation {
+  const ProviderAdapterOperation({
+    required this.providerCode,
+    required this.operationKey,
+    required this.category,
+    required this.enabled,
+    required this.requiredReadinessState,
+    required this.notesAr,
+    this.requiredCapability,
+  });
+
+  final String providerCode;
+  final String operationKey;
+  final String category;
+  final bool enabled;
+  final String requiredReadinessState;
+  final String? requiredCapability;
+  final String notesAr;
+
+  factory ProviderAdapterOperation.fromJson(Map<String, dynamic> json) =>
+      ProviderAdapterOperation(
+        providerCode: _stringValue(json['provider_code']),
+        operationKey: _stringValue(json['operation_key']),
+        category: json['category'] as String? ?? 'other',
+        enabled: json['enabled'] as bool? ?? false,
+        requiredReadinessState:
+            json['required_readiness_state'] as String? ?? 'configured',
+        requiredCapability: json['required_capability'] as String?,
+        notesAr: json['notes_ar'] as String? ?? 'الميزة غير مفعلة حالياً.',
+      );
+}
+
+class WholesaleQuoteSummary {
+  const WholesaleQuoteSummary({
+    required this.id,
+    required this.shopId,
+    required this.status,
+    required this.currentVersionNo,
+    this.buyerUserId,
+    this.wholesaleRequestId,
+    this.latestVersion,
+  });
+
+  final String id;
+  final String shopId;
+  final String status;
+  final int currentVersionNo;
+  final String? buyerUserId;
+  final String? wholesaleRequestId;
+  final WholesaleQuoteVersionSummary? latestVersion;
+
+  factory WholesaleQuoteSummary.fromJson(Map<String, dynamic> json) {
+    final latest = json['latest_version'];
+    return WholesaleQuoteSummary(
+      id: _stringValue(json['quote_id'] ?? json['id']),
+      shopId: _stringValue(json['shop_id']),
+      status: json['status'] as String? ?? 'draft',
+      currentVersionNo: _intValue(json['current_version_no']),
+      buyerUserId: json['buyer_user_id'] as String?,
+      wholesaleRequestId: json['wholesale_request_id'] as String?,
+      latestVersion: latest is Map
+          ? WholesaleQuoteVersionSummary.fromJson(
+              Map<String, dynamic>.from(latest),
+            )
+          : null,
+    );
+  }
 }

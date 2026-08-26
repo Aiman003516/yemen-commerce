@@ -42,3 +42,57 @@ String merchantCodEntryStatusLabel(String status) => switch (status) {
   'mismatch' => 'فرق',
   _ => 'حالة تحصيل غير معروفة',
 };
+
+String merchantB2bRequestStatusLabel(String status) => switch (status) {
+  'open' => 'مفتوح',
+  'reviewing' => 'قيد المراجعة',
+  'approved' => 'معتمد',
+  'rejected' => 'مرفوض',
+  'closed' => 'مغلق',
+  _ => 'حالة طلب غير معروفة',
+};
+
+String merchantPriceListStatusLabel(String status) => switch (status) {
+  'draft' => 'مسودة',
+  'active' => 'نشطة',
+  'paused' => 'متوقفة مؤقتاً',
+  _ => 'حالة قائمة غير معروفة',
+};
+
+String merchantQuoteStatusLabel(String status) => switch (status) {
+  'draft' => 'مسودة',
+  'sent' => 'مرسلة',
+  'accepted' => 'مقبولة',
+  'expired' => 'منتهية',
+  'rejected' => 'مرفوضة',
+  'cancelled' => 'ملغاة',
+  _ => 'حالة عرض غير معروفة',
+};
+
+String productAssetVariantStatusLabel(String status) => switch (status) {
+  'pending' => 'بانتظار التحسين',
+  'ready' => 'جاهزة',
+  'failed' => 'تعذر التحسين',
+  _ => 'حالة صورة غير معروفة',
+};
+
+String providerAdapterOperationLabel(String operationKey) =>
+    switch (operationKey) {
+      'send_template_message' => 'إرسال رسالة قالب',
+      'send_sms' => 'إرسال رسالة SMS',
+      'create_dispatch' => 'إنشاء شحنة',
+      'geocode_address' => 'ترميز العنوان',
+      'publish_catalog' => 'نشر الكتالوج',
+      'request_financing' => 'طلب تمويل',
+      'verify_payment' => 'التحقق من الدفع',
+      _ => 'عملية مزود غير معروفة',
+    };
+
+String providerReadinessLabel(String state) => switch (state) {
+  'configured' => 'مهيأ بعد الاعتماد',
+  'pending_approval' => 'بانتظار الاعتماد',
+  'mock' => 'معاينة فقط',
+  'manual' => 'تشغيل يدوي',
+  'blocked' => 'محجوب',
+  _ => 'حالة اعتماد غير معروفة',
+};

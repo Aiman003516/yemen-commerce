@@ -593,6 +593,179 @@ class MarketplaceApiClient {
     );
   }
 
+  Future<List<WholesalePriceListSummary>> merchantPriceLists(
+    String shopId,
+  ) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب قوائم أسعار الجملة اتصال Supabase.');
+    }
+    final rows = await supabase.listMerchantPriceLists(shopId);
+    return rows
+        .map((row) => WholesalePriceListSummary.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<List<WholesaleQuoteSummary>> merchantWholesaleQuotes(
+    String shopId,
+  ) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب عروض أسعار الجملة اتصال Supabase.');
+    }
+    final rows = await supabase.listMerchantWholesaleQuotes(shopId);
+    return rows
+        .map((row) => WholesaleQuoteSummary.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<List<WholesaleQuoteSummary>> customerWholesaleQuotes() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب عروض الأسعار الخاصة بك اتصال Supabase.');
+    }
+    final rows = await supabase.listCustomerWholesaleQuotes();
+    return rows
+        .map((row) => WholesaleQuoteSummary.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> createWholesaleQuoteVersion({
+    String? quoteId,
+    String? wholesaleRequestId,
+    required String shopId,
+    required String buyerUserId,
+    required String currency,
+    DateTime? validUntil,
+    String? note,
+    required List<Map<String, dynamic>> items,
+    required String reason,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إنشاء عرض سعر جملة اتصال Supabase.');
+    }
+    if (items.isEmpty || reason.trim().length < 3) {
+      throw ApiException('أضف بنداً واحداً وسبباً واضحاً قبل إرسال العرض.');
+    }
+    return supabase.createWholesaleQuoteVersion(
+      quoteId: quoteId,
+      wholesaleRequestId: wholesaleRequestId,
+      shopId: shopId,
+      buyerUserId: buyerUserId,
+      currency: currency,
+      validUntil: validUntil,
+      note: note,
+      items: items,
+      reason: reason,
+    );
+  }
+
+  Future<void> acceptWholesaleQuoteVersion(String quoteVersionId) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب الموافقة على عرض السعر اتصال Supabase.');
+    }
+    await supabase.acceptWholesaleQuoteVersion(quoteVersionId);
+  }
+
+  Future<Map<String, dynamic>> applyAcceptedWholesaleQuote({
+    required String merchantOrderId,
+    required String quoteVersionId,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب تطبيق السعر المتفاوض عليه اتصال Supabase.');
+    }
+    return supabase.applyAcceptedWholesaleQuote(
+      merchantOrderId: merchantOrderId,
+      quoteVersionId: quoteVersionId,
+    );
+  }
+
+  Future<MerchantDailyRollup> refreshMerchantDailyRollup({
+    required String shopId,
+    required DateTime businessDate,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مؤشرات اليوم اتصال Supabase.');
+    }
+    final row = await supabase.refreshMerchantDailyRollup(
+      shopId: shopId,
+      businessDate: businessDate,
+    );
+    return MerchantDailyRollup.fromJson(row);
+  }
+
+  Future<List<MerchantDailyRollup>> merchantDailyRollups({
+    required String shopId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب السلسلة الزمنية للتحليلات اتصال Supabase.');
+    }
+    final rows = await supabase.merchantDailyRollups(
+      shopId: shopId,
+      from: from,
+      to: to,
+    );
+    return rows
+        .map((row) => MerchantDailyRollup.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<List<ProviderAdapterOperation>> providerAdapterOperations() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب بوابة المزودين اتصال Supabase.');
+    }
+    final rows = await supabase.providerAdapterOperations();
+    return rows
+        .map((row) => ProviderAdapterOperation.fromJson(row))
+        .toList(growable: false);
+  }
+
+  Future<ProductAssetVariantSummary> uploadOptimizedProductImage({
+    required String productId,
+    required Uint8List source,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب معالجة صور المنتج اتصال Supabase.');
+    }
+    final row = await supabase.uploadOptimizedProductImage(
+      productId: productId,
+      source: source,
+    );
+    return ProductAssetVariantSummary.fromJson(row);
+  }
+
+  Future<ProductAssetVariantSummary> registerProductAssetVariant({
+    required String productId,
+    required String sourceStorageKey,
+    required String format,
+    required int width,
+    required int height,
+    required int byteSize,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب فهرسة صورة المنتج اتصال Supabase.');
+    }
+    final row = await supabase.registerProductAssetVariant(
+      productId: productId,
+      sourceStorageKey: sourceStorageKey,
+      format: format,
+      width: width,
+      height: height,
+      byteSize: byteSize,
+    );
+    return ProductAssetVariantSummary.fromJson(row);
+  }
+
   Future<Map<String, dynamic>> merchantB2bAnalytics(String shopId) async {
     final supabase = _supabase;
     if (supabase == null) {
@@ -1049,7 +1222,7 @@ class MarketplaceApiClient {
     );
   }
 
-  Future<void> saveProduct({
+  Future<String?> saveProduct({
     String? id,
     required String shopId,
     String? categoryId,
@@ -1063,7 +1236,7 @@ class MarketplaceApiClient {
     final supabase = _supabase;
     if (supabase != null) {
       if (barcode != null && barcode.trim().isNotEmpty) {
-        await supabase.saveProductWithBarcode(
+        final result = await supabase.saveProductWithBarcode(
           id: id,
           shopId: shopId,
           categoryId: categoryId,
@@ -1074,9 +1247,9 @@ class MarketplaceApiClient {
           status: status,
           barcode: barcode.trim(),
         );
-        return;
+        return result['product_id']?.toString();
       }
-      await supabase.saveProduct(
+      final result = await supabase.saveProduct(
         id: id,
         shopId: shopId,
         categoryId: categoryId,
@@ -1086,7 +1259,7 @@ class MarketplaceApiClient {
         stockQuantity: stockQuantity,
         status: status,
       );
-      return;
+      return result['product_id']?.toString();
     }
     final response = await _client.post(
       _uri('/api/trpc/merchant.saveProduct'),
@@ -1107,6 +1280,7 @@ class MarketplaceApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException('تعذر حفظ المنتج.');
     }
+    return null;
   }
 
   Future<void> saveMerchantPaymentMethod({
@@ -1679,6 +1853,44 @@ String _localizedSupabaseError(PostgrestException error, String fallback) {
       signal.contains('INVALID_PAYMENT_FILTER') ||
       signal.contains('INVALID_COD_FILTER')) {
     return 'مرشح الطلبات غير صالح. حدّث الشاشة ثم حاول مجدداً.';
+  }
+  if (signal.contains('QUOTE_REASON_REQUIRED')) {
+    return 'اكتب سبباً واضحاً قبل إرسال إصدار العرض.';
+  }
+  if (signal.contains('INVALID_QUOTE_ITEMS') ||
+      signal.contains('INVALID_QUOTE_ITEM')) {
+    return 'بنود العرض غير صالحة. تحقق من المنتجات والكميات والأسعار.';
+  }
+  if (signal.contains('QUOTE_NOT_AVAILABLE')) {
+    return 'هذا العرض غير متاح أو انتهت صلاحيته.';
+  }
+  if (signal.contains('QUOTE_NOT_FOUND')) {
+    return 'عرض السعر غير موجود أو لا تملك صلاحية الوصول إليه.';
+  }
+  if (signal.contains('QUOTE_ITEMS_MISMATCH')) {
+    return 'بنود العرض لا تطابق بنود الطلب. راجع السلة ثم حاول مجدداً.';
+  }
+  if (signal.contains('QUOTE_ORDER_ALREADY_PRICED') ||
+      signal.contains('QUOTE_ORDER_NOT_EDITABLE')) {
+    return 'لا يمكن تغيير سعر هذا الطلب بعد بدء إجراء التسعير أو الدفع.';
+  }
+  if (signal.contains('INVALID_ROLLUP_DATE')) {
+    return 'تاريخ الملخص اليومي غير صالح أو يقع في المستقبل.';
+  }
+  if (signal.contains('INVALID_ROLLUP_RANGE')) {
+    return 'نطاق الملخصات اليومية غير صالح. اختر فترة لا تتجاوز سنة.';
+  }
+  if (signal.contains('INVALID_ASSET_VARIANT')) {
+    return 'بيانات صورة المنتج غير صالحة. اختر صورة كتالوج أخرى.';
+  }
+  if (signal.contains('INVALID_ASSET_PATH')) {
+    return 'مسار صورة المنتج غير صالح لهذه الجلسة.';
+  }
+  if (signal.contains('ASSET_VARIANT_NOT_FOUND')) {
+    return 'سجل تحسين صورة المنتج غير موجود أو لا تملك صلاحية الوصول إليه.';
+  }
+  if (signal.contains('PROVIDER_UNAVAILABLE')) {
+    return 'هذا المزود غير متاح حالياً؛ لم يتم تنفيذ أي اتصال خارجي.';
   }
   if (signal.contains('COD_BATCH_NOT_FOUND')) {
     return 'دفعة المطابقة غير موجودة أو لم تعد متاحة. حدّث الشاشة.';

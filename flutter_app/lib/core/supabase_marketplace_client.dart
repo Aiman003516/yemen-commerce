@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'product_image_optimizer.dart';
 import 'supabase_config.dart';
 
 /// Supabase-native data access for the shared Flutter application.
@@ -198,7 +199,7 @@ class SupabaseMarketplaceClient {
     final rows = await _client
         .from('merchant_orders')
         .select(
-          'id,total_minor,currency,payment_status,fulfilment_status,account_holder_name,receiving_identifier,payment_instructions,payment_provider_code',
+          'id,shop_id,order_reference,total_minor,currency,payment_status,fulfilment_status,account_holder_name,receiving_identifier,payment_instructions,payment_provider_code',
         )
         .eq('customer_user_id', user.id)
         .order('created_at', ascending: false);
@@ -658,6 +659,218 @@ class SupabaseMarketplaceClient {
     );
     return Map<String, dynamic>.from(result as Map);
   }
+
+  Future<List<Map<String, dynamic>>> listMerchantPriceLists(
+    String shopId,
+  ) async {
+    final rows = await _client.rpc(
+      'list_merchant_price_lists',
+      params: {'p_shop_id': shopId},
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> listMerchantWholesaleQuotes(
+    String shopId,
+  ) async {
+    final rows = await _client.rpc(
+      'list_merchant_wholesale_quotes',
+      params: {'p_shop_id': shopId},
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> listCustomerWholesaleQuotes() async {
+    final rows = await _client.rpc('list_customer_wholesale_quotes');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> createWholesaleQuoteVersion({
+    String? quoteId,
+    String? wholesaleRequestId,
+    required String shopId,
+    required String buyerUserId,
+    required String currency,
+    DateTime? validUntil,
+    String? note,
+    required List<Map<String, dynamic>> items,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'create_wholesale_quote_version',
+      params: {
+        'p_quote_id': quoteId,
+        'p_wholesale_request_id': wholesaleRequestId,
+        'p_shop_id': shopId,
+        'p_buyer_user_id': buyerUserId,
+        'p_currency': currency,
+        'p_valid_until': validUntil?.toUtc().toIso8601String(),
+        'p_note': note,
+        'p_items': items,
+        'p_reason': reason,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> acceptWholesaleQuoteVersion(
+    String quoteVersionId,
+  ) async {
+    final result = await _client.rpc(
+      'accept_wholesale_quote_version',
+      params: {'p_quote_version_id': quoteVersionId},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> applyAcceptedWholesaleQuote({
+    required String merchantOrderId,
+    required String quoteVersionId,
+  }) async {
+    final result = await _client.rpc(
+      'apply_accepted_wholesale_quote',
+      params: {
+        'p_merchant_order_id': merchantOrderId,
+        'p_quote_version_id': quoteVersionId,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> refreshMerchantDailyRollup({
+    required String shopId,
+    required DateTime businessDate,
+  }) async {
+    final result = await _client.rpc(
+      'refresh_merchant_daily_rollup',
+      params: {'p_shop_id': shopId, 'p_business_date': _dateOnly(businessDate)},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantDailyRollups({
+    required String shopId,
+    required DateTime from,
+    required DateTime to,
+    int limit = 90,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'merchant_daily_rollups',
+      params: {
+        'p_shop_id': shopId,
+        'p_from': _dateOnly(from),
+        'p_to': _dateOnly(to),
+        'p_limit': limit.clamp(1, 366),
+        'p_offset': offset.clamp(0, 10000),
+      },
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> uploadOptimizedProductImage({
+    required String productId,
+    required Uint8List source,
+  }) async {
+    final user = currentAuthUser;
+    if (user == null) {
+      throw const SupabaseMarketplaceException('AUTH_REQUIRED');
+    }
+    final optimized = optimizeProductImage(source);
+    final stem = DateTime.now().microsecondsSinceEpoch;
+    final sourcePath = '${user.id}/products/$productId/source-$stem';
+    final optimizedPath = '${user.id}/products/$productId/optimized-$stem.jpg';
+    await _client.storage
+        .from('product-assets')
+        .uploadBinary(
+          sourcePath,
+          source,
+          fileOptions: const FileOptions(
+            contentType: 'application/octet-stream',
+            upsert: false,
+          ),
+        );
+    final registration = await registerProductAssetVariant(
+      productId: productId,
+      sourceStorageKey: sourcePath,
+      format: optimized.format,
+      width: optimized.width,
+      height: optimized.height,
+      byteSize: optimized.bytes.length,
+    );
+    await _client.storage
+        .from('product-assets')
+        .uploadBinary(
+          optimizedPath,
+          optimized.bytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: false,
+          ),
+        );
+    final completed = await _client.rpc(
+      'complete_product_asset_variant',
+      params: {
+        'p_asset_variant_id': registration['asset_variant_id'],
+        'p_optimized_storage_key': optimizedPath,
+      },
+    );
+    return Map<String, dynamic>.from(completed as Map);
+  }
+
+  Future<Map<String, dynamic>> registerProductAssetVariant({
+    required String productId,
+    required String sourceStorageKey,
+    required String format,
+    required int width,
+    required int height,
+    required int byteSize,
+  }) async {
+    final result = await _client.rpc(
+      'register_product_asset_variant',
+      params: {
+        'p_product_id': productId,
+        'p_source_storage_key': sourceStorageKey,
+        'p_format': format,
+        'p_width': width,
+        'p_height': height,
+        'p_byte_size': byteSize,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> completeProductAssetVariant({
+    required String assetVariantId,
+    required String optimizedStorageKey,
+  }) async {
+    final result = await _client.rpc(
+      'complete_product_asset_variant',
+      params: {
+        'p_asset_variant_id': assetVariantId,
+        'p_optimized_storage_key': optimizedStorageKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> providerAdapterOperations() async {
+    final rows = await _client.rpc('provider_adapter_operations');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
   Future<Map<String, dynamic>> merchantB2bAnalytics(String shopId) async {
     final result = await _client.rpc(

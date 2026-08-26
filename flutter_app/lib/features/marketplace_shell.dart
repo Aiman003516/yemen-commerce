@@ -1475,34 +1475,36 @@ class _OrdersPageState extends State<_OrdersPage> {
         }
         return ListView(
           padding: const EdgeInsets.all(24),
-          children: orders
-              .map(
-                (order) => Card(
-                  child: ListTile(
-                    title: Text('طلب #${order.id}'),
-                    subtitle: Text(
-                      'الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}',
-                    ),
-                    trailing: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('${order.totalMinor} ${order.currency}'),
-                        if (order.paymentStatus == 'awaiting_payment')
-                          TextButton(
-                            onPressed: () => _showPayment(order),
-                            child: const Text('تعليمات الدفع'),
-                          ),
-                        if (order.fulfilmentStatus != 'cancelled')
-                          TextButton(
-                            onPressed: () => _openCase(order),
-                            child: const Text('طلب إلغاء أو مساعدة'),
-                          ),
-                      ],
-                    ),
+          children: [
+            _CustomerWholesaleQuotesCard(orders: orders),
+            const SizedBox(height: 16),
+            ...orders.map(
+              (order) => Card(
+                child: ListTile(
+                  title: Text('طلب #${order.id}'),
+                  subtitle: Text(
+                    'الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}',
+                  ),
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${order.totalMinor} ${order.currency}'),
+                      if (order.paymentStatus == 'awaiting_payment')
+                        TextButton(
+                          onPressed: () => _showPayment(order),
+                          child: const Text('تعليمات الدفع'),
+                        ),
+                      if (order.fulfilmentStatus != 'cancelled')
+                        TextButton(
+                          onPressed: () => _openCase(order),
+                          child: const Text('طلب إلغاء أو مساعدة'),
+                        ),
+                    ],
                   ),
                 ),
-              )
-              .toList(),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -1661,6 +1663,187 @@ class _OrdersPageState extends State<_OrdersPage> {
       ),
     );
     reference.dispose();
+  }
+}
+
+class _CustomerWholesaleQuotesCard extends StatefulWidget {
+  const _CustomerWholesaleQuotesCard({required this.orders});
+
+  final List<MerchantOrderSummary> orders;
+
+  @override
+  State<_CustomerWholesaleQuotesCard> createState() =>
+      _CustomerWholesaleQuotesCardState();
+}
+
+class _CustomerWholesaleQuotesCardState
+    extends State<_CustomerWholesaleQuotesCard> {
+  late Future<List<WholesaleQuoteSummary>> _quotes = MarketplaceApiClient()
+      .customerWholesaleQuotes();
+  final Set<String> _busy = <String>{};
+
+  void _reload() {
+    setState(() => _quotes = MarketplaceApiClient().customerWholesaleQuotes());
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      FutureBuilder<List<WholesaleQuoteSummary>>(
+        future: _quotes,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+            );
+          }
+          if (snapshot.hasError) return const SizedBox.shrink();
+          final quotes = snapshot.data ?? const <WholesaleQuoteSummary>[];
+          if (quotes.isEmpty) return const SizedBox.shrink();
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: _SectionHeader(
+                          title: 'عروض أسعار الجملة',
+                          subtitle: 'راجع الإصدار ثم وافق عليه. لا يُطبّق السعر على الطلب إلا بعد مطابقة السلة والتحقق من الخادم.',
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...quotes.map(_quoteTile),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+  Widget _quoteTile(WholesaleQuoteSummary quote) {
+    final version = quote.latestVersion;
+    final accepting = _busy.contains(quote.id);
+    final matchingOrders = widget.orders
+        .where(
+          (order) =>
+              order.shopId == quote.shopId &&
+              order.paymentStatus == 'awaiting_payment',
+        )
+        .toList(growable: false);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: const Color(0xFFF8F7F2),
+      child: ListTile(
+        title: Text(
+          'الإصدار ${version?.versionNo ?? quote.currentVersionNo} · ${merchantQuoteStatusLabel(quote.status)}',
+        ),
+        subtitle: Text(
+          version == null
+              ? 'لا يوجد إصدار صالح للعرض.'
+              : '${version.items.length} بند · ${version.currency} · ${version.note ?? 'بدون ملاحظة'}',
+        ),
+        trailing: Wrap(
+          spacing: 4,
+          children: [
+            if (quote.status == 'sent')
+              FilledButton.tonal(
+                onPressed: accepting ? null : () => _accept(quote),
+                child: Text(accepting ? 'جارٍ الحفظ' : 'موافقة'),
+              ),
+            if (quote.status == 'accepted' && version != null)
+              PopupMenuButton<String>(
+                enabled: !accepting,
+                tooltip: 'تطبيق السعر على طلب بانتظار الدفع',
+                onSelected: (orderId) => _apply(quote, version, orderId),
+                itemBuilder: (context) => matchingOrders.isEmpty
+                    ? const [
+                        PopupMenuItem(
+                          enabled: false,
+                          value: 'none',
+                          child: Text('لا يوجد طلب مطابق بانتظار الدفع'),
+                        ),
+                      ]
+                    : matchingOrders
+                          .map(
+                            (order) => PopupMenuItem(
+                              value: order.id,
+                              child: Text(
+                                'طلب ${order.orderReference ?? order.id}',
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                child: const Icon(Icons.price_check_outlined),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _accept(WholesaleQuoteSummary quote) async {
+    final version = quote.latestVersion;
+    if (version == null) return;
+    setState(() => _busy.add(quote.id));
+    try {
+      await MarketplaceApiClient().acceptWholesaleQuoteVersion(version.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تمت الموافقة على إصدار العرض. يمكنك تطبيقه على طلب مطابق.',
+            ),
+          ),
+        );
+        _reload();
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy.remove(quote.id));
+    }
+  }
+
+  Future<void> _apply(
+    WholesaleQuoteSummary quote,
+    WholesaleQuoteVersionSummary version,
+    String orderId,
+  ) async {
+    setState(() => _busy.add(quote.id));
+    try {
+      await MarketplaceApiClient().applyAcceptedWholesaleQuote(
+        merchantOrderId: orderId,
+        quoteVersionId: version.id,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تطبيق السعر المتفاوض عليه على الطلب المطابق.'),
+          ),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy.remove(quote.id));
+    }
   }
 }
 
@@ -2469,6 +2652,678 @@ class _MerchantB2BCardState extends State<_MerchantB2BCard> {
   }
 }
 
+class _MerchantB2bScaleCard extends StatefulWidget {
+  const _MerchantB2bScaleCard({required this.shopId, required this.products});
+
+  final String shopId;
+  final List<MerchantProductSummary> products;
+
+  @override
+  State<_MerchantB2bScaleCard> createState() => _MerchantB2bScaleCardState();
+}
+
+class _MerchantB2bScaleCardState extends State<_MerchantB2bScaleCard> {
+  late Future<List<WholesalePriceListSummary>> _priceLists =
+      MarketplaceApiClient().merchantPriceLists(widget.shopId);
+  late Future<List<Map<String, dynamic>>> _requests = MarketplaceApiClient()
+      .merchantWholesaleRequests(widget.shopId);
+  late Future<List<WholesaleQuoteSummary>> _quotes = MarketplaceApiClient()
+      .merchantWholesaleQuotes(widget.shopId);
+
+  void _reload() {
+    setState(() {
+      _priceLists = MarketplaceApiClient().merchantPriceLists(widget.shopId);
+      _requests = MarketplaceApiClient().merchantWholesaleRequests(
+        widget.shopId,
+      );
+      _quotes = MarketplaceApiClient().merchantWholesaleQuotes(widget.shopId);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _MerchantB2bScaleCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopId != widget.shopId) _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionHeader(
+                  title: 'تسعير B2B وعروض الأسعار',
+                  subtitle: 'حرر بنود قائمة الأسعار وأرسل إصدارات تفاوضية محفوظة قبل الدفع؛ لا يتحول العرض إلى تمويل أو رصيد تلقائي.',
+                ),
+              ),
+              IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
+              OutlinedButton.icon(
+                onPressed: _createPriceList,
+                icon: const Icon(Icons.playlist_add_outlined),
+                label: const Text('قائمة جديدة'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<List<WholesalePriceListSummary>>(
+            future: _priceLists,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LinearProgressIndicator(minHeight: 2);
+              }
+              if (snapshot.hasError) {
+                return const Text(
+                  'تعذر تحميل قوائم الأسعار. تحقق من صلاحية المتجر ثم حاول مرة أخرى.',
+                );
+              }
+              final lists =
+                  snapshot.data ?? const <WholesalePriceListSummary>[];
+              if (lists.isEmpty) {
+                return const Text(
+                  'لا توجد قوائم أسعار بعد. أنشئ مسودة ثم أضف بنود المنتجات.',
+                );
+              }
+              return Column(
+                children: lists.map(_priceListTile).toList(growable: false),
+              );
+            },
+          ),
+          const Divider(height: 28),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'إصدارات العروض المرسلة',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: _createQuote,
+                icon: const Icon(Icons.request_quote_outlined),
+                label: const Text('إرسال عرض'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<List<WholesaleQuoteSummary>>(
+            future: _quotes,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LinearProgressIndicator(minHeight: 2);
+              }
+              if (snapshot.hasError) {
+                return const Text('تعذر تحميل إصدارات العروض حالياً.');
+              }
+              final quotes = snapshot.data ?? const <WholesaleQuoteSummary>[];
+              if (quotes.isEmpty) {
+                return const Text('لم تُرسل عروض أسعار بعد.');
+              }
+              return Column(
+                children: quotes.map(_quoteTile).toList(growable: false),
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _priceListTile(WholesalePriceListSummary list) => Card(
+    margin: const EdgeInsets.only(bottom: 8),
+    color: const Color(0xFFF8F7F2),
+    child: ExpansionTile(
+      title: Text(
+        '${list.nameAr} · ${merchantPriceListStatusLabel(list.status)}',
+      ),
+      subtitle: Text('${list.items.length} بند · ${list.currency}'),
+      children: [
+        if (list.items.isEmpty)
+          const ListTile(
+            title: Text('لا توجد بنود في القائمة.'),
+            subtitle: Text(
+              'أضف منتجاً من كتالوج متجرك ثم حدد سعر الجملة والحد الأدنى.',
+            ),
+          ),
+        ...list.items.map(
+          (item) => ListTile(
+            title: Text(item.productName),
+            subtitle: Text(
+              '${item.unitPriceMinor} ${list.currency} · الحد الأدنى ${item.minQuantity} · ${merchantPriceListStatusLabel(item.status)}',
+            ),
+            trailing: IconButton(
+              tooltip: 'تعديل بند القائمة',
+              onPressed: () => _editPriceListItem(list, item),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              onPressed: () => _editPriceListItem(list, null),
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة بند'),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _quoteTile(WholesaleQuoteSummary quote) {
+    final version = quote.latestVersion;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.description_outlined),
+      title: Text(
+        'عرض إصدار ${version?.versionNo ?? quote.currentVersionNo} · ${merchantQuoteStatusLabel(quote.status)}',
+      ),
+      subtitle: Text(
+        version == null
+            ? 'لا يوجد إصدار مكتمل.'
+            : '${version.items.length} بند · ${version.currency}${version.validUntil == null ? '' : ' · صالح حتى ${version.validUntil!.toLocal().toString().split(' ').first}'}',
+      ),
+    );
+  }
+
+  Future<void> _createPriceList() async {
+    final name = TextEditingController();
+    final reason = TextEditingController();
+    var error = '';
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إنشاء قائمة أسعار جملة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(
+                  labelText: 'اسم القائمة بالعربية',
+                ),
+              ),
+              TextField(
+                controller: reason,
+                decoration: const InputDecoration(labelText: 'سبب التغيير'),
+              ),
+              if (error.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(error, style: const TextStyle(color: Colors.red)),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.trim().length < 2 ||
+                    reason.text.trim().length < 3) {
+                  setDialogState(
+                    () => error = 'اكتب اسماً وسبباً واضحين قبل الحفظ.',
+                  );
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveWholesalePriceList(
+                    shopId: widget.shopId,
+                    nameAr: name.text,
+                    currency: 'YER',
+                    status: 'draft',
+                    reason: reason.text,
+                  );
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                } on ApiException catch (exception) {
+                  if (dialogContext.mounted) {
+                    setDialogState(() => error = exception.message);
+                  }
+                }
+              },
+              child: const Text('حفظ المسودة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    reason.dispose();
+    if (saved == true && mounted) _reload();
+  }
+
+  Future<void> _editPriceListItem(
+    WholesalePriceListSummary list,
+    WholesalePriceListItemSummary? item,
+  ) async {
+    final candidates = widget.products;
+    if (candidates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('أضف منتجاً إلى الكتالوج قبل إضافة بند تسعير.'),
+        ),
+      );
+      return;
+    }
+    var productId = item?.productId ?? candidates.first.id;
+    final price = TextEditingController(
+      text: item?.unitPriceMinor.toString() ?? '',
+    );
+    final minimum = TextEditingController(
+      text: item?.minQuantity.toString() ?? '1',
+    );
+    final reason = TextEditingController();
+    var status = item?.status ?? 'active';
+    var error = '';
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(item == null ? 'إضافة بند تسعير' : 'تعديل بند التسعير'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: productId,
+                  decoration: const InputDecoration(labelText: 'المنتج'),
+                  items: candidates
+                      .map(
+                        (product) => DropdownMenuItem(
+                          value: product.id,
+                          child: Text(product.name),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: item == null
+                      ? (value) =>
+                            setDialogState(() => productId = value ?? productId)
+                      : null,
+                ),
+                TextField(
+                  controller: price,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'سعر الوحدة بالريال (${list.currency})',
+                  ),
+                ),
+                TextField(
+                  controller: minimum,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'الحد الأدنى للكمية',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'active', child: Text('نشط')),
+                    DropdownMenuItem(
+                      value: 'paused',
+                      child: Text('متوقف مؤقتاً'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => status = value ?? 'active'),
+                ),
+                TextField(
+                  controller: reason,
+                  decoration: const InputDecoration(labelText: 'سبب التغيير'),
+                ),
+                if (error.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      error,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final unitPrice = int.tryParse(price.text.trim());
+                final minQuantity = int.tryParse(minimum.text.trim());
+                if (unitPrice == null ||
+                    unitPrice <= 0 ||
+                    minQuantity == null ||
+                    minQuantity <= 0 ||
+                    reason.text.trim().length < 3) {
+                  setDialogState(
+                    () => error = 'أدخل سعراً وكمية موجبة وسبباً واضحاً.',
+                  );
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().saveWholesalePriceListItem(
+                    id: item?.id,
+                    priceListId: list.id,
+                    productId: productId,
+                    variantId: item?.variantId,
+                    unitPriceMinor: unitPrice,
+                    minQuantity: minQuantity,
+                    status: status,
+                    reason: reason.text,
+                  );
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                } on ApiException catch (exception) {
+                  if (dialogContext.mounted) {
+                    setDialogState(() => error = exception.message);
+                  }
+                }
+              },
+              child: const Text('حفظ البند'),
+            ),
+          ],
+        ),
+      ),
+    );
+    price.dispose();
+    minimum.dispose();
+    reason.dispose();
+    if (saved == true && mounted) _reload();
+  }
+
+  Future<void> _createQuote() async {
+    final requests = await _requests;
+    final lists = await _priceLists;
+    if (!mounted) return;
+    final requestOptions = requests
+        .where((row) {
+          final status = row['status']?.toString();
+          return row['buyer_user_id'] != null &&
+              status != 'closed' &&
+              status != 'rejected';
+        })
+        .toList(growable: false);
+    final priceOptions = lists
+        .where((list) => list.items.isNotEmpty)
+        .toList(growable: false);
+    if (requestOptions.isEmpty || priceOptions.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تحتاج إلى طلب جملة صالح وقائمة تحتوي على بنود قبل إرسال العرض.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    var requestId = requestOptions.first['id'].toString();
+    var listId = priceOptions.first.id;
+    var error = '';
+    final note = TextEditingController();
+    final reason = TextEditingController();
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final selectedList = priceOptions.firstWhere(
+            (list) => list.id == listId,
+          );
+          return AlertDialog(
+            title: const Text('إرسال إصدار عرض سعر'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: requestId,
+                    decoration: const InputDecoration(labelText: 'طلب الجملة'),
+                    items: requestOptions
+                        .map(
+                          (row) => DropdownMenuItem(
+                            value: row['id'].toString(),
+                            child: Text(
+                              '${row['business_name'] ?? 'نشاط تجاري'} · ${merchantB2bRequestStatusLabel(row['status']?.toString() ?? '')}',
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) =>
+                        setDialogState(() => requestId = value ?? requestId),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: listId,
+                    decoration: const InputDecoration(
+                      labelText: 'قائمة الأسعار المصدر',
+                    ),
+                    items: priceOptions
+                        .map(
+                          (list) => DropdownMenuItem(
+                            value: list.id,
+                            child: Text(list.nameAr),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) =>
+                        setDialogState(() => listId = value ?? listId),
+                  ),
+                  TextField(
+                    controller: note,
+                    decoration: const InputDecoration(
+                      labelText: 'ملاحظة للعميل (اختياري)',
+                    ),
+                  ),
+                  TextField(
+                    controller: reason,
+                    decoration: const InputDecoration(
+                      labelText: 'سبب إصدار العرض',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'سيُنشأ إصدار من ${selectedList.items.length} بنداً بالحد الأدنى لكل بند. يجب أن يطابق سطر السلة هذه الكميات عند التطبيق.',
+                  ),
+                  if (error.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        error,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (reason.text.trim().length < 3) {
+                    setDialogState(
+                      () => error = 'اكتب سبباً واضحاً لإصدار العرض.',
+                    );
+                    return;
+                  }
+                  final request = requestOptions.firstWhere(
+                    (row) => row['id'].toString() == requestId,
+                  );
+                  try {
+                    await MarketplaceApiClient().createWholesaleQuoteVersion(
+                      wholesaleRequestId: requestId,
+                      shopId: widget.shopId,
+                      buyerUserId: request['buyer_user_id'].toString(),
+                      currency: selectedList.currency,
+                      validUntil: DateTime.now().add(const Duration(days: 14)),
+                      note: note.text,
+                      items: selectedList.items
+                          .map(
+                            (item) => {
+                              'product_id': item.productId,
+                              'variant_id': item.variantId,
+                              'unit_price_minor': item.unitPriceMinor,
+                              'quantity': item.minQuantity,
+                            },
+                          )
+                          .toList(growable: false),
+                      reason: reason.text,
+                    );
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext, true);
+                    }
+                  } on ApiException catch (exception) {
+                    if (dialogContext.mounted) {
+                      setDialogState(() => error = exception.message);
+                    }
+                  }
+                },
+                child: const Text('إرسال الإصدار'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    note.dispose();
+    reason.dispose();
+    if (sent == true && mounted) _reload();
+  }
+}
+
+class _MerchantDailyRollupCard extends StatefulWidget {
+  const _MerchantDailyRollupCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantDailyRollupCard> createState() =>
+      _MerchantDailyRollupCardState();
+}
+
+class _MerchantDailyRollupCardState extends State<_MerchantDailyRollupCard> {
+  late Future<List<MerchantDailyRollup>> _rollups = _load();
+  bool _refreshing = false;
+
+  Future<List<MerchantDailyRollup>> _load() async {
+    final to = DateTime.now();
+    return MarketplaceApiClient().merchantDailyRollups(
+      shopId: widget.shopId,
+      from: to.subtract(const Duration(days: 30)),
+      to: to,
+    );
+  }
+
+  void _reload() {
+    setState(() => _rollups = _load());
+  }
+
+  Future<void> _refreshToday() async {
+    setState(() => _refreshing = true);
+    try {
+      await MarketplaceApiClient().refreshMerchantDailyRollup(
+        shopId: widget.shopId,
+        businessDate: DateTime.now(),
+      );
+      if (mounted) {
+        setState(() => _rollups = _load());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تحديث ملخص اليوم التشغيلي.')),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<List<MerchantDailyRollup>>(
+        future: _rollups,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError) {
+            return const Text('تعذر تحميل الملخصات اليومية.');
+          }
+          final rows = snapshot.data ?? const <MerchantDailyRollup>[];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'ملخصات التحليلات اليومية',
+                      subtitle: 'أرقام تشغيلية مجمعة حسب يوم المتجر؛ لا تتضمن هوية العملاء أو إثباتات الدفع.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _reload,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: _refreshing ? null : _refreshToday,
+                    child: Text(_refreshing ? 'جارٍ التحديث' : 'تحديث اليوم'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (rows.isEmpty)
+                const Text(
+                  'لا توجد ملخصات محفوظة. حدّث ملخص اليوم بعد تسجيل العمليات.',
+                )
+              else
+                ...rows
+                    .take(7)
+                    .map(
+                      (row) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          row.businessDate
+                              .toLocal()
+                              .toString()
+                              .split(' ')
+                              .first,
+                        ),
+                        subtitle: Text(
+                          '${row.orderCount} طلب · ${row.paidOrderCount} مدفوع · ${row.wholesaleApprovedCount} عروض B2B معتمدة',
+                        ),
+                        trailing: Text('${row.grossTotalMinor} YER'),
+                      ),
+                    ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
 class _MerchantB2bAnalyticsCard extends StatefulWidget {
   const _MerchantB2bAnalyticsCard({required this.shopId});
 
@@ -3243,6 +4098,56 @@ class _MerchantProviderOperationsCard extends StatelessWidget {
               );
             },
           ),
+          const Divider(height: 24),
+          const Text(
+            'عمليات بوابة المزودين',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          FutureBuilder<List<ProviderAdapterOperation>>(
+            future: MarketplaceApiClient().providerAdapterOperations(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: LinearProgressIndicator(minHeight: 2),
+                );
+              }
+              if (snapshot.hasError) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('تعذر تحميل بوابة عمليات المزودين حالياً.'),
+                );
+              }
+              final operations =
+                  snapshot.data ?? const <ProviderAdapterOperation>[];
+              return Column(
+                children: operations
+                    .map(
+                      (operation) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          operation.enabled
+                              ? Icons.check_circle_outline
+                              : Icons.lock_outline,
+                          color: operation.enabled
+                              ? const Color(0xFF006A63)
+                              : const Color(0xFF9A4E00),
+                        ),
+                        title: Text(
+                          '${providerAdapterOperationLabel(operation.operationKey)} · ${operation.providerCode}',
+                        ),
+                        subtitle: Text(
+                          '${providerReadinessLabel(operation.requiredReadinessState)} · ${operation.notesAr}',
+                        ),
+                        trailing: Chip(
+                          label: Text(operation.enabled ? 'مفعلة' : 'معطلة'),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
         ],
       ),
     ),
@@ -3320,6 +4225,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
   late Future<List<MerchantProductSummary>> _products = MarketplaceApiClient()
       .merchantProducts();
   final Set<String> _updatingOrders = <String>{};
+  List<MerchantProductSummary> _loadedProducts =
+      const <MerchantProductSummary>[];
 
   void _reload() {
     setState(() {
@@ -3396,6 +4303,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             builder: (context, productSnapshot) {
               final products =
                   productSnapshot.data ?? const <MerchantProductSummary>[];
+              _loadedProducts = products;
               return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
@@ -3463,6 +4371,13 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             _CourierDispatchCard(),
             const SizedBox(height: 20),
             _MerchantB2BCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
+            _MerchantB2bScaleCard(
+              shopId: workspace.shops.first.id,
+              products: _loadedProducts,
+            ),
+            const SizedBox(height: 20),
+            _MerchantDailyRollupCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
             _MerchantB2bAnalyticsCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
@@ -3643,6 +4558,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     final barcode = TextEditingController();
     var shopId = shops.first.id;
     var status = 'draft';
+    PlatformFile? imageFile;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -3706,6 +4622,32 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                     ),
                   ),
                 ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        imageFile == null
+                            ? 'لم تُختر صورة كتالوج'
+                            : 'الصورة: ${imageFile!.name}',
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.image,
+                          withData: true,
+                        );
+                        if (result != null &&
+                            result.files.single.bytes != null &&
+                            dialogContext.mounted) {
+                          setDialogState(() => imageFile = result.files.single);
+                        }
+                      },
+                      icon: const Icon(Icons.image_outlined),
+                      label: const Text('اختيار صورة'),
+                    ),
+                  ],
+                ),
                 DropdownButtonFormField<String>(
                   initialValue: status,
                   decoration: const InputDecoration(labelText: 'حالة المنتج'),
@@ -3736,7 +4678,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                   return;
                 }
                 try {
-                  await MarketplaceApiClient().saveProduct(
+                  final productId = await MarketplaceApiClient().saveProduct(
                     shopId: shopId,
                     name: name.text.trim(),
                     description: description.text.trim(),
@@ -3747,6 +4689,13 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                         ? null
                         : barcode.text.trim(),
                   );
+                  final imageBytes = imageFile?.bytes;
+                  if (productId != null && imageBytes != null) {
+                    await MarketplaceApiClient().uploadOptimizedProductImage(
+                      productId: productId,
+                      source: imageBytes,
+                    );
+                  }
                   if (!mounted || !dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
                   _reload();

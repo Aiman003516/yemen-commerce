@@ -106,6 +106,17 @@ assert_anon_denied complete_inventory_transfer '{"p_shop_id":"00000000-0000-0000
 assert_anon_denied apply_inventory_count '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_location_id":"00000000-0000-0000-0000-000000000000","p_items":[],"p_reason":"Test count","p_idempotency_key":"anonymous-inventory-count"}'
 assert_anon_denied bulk_save_products '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_rows":[],"p_idempotency_key":"anonymous-catalog-import","p_source_format":"csv"}'
 assert_anon_denied save_product_with_barcode '{"p_id":null,"p_shop_id":"00000000-0000-0000-0000-000000000000","p_category_id":null,"p_name":"Test Product","p_description":"Test description","p_price_minor":100,"p_stock_quantity":1,"p_status":"draft","p_barcode":"123456789"}'
+assert_anon_denied list_merchant_price_lists '{"p_shop_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied list_merchant_wholesale_quotes '{"p_shop_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied list_customer_wholesale_quotes '{}'
+assert_anon_denied create_wholesale_quote_version '{"p_quote_id":null,"p_wholesale_request_id":null,"p_shop_id":"00000000-0000-0000-0000-000000000000","p_buyer_user_id":"00000000-0000-0000-0000-000000000000","p_currency":"YER","p_valid_until":null,"p_note":null,"p_items":[],"p_reason":"test"}'
+assert_anon_denied accept_wholesale_quote_version '{"p_quote_version_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied apply_accepted_wholesale_quote '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_quote_version_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied merchant_daily_rollups '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_from":"2026-08-01","p_to":"2026-08-26","p_limit":1,"p_offset":0}'
+assert_anon_denied refresh_merchant_daily_rollup '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_business_date":"2026-08-26"}'
+assert_anon_denied register_product_asset_variant '{"p_product_id":"00000000-0000-0000-0000-000000000000","p_source_storage_key":"anonymous/source","p_format":"jpeg","p_width":640,"p_height":480,"p_byte_size":100}'
+assert_anon_denied complete_product_asset_variant '{"p_asset_variant_id":"00000000-0000-0000-0000-000000000000","p_optimized_storage_key":"anonymous/optimized.jpg"}'
+assert_anon_denied provider_adapter_operations '{}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

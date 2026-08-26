@@ -15,6 +15,15 @@ void main() {
     expect(merchantCodEntryStatusLabel('collected'), 'تم التحصيل');
   });
 
+  test('renders C increment B2B, provider, and asset states in Arabic', () {
+    expect(merchantB2bRequestStatusLabel('approved'), 'معتمد');
+    expect(merchantPriceListStatusLabel('active'), 'نشطة');
+    expect(merchantQuoteStatusLabel('accepted'), 'مقبولة');
+    expect(providerAdapterOperationLabel('verify_payment'), 'التحقق من الدفع');
+    expect(providerReadinessLabel('pending_approval'), 'بانتظار الاعتماد');
+    expect(productAssetVariantStatusLabel('pending'), 'بانتظار التحسين');
+  });
+
   test('does not expose unknown backend status identifiers', () {
     expect(merchantOrderStatusLabel('internal_new_status'), 'حالة غير معروفة');
     expect(
@@ -82,6 +91,33 @@ void main() {
       contains('مبلغ التحصيل غير صالح'),
     );
   });
+
+  test(
+    'maps C quote, rollup, asset, and provider errors to Arabic guidance',
+    () {
+      final cases = <String, String>{
+        'QUOTE_REASON_REQUIRED': 'سبب',
+        'INVALID_QUOTE_ITEMS': 'بنود',
+        'QUOTE_NOT_AVAILABLE': 'غير متاح',
+        'QUOTE_ITEMS_MISMATCH': 'تطابق',
+        'QUOTE_ORDER_ALREADY_PRICED': 'سعر',
+        'INVALID_ROLLUP_DATE': 'تاريخ',
+        'INVALID_ROLLUP_RANGE': 'نطاق',
+        'INVALID_ASSET_VARIANT': 'صورة',
+        'INVALID_ASSET_PATH': 'مسار',
+        'ASSET_VARIANT_NOT_FOUND': 'صورة',
+        'PROVIDER_UNAVAILABLE': 'المزود',
+      };
+      for (final entry in cases.entries) {
+        final message = localizedSupabaseErrorForTest(
+          error(entry.key),
+          'fallback',
+        );
+        expect(message, contains(entry.value), reason: entry.key);
+        expect(message, isNot(contains(entry.key)), reason: entry.key);
+      }
+    },
+  );
 
   test('uses a safe Arabic fallback for unknown database errors', () {
     const fallback = 'تعذر تنفيذ العملية. حاول مجدداً.';

@@ -82,6 +82,22 @@ class SupabaseMarketplaceClient {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, dynamic>>> merchantDeliveryZones(
+    String shopId,
+  ) async {
+    final rows = await _client
+        .from('merchant_delivery_zones')
+        .select(
+          'id,shop_id,service_area_id,name,fee_minor,currency,eta_min_minutes,eta_max_minutes,instructions,is_active',
+        )
+        .eq('shop_id', shopId)
+        .eq('is_active', true)
+        .order('name');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
   Future<List<Map<String, dynamic>>> customerAddresses(String marketId) async {
     final user = currentAuthUser;
     if (user == null) throw const SupabaseMarketplaceException('AUTH_REQUIRED');
@@ -571,7 +587,9 @@ class SupabaseMarketplaceClient {
         .order('created_at');
     final orders = await _client
         .from('merchant_orders')
-        .select('id,total_minor,payment_status,fulfilment_status')
+        .select(
+          'id,total_minor,payment_status,fulfilment_status,payment_provider_code,delivery_fee_minor,cod_expected_minor,cod_collected_minor,cod_status',
+        )
         .eq('merchant_id', merchantId)
         .order('created_at', ascending: false);
     return {
@@ -881,6 +899,7 @@ class SupabaseMarketplaceClient {
     required String marketId,
     required List<Map<String, dynamic>> fulfilmentByShop,
     required List<Map<String, dynamic>> paymentByMerchant,
+    List<Map<String, dynamic>> deliveryByShop = const [],
   }) async {
     final result = await _client.rpc(
       'checkout_create_orders',
@@ -888,6 +907,23 @@ class SupabaseMarketplaceClient {
         'p_market_id': marketId,
         'p_fulfilment_by_shop': fulfilmentByShop,
         'p_payment_by_merchant': paymentByMerchant,
+        'p_delivery_by_shop': deliveryByShop,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordCodCollection({
+    required String merchantOrderId,
+    required int collectedMinor,
+    String? note,
+  }) async {
+    final result = await _client.rpc(
+      'record_cod_collection',
+      params: {
+        'p_merchant_order_id': merchantOrderId,
+        'p_collected_minor': collectedMinor,
+        'p_note': note,
       },
     );
     return Map<String, dynamic>.from(result as Map);

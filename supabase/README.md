@@ -29,7 +29,7 @@ flutter build web --dart-define-from-file=config/web.supabase.json
 
 Every exposed application table must have explicit grants and RLS policies. Public reads are limited to active markets, enabled capabilities/policies, approved shops, active products, and active fulfilment options. Customer, merchant, and administrator access is derived from `auth.uid()` and database role membership. Identity evidence and payment proofs use private Storage buckets and must never be represented by permanent public URLs.
 
-The checkout RPC is the transaction boundary for grouped carts. It must create exactly one merchant order per merchant group, preserve the payment snapshot, decrement stock safely, write history and audit records, and clear the cart only when the complete transaction succeeds.
+The checkout RPC is the transaction boundary for grouped carts. It must create exactly one merchant order per merchant group, preserve the payment snapshot, snapshot delivery address/pickup/zone data, apply server-side delivery fees, reserve stock atomically, write history and audit records, and clear the cart only when the complete transaction succeeds. Cash-on-delivery collection is recorded separately in an append-only reconciliation table; an order becomes paid only when the collected amount exactly matches the server-recorded expected amount.
 
 ## Creator Console migrations
 
@@ -48,6 +48,7 @@ The creator-control plane is deployed after the foundation migrations in this or
 20260826_0014_reviews_promotions.sql
 20260826_0015_storefront_inventory.sql
 20260826_0016_merchant_analytics.sql
+20260826_0017_checkout_operations.sql
 ```
 
 Migrations 0005 and 0006 add explicit access controls, capabilities, delegated operator assignments, creator-only access helpers, people search, dashboard summaries, role delegation/revocation, account suspension/restoration, and capability grants. Migration 0007 adds creator-only RPCs for merchant verification, shop status moderation, market status moderation, market/policy/capability listing, policy-version creation, and per-market capability toggles. These operations are audited and remain behind creator authorization checks; the Creator Console exposes them through the Merchant Governance and Global Policies screens. Privileged implementations remain in the `private` schema; Flutter sees only narrow public RPC wrappers. The migrations do not create a creator account and do not grant a creator role automatically.
@@ -74,4 +75,4 @@ Jaib’s official public consumer pages describe purchase payments, QR/POS ident
 
 The provider catalog is shared through `packages/commerce_core/lib/src/payment_providers.dart`, so future approved providers can be added without putting provider-specific logic into checkout or order state transitions.
 
-Migrations 0009 through 0016 extend the pilot with market service areas, pickup points, private customer address ownership, merchant delivery zones, product variants, customer order cases for cancellation/return/dispute review, courier assignment and handoff operations, durable recipient-scoped notification events, completed-order product reviews, merchant promotion configuration, storefront/theme settings, inventory locations, and aggregate merchant analytics. These additions remain optional and fail safely when no service area, courier, notification, or storefront adapter is configured.
+Migrations 0009 through 0017 extend the pilot with market service areas, pickup points, private customer address ownership, merchant delivery zones, product variants, customer order cases for cancellation/return/dispute review, courier assignment and handoff operations, durable recipient-scoped notification events, completed-order product reviews, merchant promotion configuration, storefront/theme settings, inventory locations, aggregate merchant analytics, delivery-address and pickup snapshots at checkout, location-level inventory reservations, append-only cash-on-delivery reconciliation, and server-side reservation release/finalization commands. These additions remain optional and fail safely when no service area, courier, notification, storefront, or external provider adapter is configured.

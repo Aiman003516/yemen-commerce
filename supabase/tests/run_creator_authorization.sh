@@ -63,6 +63,10 @@ assert_anon_denied record_courier_handoff '{"p_assignment_id":"00000000-0000-000
 assert_anon_denied submit_product_review '{"p_product_id":"00000000-0000-0000-0000-000000000000","p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_rating":5,"p_comment":"Test review"}'
 assert_anon_denied save_merchant_promotion '{"p_id":null,"p_shop_id":"00000000-0000-0000-0000-000000000000","p_code":"TEST10","p_kind":"percent","p_value_minor":10,"p_starts_at":null,"p_ends_at":null,"p_max_redemptions":10,"p_status":"draft"}'
 assert_anon_denied mark_notification_read '{"p_notification_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied checkout_create_orders '{"p_market_id":"00000000-0000-0000-0000-000000000000","p_fulfilment_by_shop":[],"p_payment_by_merchant":[],"p_delivery_by_shop":[]}'
+assert_anon_denied record_cod_collection '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_collected_minor":0,"p_note":"test"}'
+assert_anon_denied release_order_stock '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_reason":"test"}'
+assert_anon_denied finalize_order_stock '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000"}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

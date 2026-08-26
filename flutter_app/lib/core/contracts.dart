@@ -131,11 +131,21 @@ class MerchantManagedOrder {
     required this.totalMinor,
     required this.paymentStatus,
     required this.fulfilmentStatus,
+    this.providerCode = 'manual',
+    this.deliveryFeeMinor = 0,
+    this.codExpectedMinor = 0,
+    this.codCollectedMinor = 0,
+    this.codStatus = 'not_applicable',
   });
   final String id;
   final int totalMinor;
   final String paymentStatus;
   final String fulfilmentStatus;
+  final String providerCode;
+  final int deliveryFeeMinor;
+  final int codExpectedMinor;
+  final int codCollectedMinor;
+  final String codStatus;
   factory MerchantManagedOrder.fromJson(Map<String, dynamic> json) =>
       MerchantManagedOrder(
         id: _stringValue(json['id']),
@@ -146,6 +156,23 @@ class MerchantManagedOrder {
         fulfilmentStatus:
             json['fulfilmentStatus'] as String? ??
             json['fulfilment_status'] as String,
+        providerCode:
+            json['providerCode'] as String? ??
+            json['payment_provider_code'] as String? ??
+            'manual',
+        deliveryFeeMinor: _intValue(
+          json['deliveryFeeMinor'] ?? json['delivery_fee_minor'],
+        ),
+        codExpectedMinor: _intValue(
+          json['codExpectedMinor'] ?? json['cod_expected_minor'],
+        ),
+        codCollectedMinor: _intValue(
+          json['codCollectedMinor'] ?? json['cod_collected_minor'],
+        ),
+        codStatus:
+            json['codStatus'] as String? ??
+            json['cod_status'] as String? ??
+            'not_applicable',
       );
 }
 
@@ -334,6 +361,45 @@ class CustomerAddress {
         json['serviceAreaId'] as String? ?? json['service_area_id'] as String?,
     landmark: json['landmark'] as String?,
     district: json['district'] as String?,
+  );
+}
+
+class MerchantDeliveryZone {
+  const MerchantDeliveryZone({
+    required this.id,
+    required this.shopId,
+    required this.name,
+    required this.feeMinor,
+    required this.isActive,
+    this.serviceAreaId,
+    this.etaMinMinutes,
+    this.etaMaxMinutes,
+    this.instructions,
+  });
+
+  final String id;
+  final String shopId;
+  final String name;
+  final int feeMinor;
+  final bool isActive;
+  final String? serviceAreaId;
+  final int? etaMinMinutes;
+  final int? etaMaxMinutes;
+  final String? instructions;
+
+  factory MerchantDeliveryZone.fromJson(
+    Map<String, dynamic> json,
+  ) => MerchantDeliveryZone(
+    id: _stringValue(json['id']),
+    shopId: _stringValue(json['shopId'] ?? json['shop_id']),
+    name: json['name'] as String,
+    feeMinor: _intValue(json['feeMinor'] ?? json['fee_minor']),
+    isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
+    serviceAreaId:
+        json['serviceAreaId'] as String? ?? json['service_area_id'] as String?,
+    etaMinMinutes: (json['etaMinMinutes'] ?? json['eta_min_minutes']) as int?,
+    etaMaxMinutes: (json['etaMaxMinutes'] ?? json['eta_max_minutes']) as int?,
+    instructions: json['instructions'] as String?,
   );
 }
 
@@ -728,6 +794,10 @@ class MerchantOrderSummary {
     this.receivingIdentifier,
     this.paymentInstructions,
     this.providerCode = 'manual',
+    this.deliveryFeeMinor = 0,
+    this.codExpectedMinor = 0,
+    this.codCollectedMinor = 0,
+    this.codStatus = 'not_applicable',
   });
   final String id;
   final int totalMinor;
@@ -738,6 +808,10 @@ class MerchantOrderSummary {
   final String? receivingIdentifier;
   final String? paymentInstructions;
   final String providerCode;
+  final int deliveryFeeMinor;
+  final int codExpectedMinor;
+  final int codCollectedMinor;
+  final String codStatus;
   factory MerchantOrderSummary.fromJson(Map<String, dynamic> json) =>
       MerchantOrderSummary(
         id: _stringValue(json['id']),
@@ -762,6 +836,19 @@ class MerchantOrderSummary {
             json['providerCode'] as String? ??
             json['payment_provider_code'] as String? ??
             'manual',
+        deliveryFeeMinor: _intValue(
+          json['deliveryFeeMinor'] ?? json['delivery_fee_minor'],
+        ),
+        codExpectedMinor: _intValue(
+          json['codExpectedMinor'] ?? json['cod_expected_minor'],
+        ),
+        codCollectedMinor: _intValue(
+          json['codCollectedMinor'] ?? json['cod_collected_minor'],
+        ),
+        codStatus:
+            json['codStatus'] as String? ??
+            json['cod_status'] as String? ??
+            'not_applicable',
       );
 }
 

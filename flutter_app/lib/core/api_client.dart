@@ -195,6 +195,19 @@ class MarketplaceApiClient {
     return rows.map((row) => PickupPoint.fromJson(row)).toList(growable: false);
   }
 
+  Future<List<MerchantDeliveryZone>> merchantDeliveryZones(
+    String shopId,
+  ) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مناطق توصيل المتجر اتصال Supabase.');
+    }
+    final rows = await supabase.merchantDeliveryZones(shopId);
+    return rows
+        .map((row) => MerchantDeliveryZone.fromJson(row))
+        .toList(growable: false);
+  }
+
   Future<List<CustomerAddress>> customerAddresses() async {
     final supabase = _supabase;
     if (supabase == null) {
@@ -933,6 +946,7 @@ class MarketplaceApiClient {
   Future<void> checkoutCart({
     required List<Map<String, dynamic>> fulfilmentByShop,
     required List<Map<String, dynamic>> paymentMethodByMerchant,
+    List<Map<String, dynamic>> deliveryByShop = const [],
   }) async {
     final supabase = _supabase;
     if (supabase != null) {
@@ -942,6 +956,7 @@ class MarketplaceApiClient {
         marketId: market.id,
         fulfilmentByShop: fulfilmentByShop,
         paymentByMerchant: paymentMethodByMerchant,
+        deliveryByShop: deliveryByShop,
       );
       return;
     }
@@ -952,6 +967,7 @@ class MarketplaceApiClient {
         'json': {
           'fulfilmentByShop': fulfilmentByShop,
           'paymentMethodByMerchant': paymentMethodByMerchant,
+          'deliveryByShop': deliveryByShop,
         },
       }),
     );
@@ -960,6 +976,22 @@ class MarketplaceApiClient {
         'تعذر إتمام الطلبات المنفصلة. تحقق من خيارات كل متجر ثم حاول مرة أخرى.',
       );
     }
+  }
+
+  Future<void> recordCodCollection({
+    required String merchantOrderId,
+    required int collectedMinor,
+    String? note,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تسجيل التحصيل النقدي يتطلب اتصال Supabase.');
+    }
+    await supabase.recordCodCollection(
+      merchantOrderId: merchantOrderId,
+      collectedMinor: collectedMinor,
+      note: note,
+    );
   }
 
   Future<void> submitPaymentReference({

@@ -962,7 +962,28 @@ class _CartPageState extends State<_CartPage> {
   late Future<List<CartGroup>> _cart = MarketplaceApiClient().cartGroups();
   final Map<String, String> _fulfilmentByShop = {};
   final Map<String, String> _paymentByMerchant = {};
+  final Map<String, String?> _addressByShop = {};
+  final Map<String, String?> _pickupByShop = {};
+  final Map<String, String?> _zoneByShop = {};
+  final Map<String, Future<List<MerchantDeliveryZone>>> _zonesByShop = {};
+  Future<List<CustomerAddress>>? _addresses;
+  Future<List<PickupPoint>>? _pickupPoints;
   bool _checkingOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.user != null) {
+      _addresses = MarketplaceApiClient().customerAddresses();
+      _pickupPoints = MarketplaceApiClient().pickupPoints();
+    }
+  }
+
+  Future<List<MerchantDeliveryZone>> _zonesFor(String shopId) =>
+      _zonesByShop.putIfAbsent(
+        shopId,
+        () => MarketplaceApiClient().merchantDeliveryZones(shopId),
+      );
   @override
   Widget build(BuildContext context) {
     if (widget.user == null) {
@@ -1069,6 +1090,31 @@ class _CartPageState extends State<_CartPage> {
                                 value ?? group.fulfilmentMethods.first,
                           ),
                         ),
+                      if (fulfilment != null &&
+                          (fulfilment == 'seller_arranged' ||
+                              fulfilment == 'collection'))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: _CheckoutDeliverySelection(
+                            fulfilment: fulfilment,
+                            addresses: _addresses ?? Future.value(const []),
+                            pickupPoints:
+                                _pickupPoints ?? Future.value(const []),
+                            zones: _zonesFor(group.shopId),
+                            selectedAddressId: _addressByShop[group.shopId],
+                            selectedPickupPointId: _pickupByShop[group.shopId],
+                            selectedZoneId: _zoneByShop[group.shopId],
+                            onAddressChanged: (value) => setState(
+                              () => _addressByShop[group.shopId] = value,
+                            ),
+                            onPickupPointChanged: (value) => setState(
+                              () => _pickupByShop[group.shopId] = value,
+                            ),
+                            onZoneChanged: (value) => setState(
+                              () => _zoneByShop[group.shopId] = value,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 10),
                       if (group.paymentMethods.isEmpty)
                         const _InlineWarning(
@@ -1127,6 +1173,7 @@ class _CartPageState extends State<_CartPage> {
   Future<void> _checkout(List<CartGroup> groups) async {
     final fulfilment = <Map<String, dynamic>>[];
     final payments = <Map<String, dynamic>>[];
+    final delivery = <Map<String, dynamic>>[];
     for (final group in groups) {
       final selectedFulfilment =
           _fulfilmentByShop[group.shopId] ??
@@ -1144,7 +1191,28 @@ class _CartPageState extends State<_CartPage> {
         );
         return;
       }
+      final deliverySelection = <String, dynamic>{'shopId': group.shopId};
+      if (selectedFulfilment == 'seller_arranged') {
+        final addressId = _addressByShop[group.shopId];
+        final zoneId = _zoneByShop[group.shopId];
+        if (addressId == null || zoneId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'اختر العنوان ومنطقة التوصيل لمتجر ${group.shopName}.',
+              ),
+            ),
+          );
+          return;
+        }
+        deliverySelection['addressId'] = addressId;
+        deliverySelection['deliveryZoneId'] = zoneId;
+      } else if (selectedFulfilment == 'collection' &&
+          _pickupByShop[group.shopId] != null) {
+        deliverySelection['pickupPointId'] = _pickupByShop[group.shopId];
+      }
       fulfilment.add({'shopId': group.shopId, 'method': selectedFulfilment});
+      delivery.add(deliverySelection);
       payments.add({
         'merchantId': group.merchantId,
         'paymentMethodId': selectedPayment,
@@ -1175,6 +1243,7 @@ class _CartPageState extends State<_CartPage> {
       await MarketplaceApiClient().checkoutCart(
         fulfilmentByShop: fulfilment,
         paymentMethodByMerchant: payments,
+        deliveryByShop: delivery,
       );
       if (mounted) setState(() => _cart = MarketplaceApiClient().cartGroups());
       if (mounted) {
@@ -1195,6 +1264,130 @@ class _CartPageState extends State<_CartPage> {
       if (mounted) setState(() => _checkingOut = false);
     }
   }
+}
+
+class _CheckoutDeliverySelection extends StatelessWidget {
+  const _CheckoutDeliverySelection({
+    required this.fulfilment,
+    required this.addresses,
+    required this.pickupPoints,
+    required this.zones,
+    required this.selectedAddressId,
+    required this.selectedPickupPointId,
+    required this.selectedZoneId,
+    required this.onAddressChanged,
+    required this.onPickupPointChanged,
+    required this.onZoneChanged,
+  });
+
+  final String fulfilment;
+  final Future<List<CustomerAddress>> addresses;
+  final Future<List<PickupPoint>> pickupPoints;
+  final Future<List<MerchantDeliveryZone>> zones;
+  final String? selectedAddressId;
+  final String? selectedPickupPointId;
+  final String? selectedZoneId;
+  final ValueChanged<String?> onAddressChanged;
+  final ValueChanged<String?> onPickupPointChanged;
+  final ValueChanged<String?> onZoneChanged;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<dynamic>>(
+    future: Future.wait<dynamic>([addresses, pickupPoints, zones]),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const LinearProgressIndicator(minHeight: 2);
+      }
+      if (snapshot.hasError) {
+        return const _InlineWarning(
+          'تعذر تحميل خيارات العنوان والتوصيل حالياً.',
+        );
+      }
+      final addressRows =
+          snapshot.data?[0] as List<CustomerAddress>? ?? const [];
+      final pickupRows = snapshot.data?[1] as List<PickupPoint>? ?? const [];
+      final zoneRows =
+          snapshot.data?[2] as List<MerchantDeliveryZone>? ?? const [];
+      if (fulfilment == 'collection') {
+        if (pickupRows.isEmpty) {
+          return const _InlineWarning(
+            'يمكن متابعة الاستلام من المتجر؛ لا توجد نقطة استلام محددة لهذا السوق.',
+          );
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: selectedPickupPointId,
+          decoration: const InputDecoration(
+            labelText: 'نقطة الاستلام (اختيارية)',
+          ),
+          items: pickupRows
+              .map(
+                (point) => DropdownMenuItem(
+                  value: point.id,
+                  child: Text('${point.nameAr} · ${point.addressDetails}'),
+                ),
+              )
+              .toList(),
+          onChanged: onPickupPointChanged,
+        );
+      }
+
+      final selectedAddress = addressRows
+          .where((address) => address.id == selectedAddressId)
+          .firstOrNull;
+      final compatibleZones = selectedAddress?.serviceAreaId == null
+          ? const <MerchantDeliveryZone>[]
+          : zoneRows
+                .where(
+                  (zone) =>
+                      zone.serviceAreaId == selectedAddress!.serviceAreaId,
+                )
+                .toList(growable: false);
+      return Column(
+        children: [
+          if (addressRows.isEmpty)
+            const _InlineWarning(
+              'أضف عنواناً مرتبطاً بمنطقة خدمة قبل اختيار التوصيل.',
+            )
+          else
+            DropdownButtonFormField<String>(
+              initialValue: selectedAddressId,
+              decoration: const InputDecoration(labelText: 'عنوان التوصيل'),
+              items: addressRows
+                  .map(
+                    (address) => DropdownMenuItem(
+                      value: address.id,
+                      child: Text('${address.label} · ${address.addressLine}'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onAddressChanged,
+            ),
+          const SizedBox(height: 10),
+          if (selectedAddressId != null && compatibleZones.isEmpty)
+            const _InlineWarning(
+              'لا توجد منطقة توصيل مفعلة لهذا العنوان والمتجر.',
+            )
+          else if (compatibleZones.isNotEmpty)
+            DropdownButtonFormField<String>(
+              initialValue:
+                  compatibleZones.any((zone) => zone.id == selectedZoneId)
+                  ? selectedZoneId
+                  : null,
+              decoration: const InputDecoration(labelText: 'منطقة التوصيل'),
+              items: compatibleZones
+                  .map(
+                    (zone) => DropdownMenuItem(
+                      value: zone.id,
+                      child: Text('${zone.name} · ${zone.feeMinor} YER'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onZoneChanged,
+            ),
+        ],
+      );
+    },
+  );
 }
 
 class _InlineWarning extends StatelessWidget {
@@ -2234,7 +2427,10 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                   subtitle: Text(
                     'الدفع: ${order.paymentStatus} · التنفيذ: ${order.fulfilmentStatus}',
                   ),
-                  trailing: order.paymentStatus == 'paid'
+                  trailing:
+                      (order.paymentStatus == 'paid' ||
+                          (order.codExpectedMinor > 0 &&
+                              order.codStatus != 'collected'))
                       ? _orderActions(order)
                       : null,
                 ),
@@ -2878,25 +3074,109 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
       'completed': 'إلغاء الطلب',
     };
     if (order.fulfilmentStatus == 'cancelled') return const SizedBox.shrink();
-    return PopupMenuButton<String>(
-      onSelected: (status) => _updateOrderFulfilment(order, status),
-      itemBuilder: (context) => [
-        if (transitions.containsKey(order.fulfilmentStatus))
-          PopupMenuItem(
-            value: order.fulfilmentStatus == 'pending'
-                ? 'ready'
-                : order.fulfilmentStatus == 'ready'
-                ? 'arranged'
-                : order.fulfilmentStatus == 'arranged'
-                ? 'completed'
-                : 'cancelled',
-            child: Text(transitions[order.fulfilmentStatus]!),
+    final controls = <Widget>[];
+    if (order.codExpectedMinor > 0 && order.codStatus != 'collected') {
+      controls.add(
+        TextButton.icon(
+          onPressed: () => _recordCodCollection(order),
+          icon: const Icon(Icons.payments_outlined, size: 18),
+          label: const Text('تحصيل نقدي'),
+        ),
+      );
+    }
+    if (order.paymentStatus == 'paid') {
+      controls.add(
+        PopupMenuButton<String>(
+          onSelected: (status) => _updateOrderFulfilment(order, status),
+          itemBuilder: (context) => [
+            if (transitions.containsKey(order.fulfilmentStatus))
+              PopupMenuItem(
+                value: order.fulfilmentStatus == 'pending'
+                    ? 'ready'
+                    : order.fulfilmentStatus == 'ready'
+                    ? 'arranged'
+                    : order.fulfilmentStatus == 'arranged'
+                    ? 'completed'
+                    : 'cancelled',
+                child: Text(transitions[order.fulfilmentStatus]!),
+              ),
+            if (order.fulfilmentStatus != 'completed')
+              const PopupMenuItem(
+                value: 'cancelled',
+                child: Text('إلغاء الطلب'),
+              ),
+          ],
+          child: const Icon(Icons.more_vert),
+        ),
+      );
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: controls);
+  }
+
+  Future<void> _recordCodCollection(MerchantManagedOrder order) async {
+    final amount = TextEditingController(text: '${order.codExpectedMinor}');
+    final note = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تسجيل التحصيل النقدي'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'المتوقع: ${order.codExpectedMinor} YER. الدفع لن يصبح مدفوعاً إلا عند تطابق المبلغ.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amount,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'المبلغ المحصل'),
+            ),
+            TextField(
+              controller: note,
+              decoration: const InputDecoration(
+                labelText: 'ملاحظة المطابقة أو الفرق',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
           ),
-        if (order.fulfilmentStatus != 'completed')
-          const PopupMenuItem(value: 'cancelled', child: Text('إلغاء الطلب')),
-      ],
-      child: const Icon(Icons.more_vert),
+          FilledButton(
+            onPressed: () async {
+              final collected = int.tryParse(amount.text.trim());
+              if (collected == null || collected < 0) return;
+              try {
+                await MarketplaceApiClient().recordCodCollection(
+                  merchantOrderId: order.id,
+                  collectedMinor: collected,
+                  note: note.text.trim(),
+                );
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                _reload();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم تسجيل التحصيل وإضافة سجل المطابقة.'),
+                  ),
+                );
+              } on ApiException catch (error) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error.message)));
+                }
+              }
+            },
+            child: const Text('تسجيل'),
+          ),
+        ],
+      ),
     );
+    amount.dispose();
+    note.dispose();
   }
 
   Future<void> _updateOrderFulfilment(

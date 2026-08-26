@@ -3454,6 +3454,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             _MerchantPosCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
             _MerchantPosAnalyticsCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
+            _MerchantInventoryCard(shopId: workspace.shops.first.id),
           ],
           const SizedBox(height: 20),
           Text(
@@ -3644,6 +3646,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     final description = TextEditingController();
     final price = TextEditingController();
     final stock = TextEditingController(text: '0');
+    final barcode = TextEditingController();
     var shopId = shops.first.id;
     var status = 'draft';
     await showDialog<void>(
@@ -3693,6 +3696,12 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                     labelText: 'الكمية المتاحة',
                   ),
                 ),
+                TextField(
+                  controller: barcode,
+                  decoration: const InputDecoration(
+                    labelText: 'الباركود (اختياري)',
+                  ),
+                ),
                 DropdownButtonFormField<String>(
                   initialValue: status,
                   decoration: const InputDecoration(labelText: 'حالة المنتج'),
@@ -3730,6 +3739,9 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
                     priceMinor: parsedPrice,
                     stockQuantity: parsedStock,
                     status: status,
+                    barcode: barcode.text.trim().isEmpty
+                        ? null
+                        : barcode.text.trim(),
                   );
                   if (!mounted || !dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
@@ -3751,6 +3763,7 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
     description.dispose();
     price.dispose();
     stock.dispose();
+    barcode.dispose();
   }
 
   Future<void> _createShop() async {
@@ -5000,6 +5013,617 @@ class _AdminPageState extends State<_AdminPage> {
       }
     }
   }
+}
+
+class _MerchantInventoryCard extends StatefulWidget {
+  const _MerchantInventoryCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantInventoryCard> createState() => _MerchantInventoryCardState();
+}
+
+class _MerchantInventoryCardState extends State<_MerchantInventoryCard> {
+  late Future<List<InventoryLocation>> _locations = MarketplaceApiClient()
+      .inventoryLocations(widget.shopId);
+  late Future<List<MerchantProductSummary>> _products = MarketplaceApiClient()
+      .merchantProducts();
+
+  void _reload() {
+    setState(() {
+      _locations = MarketplaceApiClient().inventoryLocations(widget.shopId);
+      _products = MarketplaceApiClient().merchantProducts();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<InventoryLocation>>(
+    future: _locations,
+    builder: (context, locationSnapshot) {
+      return FutureBuilder<List<MerchantProductSummary>>(
+        future: _products,
+        builder: (context, productSnapshot) {
+          final locations =
+              locationSnapshot.data ?? const <InventoryLocation>[];
+          final products =
+              productSnapshot.data ?? const <MerchantProductSummary>[];
+          final loading =
+              locationSnapshot.connectionState == ConnectionState.waiting ||
+              productSnapshot.connectionState == ConnectionState.waiting;
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: _SectionHeader(
+                          title: 'المخزون والعمليات',
+                          subtitle: 'تعديلات، نقل، جرد، واستيراد جماعي مع سجل تدقيق ومفتاح تكرار آمن.',
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'تحديث',
+                      ),
+                    ],
+                  ),
+                  if (loading) const LinearProgressIndicator(minHeight: 2),
+                  if (locationSnapshot.hasError || productSnapshot.hasError)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Text('تعذر تحميل بيانات المخزون حالياً.'),
+                    ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _addLocation(),
+                        icon: const Icon(Icons.add_location_alt_outlined),
+                        label: const Text('موقع مخزون'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: locations.isEmpty || products.isEmpty
+                            ? null
+                            : () => _adjustStock(locations, products),
+                        icon: const Icon(Icons.tune_outlined),
+                        label: const Text('تعديل كمية'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: locations.length < 2 || products.isEmpty
+                            ? null
+                            : () => _transferStock(locations, products),
+                        icon: const Icon(Icons.swap_horiz_outlined),
+                        label: const Text('نقل بين المواقع'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: locations.isEmpty || products.isEmpty
+                            ? null
+                            : () => _applyCount(locations, products),
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: const Text('تطبيق جرد'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: locations.isEmpty
+                            ? null
+                            : () => _bulkImport(),
+                        icon: const Icon(Icons.upload_file_outlined),
+                        label: const Text('استيراد CSV'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    locations.isEmpty
+                        ? 'لم تُضف مواقع مخزون بعد.'
+                        : 'المواقع: ${locations.map((location) => location.name).join('، ')}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  if (products.isEmpty)
+                    const Text('أضف منتجات قبل تشغيل عمليات المخزون.')
+                  else
+                    ...products
+                        .take(6)
+                        .map(
+                          (product) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            leading: const Icon(Icons.inventory_2_outlined),
+                            title: Text(product.name),
+                            subtitle: Text(
+                              'الإجمالي: ${product.stockQuantity} · ${product.barcode == null ? 'بدون باركود' : 'باركود: ${product.barcode}'}',
+                            ),
+                            trailing: Text(product.status),
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  Future<void> _addLocation() async {
+    final name = TextEditingController();
+    final area = TextEditingController();
+    var isDefault = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إضافة موقع مخزون'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'اسم الموقع'),
+              ),
+              TextField(
+                controller: area,
+                decoration: const InputDecoration(
+                  labelText: 'المنطقة أو الوصف',
+                ),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: isDefault,
+                onChanged: (value) =>
+                    setDialogState(() => isDefault = value ?? false),
+                title: const Text('الموقع الافتراضي'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: name.text.trim().length < 2
+                  ? null
+                  : () async {
+                      try {
+                        await MarketplaceApiClient().saveInventoryLocation(
+                          shopId: widget.shopId,
+                          name: name.text.trim(),
+                          areaLabel: area.text.trim(),
+                          isDefault: isDefault,
+                        );
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        _reload();
+                      } on ApiException catch (error) {
+                        _showError(error.message);
+                      } on Object {
+                        _showError('تعذر حفظ موقع المخزون.');
+                      }
+                    },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    area.dispose();
+  }
+
+  Future<void> _adjustStock(
+    List<InventoryLocation> locations,
+    List<MerchantProductSummary> products,
+  ) async {
+    var productId = products.first.id;
+    var locationId = locations.first.id;
+    final delta = TextEditingController();
+    final reason = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('تعديل كمية المخزون'),
+          content: _inventoryCommandFields(
+            products: products,
+            locations: locations,
+            productId: productId,
+            locationId: locationId,
+            onProductChanged: (value) =>
+                setDialogState(() => productId = value ?? productId),
+            onLocationChanged: (value) =>
+                setDialogState(() => locationId = value ?? locationId),
+            quantityLabel: 'التغيير (+ للإضافة، - للتسوية)',
+            quantityController: delta,
+            reasonController: reason,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final value = int.tryParse(delta.text.trim());
+                if (value == null ||
+                    value == 0 ||
+                    reason.text.trim().length < 3) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().recordInventoryAdjustment(
+                    shopId: widget.shopId,
+                    productId: productId,
+                    locationId: locationId,
+                    quantityDelta: value,
+                    reason: reason.text.trim(),
+                    idempotencyKey: _commandKey('adjust'),
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _reload();
+                } on ApiException catch (error) {
+                  _showError(error.message);
+                } on Object {
+                  _showError('تعذر تعديل كمية المخزون.');
+                }
+              },
+              child: const Text('تطبيق'),
+            ),
+          ],
+        ),
+      ),
+    );
+    delta.dispose();
+    reason.dispose();
+  }
+
+  Future<void> _transferStock(
+    List<InventoryLocation> locations,
+    List<MerchantProductSummary> products,
+  ) async {
+    var productId = products.first.id;
+    var fromLocationId = locations.first.id;
+    var toLocationId = locations[1].id;
+    final quantity = TextEditingController();
+    final reason = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('نقل المخزون'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _productDropdown(
+                products,
+                productId,
+                (value) => setDialogState(() => productId = value ?? productId),
+              ),
+              _locationDropdown(
+                'من الموقع',
+                locations,
+                fromLocationId,
+                (value) => setDialogState(
+                  () => fromLocationId = value ?? fromLocationId,
+                ),
+              ),
+              _locationDropdown(
+                'إلى الموقع',
+                locations,
+                toLocationId,
+                (value) =>
+                    setDialogState(() => toLocationId = value ?? toLocationId),
+              ),
+              TextField(
+                controller: quantity,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الكمية'),
+              ),
+              TextField(
+                controller: reason,
+                decoration: const InputDecoration(labelText: 'سبب النقل'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final value = int.tryParse(quantity.text.trim());
+                if (value == null ||
+                    value <= 0 ||
+                    fromLocationId == toLocationId ||
+                    reason.text.trim().length < 3) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().completeInventoryTransfer(
+                    shopId: widget.shopId,
+                    fromLocationId: fromLocationId,
+                    toLocationId: toLocationId,
+                    items: [
+                      {'product_id': productId, 'quantity': value},
+                    ],
+                    reason: reason.text.trim(),
+                    idempotencyKey: _commandKey('transfer'),
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _reload();
+                } on ApiException catch (error) {
+                  _showError(error.message);
+                } on Object {
+                  _showError('تعذر نقل المخزون.');
+                }
+              },
+              child: const Text('نقل'),
+            ),
+          ],
+        ),
+      ),
+    );
+    quantity.dispose();
+    reason.dispose();
+  }
+
+  Future<void> _applyCount(
+    List<InventoryLocation> locations,
+    List<MerchantProductSummary> products,
+  ) async {
+    var productId = products.first.id;
+    var locationId = locations.first.id;
+    final counted = TextEditingController();
+    final reason = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('تطبيق جرد'),
+          content: _inventoryCommandFields(
+            products: products,
+            locations: locations,
+            productId: productId,
+            locationId: locationId,
+            onProductChanged: (value) =>
+                setDialogState(() => productId = value ?? productId),
+            onLocationChanged: (value) =>
+                setDialogState(() => locationId = value ?? locationId),
+            quantityLabel: 'الكمية المعدودة فعلياً',
+            quantityController: counted,
+            reasonController: reason,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final value = int.tryParse(counted.text.trim());
+                if (value == null ||
+                    value < 0 ||
+                    reason.text.trim().length < 3) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().applyInventoryCount(
+                    shopId: widget.shopId,
+                    locationId: locationId,
+                    items: [
+                      {'product_id': productId, 'counted_quantity': value},
+                    ],
+                    reason: reason.text.trim(),
+                    idempotencyKey: _commandKey('count'),
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  _reload();
+                } on ApiException catch (error) {
+                  _showError(error.message);
+                } on Object {
+                  _showError('تعذر تطبيق الجرد.');
+                }
+              },
+              child: const Text('حفظ الجرد'),
+            ),
+          ],
+        ),
+      ),
+    );
+    counted.dispose();
+    reason.dispose();
+  }
+
+  Future<void> _bulkImport() async {
+    final csv = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('استيراد كتالوج CSV'),
+        content: SizedBox(
+          width: 560,
+          child: TextField(
+            controller: csv,
+            minLines: 8,
+            maxLines: 14,
+            decoration: const InputDecoration(
+              alignLabelWithHint: true,
+              labelText:
+                  'name,description,price_minor,stock_quantity,status,barcode',
+              hintText: 'منتج تجريبي,وصف,2500,10,active,6280000000000',
+              helperText: 'حتى 500 صف. الاستيراد ذري، ويُحدّث المنتج عند تطابق المعرّف أو الباركود.',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final rows = _parseSimpleCsv(csv.text);
+              if (rows.isEmpty) return;
+              try {
+                final result = await MarketplaceApiClient().bulkSaveProducts(
+                  shopId: widget.shopId,
+                  rows: rows,
+                  idempotencyKey: _commandKey('import'),
+                );
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'تم استيراد ${result.appliedCount} صف بنجاح.',
+                      ),
+                    ),
+                  );
+                }
+                _reload();
+              } on ApiException catch (error) {
+                _showError(error.message);
+              } on Object {
+                _showError('تعذر استيراد الكتالوج. تحقق من الأعمدة والقيم.');
+              }
+            },
+            child: const Text('استيراد ذري'),
+          ),
+        ],
+      ),
+    );
+    csv.dispose();
+  }
+
+  Widget _inventoryCommandFields({
+    required List<MerchantProductSummary> products,
+    required List<InventoryLocation> locations,
+    required String productId,
+    required String locationId,
+    required ValueChanged<String?> onProductChanged,
+    required ValueChanged<String?> onLocationChanged,
+    required String quantityLabel,
+    required TextEditingController quantityController,
+    required TextEditingController reasonController,
+  }) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _productDropdown(products, productId, onProductChanged),
+      _locationDropdown('الموقع', locations, locationId, onLocationChanged),
+      TextField(
+        controller: quantityController,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(labelText: quantityLabel),
+      ),
+      TextField(
+        controller: reasonController,
+        decoration: const InputDecoration(labelText: 'السبب'),
+      ),
+    ],
+  );
+
+  Widget _productDropdown(
+    List<MerchantProductSummary> products,
+    String value,
+    ValueChanged<String?> onChanged,
+  ) => DropdownButtonFormField<String>(
+    initialValue: value,
+    decoration: const InputDecoration(labelText: 'المنتج'),
+    items: products
+        .map(
+          (product) =>
+              DropdownMenuItem(value: product.id, child: Text(product.name)),
+        )
+        .toList(),
+    onChanged: onChanged,
+  );
+
+  Widget _locationDropdown(
+    String label,
+    List<InventoryLocation> locations,
+    String value,
+    ValueChanged<String?> onChanged,
+  ) => DropdownButtonFormField<String>(
+    initialValue: value,
+    decoration: InputDecoration(labelText: label),
+    items: locations
+        .map(
+          (location) =>
+              DropdownMenuItem(value: location.id, child: Text(location.name)),
+        )
+        .toList(),
+    onChanged: onChanged,
+  );
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _commandKey(String prefix) =>
+      '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+}
+
+List<Map<String, dynamic>> _parseSimpleCsv(String input) {
+  final lines = input
+      .split(RegExp(r'\r?\n'))
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+  if (lines.isEmpty) return const [];
+  final first = _splitCsvLine(lines.first);
+  final hasHeader = first.isNotEmpty && first.first.toLowerCase() == 'name';
+  final dataLines = hasHeader ? lines.skip(1) : lines;
+  final rows = <Map<String, dynamic>>[];
+  for (final line in dataLines.take(500)) {
+    final fields = _splitCsvLine(line);
+    if (fields.length < 5) continue;
+    final price = int.tryParse(fields[2].trim());
+    final stock = int.tryParse(fields[3].trim());
+    if (fields[0].trim().length < 2 || price == null || stock == null) continue;
+    rows.add({
+      'name': fields[0].trim(),
+      'description': fields[1].trim(),
+      'price_minor': price,
+      'stock_quantity': stock,
+      'status': fields[4].trim().isEmpty ? 'draft' : fields[4].trim(),
+      if (fields.length > 5 && fields[5].trim().isNotEmpty)
+        'barcode': fields[5].trim(),
+    });
+  }
+  return rows;
+}
+
+List<String> _splitCsvLine(String line) {
+  final values = <String>[];
+  var buffer = StringBuffer();
+  var quoted = false;
+  for (var index = 0; index < line.length; index++) {
+    final character = line[index];
+    if (character == '"') {
+      if (quoted && index + 1 < line.length && line[index + 1] == '"') {
+        buffer.write('"');
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character == ',' && !quoted) {
+      values.add(buffer.toString());
+      buffer = StringBuffer();
+    } else {
+      buffer.write(character);
+    }
+  }
+  values.add(buffer.toString());
+  return values;
 }
 
 class _CenteredPage extends StatelessWidget {

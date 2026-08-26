@@ -852,13 +852,115 @@ class SupabaseMarketplaceClient {
     final rows = await _client
         .from('products')
         .select(
-          'id,shop_id,name,description,price_minor,currency,stock_quantity,status,shops!inner(name,merchant_id)',
+          'id,shop_id,name,description,price_minor,currency,stock_quantity,status,barcode,shops!inner(name,merchant_id)',
         )
         .eq('shops.merchant_id', merchant['id'])
         .order('created_at', ascending: false);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveInventoryLocation({
+    required String shopId,
+    required String name,
+    String? areaLabel,
+    String status = 'active',
+    bool isDefault = false,
+  }) async {
+    final result = await _client.rpc(
+      'save_inventory_location',
+      params: {
+        'p_shop_id': shopId,
+        'p_name': name,
+        'p_area_label': areaLabel,
+        'p_status': status,
+        'p_is_default': isDefault,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordInventoryAdjustment({
+    required String shopId,
+    required String productId,
+    required String locationId,
+    required int quantityDelta,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'record_inventory_adjustment',
+      params: {
+        'p_shop_id': shopId,
+        'p_product_id': productId,
+        'p_location_id': locationId,
+        'p_quantity_delta': quantityDelta,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> completeInventoryTransfer({
+    required String shopId,
+    required String fromLocationId,
+    required String toLocationId,
+    required List<Map<String, dynamic>> items,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'complete_inventory_transfer',
+      params: {
+        'p_shop_id': shopId,
+        'p_from_location_id': fromLocationId,
+        'p_to_location_id': toLocationId,
+        'p_items': items,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> applyInventoryCount({
+    required String shopId,
+    required String locationId,
+    required List<Map<String, dynamic>> items,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'apply_inventory_count',
+      params: {
+        'p_shop_id': shopId,
+        'p_location_id': locationId,
+        'p_items': items,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> bulkSaveProducts({
+    required String shopId,
+    required List<Map<String, dynamic>> rows,
+    required String idempotencyKey,
+    String sourceFormat = 'csv',
+  }) async {
+    final result = await _client.rpc(
+      'bulk_save_products',
+      params: {
+        'p_shop_id': shopId,
+        'p_rows': rows,
+        'p_idempotency_key': idempotencyKey,
+        'p_source_format': sourceFormat,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
   }
 
   Future<Map<String, dynamic>> merchantWorkspace() async {
@@ -954,6 +1056,34 @@ class SupabaseMarketplaceClient {
         'p_price_minor': priceMinor,
         'p_stock_quantity': stockQuantity,
         'p_status': status,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> saveProductWithBarcode({
+    String? id,
+    required String shopId,
+    String? categoryId,
+    required String name,
+    required String description,
+    required int priceMinor,
+    required int stockQuantity,
+    required String status,
+    String? barcode,
+  }) async {
+    final result = await _client.rpc(
+      'save_product_with_barcode',
+      params: {
+        'p_id': id,
+        'p_shop_id': shopId,
+        'p_category_id': categoryId,
+        'p_name': name,
+        'p_description': description,
+        'p_price_minor': priceMinor,
+        'p_stock_quantity': stockQuantity,
+        'p_status': status,
+        'p_barcode': barcode,
       },
     );
     return Map<String, dynamic>.from(result as Map);

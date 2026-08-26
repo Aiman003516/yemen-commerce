@@ -95,6 +95,12 @@ assert_anon_denied merchant_b2b_analytics '{"p_shop_id":"00000000-0000-0000-0000
 assert_anon_denied export_merchant_b2b '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_limit":1,"p_offset":0}'
 assert_anon_denied merchant_pos_analytics '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_from":"2026-01-01T00:00:00Z","p_to":"2026-01-02T00:00:00Z"}'
 assert_anon_denied export_merchant_pos '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_from":"2026-01-01T00:00:00Z","p_to":"2026-01-02T00:00:00Z","p_limit":1,"p_offset":0}'
+assert_anon_denied save_inventory_location '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_name":"Test Warehouse","p_area_label":"Ibb","p_status":"active","p_is_default":true}'
+assert_anon_denied record_inventory_adjustment '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_product_id":"00000000-0000-0000-0000-000000000000","p_location_id":"00000000-0000-0000-0000-000000000000","p_quantity_delta":1,"p_reason":"Test adjustment","p_idempotency_key":"anonymous-inventory-adjust"}'
+assert_anon_denied complete_inventory_transfer '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_from_location_id":"00000000-0000-0000-0000-000000000000","p_to_location_id":"00000000-0000-0000-0000-000000000001","p_items":[],"p_reason":"Test transfer","p_idempotency_key":"anonymous-inventory-transfer"}'
+assert_anon_denied apply_inventory_count '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_location_id":"00000000-0000-0000-0000-000000000000","p_items":[],"p_reason":"Test count","p_idempotency_key":"anonymous-inventory-count"}'
+assert_anon_denied bulk_save_products '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_rows":[],"p_idempotency_key":"anonymous-catalog-import","p_source_format":"csv"}'
+assert_anon_denied save_product_with_barcode '{"p_id":null,"p_shop_id":"00000000-0000-0000-0000-000000000000","p_category_id":null,"p_name":"Test Product","p_description":"Test description","p_price_minor":100,"p_stock_quantity":1,"p_status":"draft","p_barcode":"123456789"}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

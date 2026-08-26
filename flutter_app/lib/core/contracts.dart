@@ -656,6 +656,7 @@ class MerchantProductSummary {
     required this.status,
     this.description,
     this.currency = 'YER',
+    this.barcode,
   });
 
   final String id;
@@ -667,6 +668,7 @@ class MerchantProductSummary {
   final int stockQuantity;
   final String status;
   final String currency;
+  final String? barcode;
 
   factory MerchantProductSummary.fromJson(Map<String, dynamic> json) {
     final shop = json['shops'] is Map
@@ -686,8 +688,100 @@ class MerchantProductSummary {
       stockQuantity: _intValue(json['stockQuantity'] ?? json['stock_quantity']),
       status: json['status'] as String? ?? 'draft',
       currency: json['currency'] as String? ?? 'YER',
+      barcode: json['barcode'] as String?,
     );
   }
+}
+
+class InventoryAdjustmentResult {
+  const InventoryAdjustmentResult({
+    required this.movementId,
+    required this.productId,
+    required this.locationId,
+    required this.previousQuantity,
+    required this.resultingQuantity,
+    required this.totalProductQuantity,
+    required this.idempotent,
+  });
+
+  final String movementId;
+  final String productId;
+  final String locationId;
+  final int previousQuantity;
+  final int resultingQuantity;
+  final int totalProductQuantity;
+  final bool idempotent;
+
+  factory InventoryAdjustmentResult.fromJson(Map<String, dynamic> json) =>
+      InventoryAdjustmentResult(
+        movementId: _stringValue(json['movementId'] ?? json['movement_id']),
+        productId: _stringValue(json['productId'] ?? json['product_id']),
+        locationId: _stringValue(json['locationId'] ?? json['location_id']),
+        previousQuantity: _intValue(
+          json['previousQuantity'] ?? json['previous_quantity'],
+        ),
+        resultingQuantity: _intValue(
+          json['resultingQuantity'] ?? json['resulting_quantity'],
+        ),
+        totalProductQuantity: _intValue(
+          json['totalProductQuantity'] ?? json['total_product_quantity'],
+        ),
+        idempotent: json['idempotent'] as bool? ?? false,
+      );
+}
+
+class InventoryCommandResult {
+  const InventoryCommandResult({
+    required this.id,
+    required this.status,
+    required this.idempotent,
+    this.itemCount,
+  });
+
+  final String id;
+  final String status;
+  final bool idempotent;
+  final int? itemCount;
+
+  factory InventoryCommandResult.fromJson(Map<String, dynamic> json) =>
+      InventoryCommandResult(
+        id: _stringValue(
+          json['transferId'] ??
+              json['transfer_id'] ??
+              json['countId'] ??
+              json['count_id'],
+        ),
+        status: json['status'] as String? ?? 'completed',
+        idempotent: json['idempotent'] as bool? ?? false,
+        itemCount: json['itemCount'] == null && json['item_count'] == null
+            ? null
+            : _intValue(json['itemCount'] ?? json['item_count']),
+      );
+}
+
+class CatalogImportResult {
+  const CatalogImportResult({
+    required this.batchId,
+    required this.status,
+    required this.rowCount,
+    required this.appliedCount,
+    required this.idempotent,
+  });
+
+  final String batchId;
+  final String status;
+  final int rowCount;
+  final int appliedCount;
+  final bool idempotent;
+
+  factory CatalogImportResult.fromJson(Map<String, dynamic> json) =>
+      CatalogImportResult(
+        batchId: _stringValue(json['batchId'] ?? json['batch_id']),
+        status: json['status'] as String? ?? 'applied',
+        rowCount: _intValue(json['rowCount'] ?? json['row_count']),
+        appliedCount: _intValue(json['appliedCount'] ?? json['applied_count']),
+        idempotent: json['idempotent'] as bool? ?? false,
+      );
 }
 
 class ProductVariant {

@@ -770,6 +770,112 @@ class MarketplaceApiClient {
         .toList(growable: false);
   }
 
+  Future<void> saveInventoryLocation({
+    required String shopId,
+    required String name,
+    String? areaLabel,
+    String status = 'active',
+    bool isDefault = false,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إدارة مواقع المخزون اتصال Supabase.');
+    }
+    await supabase.saveInventoryLocation(
+      shopId: shopId,
+      name: name,
+      areaLabel: areaLabel,
+      status: status,
+      isDefault: isDefault,
+    );
+  }
+
+  Future<InventoryAdjustmentResult> recordInventoryAdjustment({
+    required String shopId,
+    required String productId,
+    required String locationId,
+    required int quantityDelta,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب تعديلات المخزون اتصال Supabase.');
+    }
+    final row = await supabase.recordInventoryAdjustment(
+      shopId: shopId,
+      productId: productId,
+      locationId: locationId,
+      quantityDelta: quantityDelta,
+      reason: reason,
+      idempotencyKey: idempotencyKey,
+    );
+    return InventoryAdjustmentResult.fromJson(row);
+  }
+
+  Future<InventoryCommandResult> completeInventoryTransfer({
+    required String shopId,
+    required String fromLocationId,
+    required String toLocationId,
+    required List<Map<String, dynamic>> items,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب عمليات نقل المخزون اتصال Supabase.');
+    }
+    final row = await supabase.completeInventoryTransfer(
+      shopId: shopId,
+      fromLocationId: fromLocationId,
+      toLocationId: toLocationId,
+      items: items,
+      reason: reason,
+      idempotencyKey: idempotencyKey,
+    );
+    return InventoryCommandResult.fromJson(row);
+  }
+
+  Future<InventoryCommandResult> applyInventoryCount({
+    required String shopId,
+    required String locationId,
+    required List<Map<String, dynamic>> items,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب جرد المخزون اتصال Supabase.');
+    }
+    final row = await supabase.applyInventoryCount(
+      shopId: shopId,
+      locationId: locationId,
+      items: items,
+      reason: reason,
+      idempotencyKey: idempotencyKey,
+    );
+    return InventoryCommandResult.fromJson(row);
+  }
+
+  Future<CatalogImportResult> bulkSaveProducts({
+    required String shopId,
+    required List<Map<String, dynamic>> rows,
+    required String idempotencyKey,
+    String sourceFormat = 'csv',
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب الاستيراد الجماعي اتصال Supabase.');
+    }
+    final row = await supabase.bulkSaveProducts(
+      shopId: shopId,
+      rows: rows,
+      idempotencyKey: idempotencyKey,
+      sourceFormat: sourceFormat,
+    );
+    return CatalogImportResult.fromJson(row);
+  }
+
   Future<List<MerchantProductSummary>> merchantProducts() async {
     final supabase = _supabase;
     if (supabase == null) {
@@ -825,9 +931,24 @@ class MarketplaceApiClient {
     required int priceMinor,
     required int stockQuantity,
     required String status,
+    String? barcode,
   }) async {
     final supabase = _supabase;
     if (supabase != null) {
+      if (barcode != null && barcode.trim().isNotEmpty) {
+        await supabase.saveProductWithBarcode(
+          id: id,
+          shopId: shopId,
+          categoryId: categoryId,
+          name: name,
+          description: description,
+          priceMinor: priceMinor,
+          stockQuantity: stockQuantity,
+          status: status,
+          barcode: barcode.trim(),
+        );
+        return;
+      }
       await supabase.saveProduct(
         id: id,
         shopId: shopId,

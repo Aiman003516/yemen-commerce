@@ -433,6 +433,71 @@ class MarketplaceApiClient {
         .toList(growable: false);
   }
 
+  Future<void> saveBusinessProfile({
+    required String businessName,
+    required String contactPhone,
+    String? taxIdentifier,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب بيانات النشاط اتصال Supabase.');
+    }
+    await supabase.saveBusinessProfile(
+      businessName: businessName,
+      contactPhone: contactPhone,
+      taxIdentifier: taxIdentifier,
+    );
+  }
+
+  Future<void> openWholesaleRequest({
+    required String shopId,
+    required String note,
+    int estimatedMonthlyMinor = 0,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب طلبات الجملة اتصال Supabase.');
+    }
+    await supabase.openWholesaleRequest(
+      shopId: shopId,
+      note: note,
+      estimatedMonthlyMinor: estimatedMonthlyMinor,
+    );
+  }
+
+  Future<String> openPosSession({
+    required String shopId,
+    String? openingNote,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب نقطة البيع اتصال Supabase.');
+    }
+    final result = await supabase.openPosSession(
+      shopId: shopId,
+      openingNote: openingNote,
+    );
+    return result['pos_session_id'].toString();
+  }
+
+  Future<void> recordPosSale({
+    required String posSessionId,
+    required int totalMinor,
+    required String paymentMode,
+    String? note,
+  }) async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مبيعات نقطة البيع اتصال Supabase.');
+    }
+    await supabase.recordPosSale(
+      posSessionId: posSessionId,
+      totalMinor: totalMinor,
+      paymentMode: paymentMode,
+      note: note,
+    );
+  }
+
   Future<void> saveMerchantIntegration({
     required String shopId,
     required String providerCode,

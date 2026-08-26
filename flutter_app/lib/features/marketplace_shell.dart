@@ -2161,6 +2161,152 @@ class _MerchantQualityCard extends StatelessWidget {
   );
 }
 
+class _MerchantPosCard extends StatefulWidget {
+  const _MerchantPosCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantPosCard> createState() => _MerchantPosCardState();
+}
+
+class _MerchantPosCardState extends State<_MerchantPosCard> {
+  String? sessionId;
+  bool busy = false;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionHeader(
+            title: 'نقطة البيع المحلية',
+            subtitle: 'سجل مبيعات المتجر النقدية أو اليدوية داخل جلسة محلية. هذا لا ينشئ تحصيلاً إلكترونياً ولا يتجاوز الطلبات الأساسية.',
+          ),
+          const SizedBox(height: 12),
+          Text(
+            sessionId == null
+                ? 'لا توجد جلسة مفتوحة.'
+                : 'جلسة مفتوحة: $sessionId',
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: busy || sessionId != null ? null : _openSession,
+                icon: const Icon(Icons.point_of_sale_outlined),
+                label: const Text('فتح جلسة'),
+              ),
+              OutlinedButton.icon(
+                onPressed: busy || sessionId == null ? null : _recordSale,
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('تسجيل بيع'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _openSession() async {
+    setState(() => busy = true);
+    try {
+      final id = await MarketplaceApiClient().openPosSession(
+        shopId: widget.shopId,
+        openingNote: 'جلسة تشغيل محلية',
+      );
+      if (mounted) setState(() => sessionId = id);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _recordSale() async {
+    final total = TextEditingController();
+    var paymentMode = 'cash';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('تسجيل بيع محلي'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: total,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'الإجمالي بالريال',
+                ),
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: paymentMode,
+                decoration: const InputDecoration(labelText: 'طريقة التسجيل'),
+                items: const [
+                  DropdownMenuItem(value: 'cash', child: Text('نقدي')),
+                  DropdownMenuItem(
+                    value: 'manual_reference',
+                    child: Text('مرجع يدوي'),
+                  ),
+                  DropdownMenuItem(value: 'mock', child: Text('تجريبي')),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => paymentMode = value ?? 'cash'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final amount = int.tryParse(total.text.trim());
+                if (amount == null || amount <= 0 || sessionId == null) {
+                  return;
+                }
+                try {
+                  await MarketplaceApiClient().recordPosSale(
+                    posSessionId: sessionId!,
+                    totalMinor: amount,
+                    paymentMode: paymentMode,
+                  );
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم تسجيل البيع بانتظار المطابقة.'),
+                      ),
+                    );
+                  }
+                } on ApiException catch (error) {
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('تسجيل'),
+            ),
+          ],
+        ),
+      ),
+    );
+    total.dispose();
+  }
+}
+
 class _MerchantProviderOperationsCard extends StatelessWidget {
   const _MerchantProviderOperationsCard({required this.shopId});
 
@@ -2475,6 +2621,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             _MerchantQualityCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
             _MerchantProviderOperationsCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
+            _MerchantPosCard(shopId: workspace.shops.first.id),
           ],
           const SizedBox(height: 20),
           Text(

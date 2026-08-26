@@ -76,6 +76,12 @@ assert_anon_denied creator_set_feature_rollout '{"p_market_id":"00000000-0000-00
 assert_anon_denied creator_save_service_area '{"p_id":null,"p_market_id":"00000000-0000-0000-0000-000000000000","p_name_ar":"منطقة اختبار","p_name_en":"Test Area","p_area_code":"TEST","p_status":"draft","p_delivery_enabled":true,"p_pickup_enabled":true,"p_reason":"Test reason"}'
 assert_anon_denied creator_save_pickup_point '{"p_id":null,"p_market_id":"00000000-0000-0000-0000-000000000000","p_service_area_id":null,"p_name_ar":"نقطة اختبار","p_name_en":"Test Point","p_address_details":"Test pickup address","p_contact_phone":"700000000","p_operating_hours":"09:00-17:00","p_status":"draft","p_reason":"Test reason"}'
 assert_anon_denied moderate_product_review '{"p_review_id":"00000000-0000-0000-0000-000000000000","p_status":"published","p_reason":"Test reason"}'
+assert_anon_denied save_business_profile '{"p_business_name":"Test Business","p_contact_phone":"700000000","p_tax_identifier":null}'
+assert_anon_denied open_wholesale_request '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_note":"Test wholesale request","p_estimated_monthly_minor":0}'
+assert_anon_denied review_wholesale_request '{"p_request_id":"00000000-0000-0000-0000-000000000000","p_status":"rejected","p_review_note":"Test decision"}'
+assert_anon_denied earn_loyalty_points '{"p_merchant_order_id":"00000000-0000-0000-0000-000000000000","p_points":10,"p_reason":"Test points"}'
+assert_anon_denied open_pos_session '{"p_shop_id":"00000000-0000-0000-0000-000000000000","p_opening_note":"Test opening"}'
+assert_anon_denied record_pos_sale '{"p_pos_session_id":"00000000-0000-0000-0000-000000000000","p_total_minor":100,"p_payment_mode":"mock","p_line_items":[],"p_note":"Test sale"}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

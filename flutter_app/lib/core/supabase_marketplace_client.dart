@@ -502,6 +502,69 @@ class SupabaseMarketplaceClient {
         .toList(growable: false);
   }
 
+  Future<Map<String, dynamic>> saveBusinessProfile({
+    required String businessName,
+    required String contactPhone,
+    String? taxIdentifier,
+  }) async {
+    final result = await _client.rpc(
+      'save_business_profile',
+      params: {
+        'p_business_name': businessName,
+        'p_contact_phone': contactPhone,
+        'p_tax_identifier': taxIdentifier,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> openWholesaleRequest({
+    required String shopId,
+    required String note,
+    int estimatedMonthlyMinor = 0,
+  }) async {
+    final result = await _client.rpc(
+      'open_wholesale_request',
+      params: {
+        'p_shop_id': shopId,
+        'p_note': note,
+        'p_estimated_monthly_minor': estimatedMonthlyMinor,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> openPosSession({
+    required String shopId,
+    String? openingNote,
+  }) async {
+    final result = await _client.rpc(
+      'open_pos_session',
+      params: {'p_shop_id': shopId, 'p_opening_note': openingNote},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordPosSale({
+    required String posSessionId,
+    required int totalMinor,
+    required String paymentMode,
+    List<Map<String, dynamic>> lineItems = const [],
+    String? note,
+  }) async {
+    final result = await _client.rpc(
+      'record_pos_sale',
+      params: {
+        'p_pos_session_id': posSessionId,
+        'p_total_minor': totalMinor,
+        'p_payment_mode': paymentMode,
+        'p_line_items': lineItems,
+        'p_note': note,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>> saveMerchantIntegration({
     required String shopId,
     required String providerCode,

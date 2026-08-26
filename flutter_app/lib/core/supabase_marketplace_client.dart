@@ -1743,6 +1743,19 @@ class SupabaseMarketplaceClient {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<List<Map<String, dynamic>>> erpFeatureCatalog() async {
+    final rows = await _client.rpc('erp_list_feature_catalog');
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>?> erpMyOrganizationDashboard() async {
+    final result = await _client.rpc('erp_get_my_organization_dashboard');
+    if (result == null) return null;
+    return Map<String, dynamic>.from(result as Map);
+  }
+
   Future<Map<String, dynamic>> recordCodCollection({
     required String merchantOrderId,
     required int collectedMinor,

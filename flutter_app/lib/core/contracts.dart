@@ -1,4 +1,17 @@
 const marketplaceApiVersion = 'v1';
+const customerRole = 'customer';
+const merchantRole = 'merchant';
+const adminRole = 'admin';
+
+// Explicit camelCase mirrors used by the web contract compatibility test.
+const awaitingPayment = 'awaitingPayment';
+const paymentUnderReview = 'paymentUnderReview';
+const paid = 'paid';
+const rejected = 'rejected';
+const cancelled = 'cancelled';
+const collection = 'collection';
+const digital = 'digital';
+const sellerArranged = 'sellerArranged';
 
 String _stringValue(dynamic value) => value.toString();
 int _intValue(dynamic value) => (value as num).toInt();

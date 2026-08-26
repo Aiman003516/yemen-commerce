@@ -601,6 +601,188 @@ class CreatorRepository {
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
   }
+
+  Future<List<Map<String, dynamic>>> erpFeatureRegistry() async {
+    final result = await _client.rpc('erp_list_feature_registry');
+    return (result as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>?> erpOrganizationDashboard(
+    String organizationId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_get_org_dashboard',
+      params: {'p_organization_id': organizationId},
+    );
+    if (result == null) return null;
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpCreateOrganization({
+    required String marketId,
+    required String code,
+    required String nameAr,
+    required String reason,
+    String? legalName,
+    String? merchantId,
+  }) async {
+    final result = await _client.rpc(
+      'erp_create_organization',
+      params: {
+        'p_market_id': marketId,
+        'p_code': code.trim(),
+        'p_name_ar': nameAr.trim(),
+        'p_reason': reason.trim(),
+        'p_legal_name': legalName?.trim().isEmpty == true
+            ? null
+            : legalName?.trim(),
+        'p_merchant_id': merchantId?.trim().isEmpty == true
+            ? null
+            : merchantId?.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpCreateJournalBatch({
+    required String organizationId,
+    required String bookId,
+    required String sourceType,
+    String? sourceId,
+    required String idempotencyKey,
+    required String reason,
+    String? descriptionAr,
+  }) async {
+    final result = await _client.rpc(
+      'erp_create_journal_batch',
+      params: {
+        'p_organization_id': organizationId,
+        'p_book_id': bookId,
+        'p_source_type': sourceType.trim(),
+        'p_source_id': sourceId?.trim().isEmpty == true
+            ? null
+            : sourceId?.trim(),
+        'p_idempotency_key': idempotencyKey.trim(),
+        'p_reason': reason.trim(),
+        'p_description_ar': descriptionAr?.trim().isEmpty == true
+            ? null
+            : descriptionAr?.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpPostJournalBatch({
+    required String batchId,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'erp_post_journal_batch',
+      params: {'p_batch_id': batchId, 'p_reason': reason.trim()},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpCreateLegalEntity({
+    required String organizationId,
+    required String code,
+    required String nameAr,
+    required String reason,
+    String? registrationReference,
+    String? taxReference,
+  }) async {
+    final result = await _client.rpc(
+      'erp_create_legal_entity',
+      params: {
+        'p_organization_id': organizationId,
+        'p_code': code.trim(),
+        'p_name_ar': nameAr.trim(),
+        'p_reason': reason.trim(),
+        'p_registration_reference':
+            registrationReference?.trim().isEmpty == true
+            ? null
+            : registrationReference?.trim(),
+        'p_tax_reference': taxReference?.trim().isEmpty == true
+            ? null
+            : taxReference?.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpCreateBook({
+    required String legalEntityId,
+    required String code,
+    required String nameAr,
+    required String accountingBasis,
+    required String reason,
+    String currency = 'YER',
+  }) async {
+    final result = await _client.rpc(
+      'erp_create_book',
+      params: {
+        'p_legal_entity_id': legalEntityId,
+        'p_code': code.trim(),
+        'p_name_ar': nameAr.trim(),
+        'p_accounting_basis': accountingBasis,
+        'p_reason': reason.trim(),
+        'p_currency': currency.trim().toUpperCase(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpCreateAccount({
+    required String bookId,
+    String? parentAccountId,
+    required String code,
+    required String nameAr,
+    required String accountType,
+    required String normalBalance,
+    required String reason,
+  }) async {
+    final result = await _client.rpc(
+      'erp_create_account',
+      params: {
+        'p_book_id': bookId,
+        'p_parent_account_id': parentAccountId,
+        'p_code': code.trim(),
+        'p_name_ar': nameAr.trim(),
+        'p_account_type': accountType,
+        'p_normal_balance': normalBalance,
+        'p_reason': reason.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> erpAddJournalLine({
+    required String batchId,
+    required String accountId,
+    required int lineNumber,
+    required int debitMinor,
+    required int creditMinor,
+    String? descriptionAr,
+    Map<String, dynamic> dimensions = const {},
+  }) async {
+    final result = await _client.rpc(
+      'erp_add_journal_line',
+      params: {
+        'p_batch_id': batchId,
+        'p_account_id': accountId,
+        'p_line_number': lineNumber,
+        'p_debit_minor': debitMinor,
+        'p_credit_minor': creditMinor,
+        'p_description_ar': descriptionAr?.trim().isEmpty == true
+            ? null
+            : descriptionAr?.trim(),
+        'p_dimensions': dimensions,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
 }
 
 class CreatorRepositoryException implements Exception {

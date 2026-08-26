@@ -1,0 +1,24 @@
+-- ERP operational projection foreign-key index remediation.
+
+create index if not exists advisor_fk_erp_ar_collection_records_recorded_by_user_id_idx on public.erp_ar_collection_records(recorded_by_user_id);
+create index if not exists advisor_fk_erp_ar_invoice_lines_revenue_contract_id_idx on public.erp_ar_invoice_lines(revenue_contract_id);
+create index if not exists advisor_fk_erp_ar_invoices_created_by_user_id_idx on public.erp_ar_invoices(created_by_user_id);
+create index if not exists advisor_fk_erp_cpq_quote_lines_product_id_idx on public.erp_cpq_quote_lines(product_id);
+create index if not exists advisor_fk_erp_cpq_quotes_approved_by_user_id_idx on public.erp_cpq_quotes(approved_by_user_id);
+create index if not exists advisor_fk_erp_cpq_quotes_created_by_user_id_idx on public.erp_cpq_quotes(created_by_user_id);
+create index if not exists advisor_fk_erp_cpq_quotes_crm_account_id_idx on public.erp_cpq_quotes(crm_account_id);
+create index if not exists advisor_fk_erp_dunning_runs_approved_by_user_id_idx on public.erp_dunning_runs(approved_by_user_id);
+create index if not exists advisor_fk_erp_dunning_runs_created_by_user_id_idx on public.erp_dunning_runs(created_by_user_id);
+create index if not exists advisor_fk_erp_dunning_runs_plan_id_idx on public.erp_dunning_runs(plan_id);
+create index if not exists advisor_fk_erp_field_work_order_assignments_assigned_by_user_id_idx on public.erp_field_work_order_assignments(assigned_by_user_id);
+create index if not exists advisor_fk_erp_intercompany_netting_batches_approved_by_user_id_idx on public.erp_intercompany_netting_batches(approved_by_user_id);
+create index if not exists advisor_fk_erp_intercompany_netting_batches_created_by_user_id_idx on public.erp_intercompany_netting_batches(created_by_user_id);
+create index if not exists advisor_fk_erp_intercompany_netting_items_to_entity_id_idx on public.erp_intercompany_netting_items(to_entity_id);
+create index if not exists advisor_fk_erp_vendor_negotiation_drafts_approved_by_user_id_idx on public.erp_vendor_negotiation_drafts(approved_by_user_id);
+create index if not exists advisor_fk_erp_vendor_negotiation_drafts_created_by_user_id_idx on public.erp_vendor_negotiation_drafts(created_by_user_id);
+create index if not exists advisor_fk_erp_vendor_negotiation_drafts_vendor_id_idx on public.erp_vendor_negotiation_drafts(vendor_id);
+create index if not exists advisor_fk_erp_vendor_quote_bids_vendor_id_idx on public.erp_vendor_quote_bids(vendor_id);
+create index if not exists advisor_fk_erp_vendor_quote_requests_approved_by_user_id_idx on public.erp_vendor_quote_requests(approved_by_user_id);
+create index if not exists advisor_fk_erp_vendor_quote_requests_created_by_user_id_idx on public.erp_vendor_quote_requests(created_by_user_id);
+create index if not exists advisor_fk_erp_vendor_quote_requests_purchase_order_id_idx on public.erp_vendor_quote_requests(purchase_order_id);
+create index if not exists advisor_fk_erp_vendor_quote_requests_vendor_id_idx on public.erp_vendor_quote_requests(vendor_id);

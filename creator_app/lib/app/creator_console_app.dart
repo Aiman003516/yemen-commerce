@@ -6,6 +6,9 @@ import 'package:commerce_core/commerce_core.dart';
 import 'package:commerce_data/commerce_data.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+const creatorErpAuthoringSafetyMessage =
+    'لا يتم تحديد الدفع أو حيازة أموال عبر هذه الشاشة.';
+
 class CreatorConsoleApp extends StatelessWidget {
   const CreatorConsoleApp({super.key});
 
@@ -111,6 +114,7 @@ class _CreatorConsoleShellState extends State<CreatorConsoleShell> {
       const CreatorProviderHubPage(),
       const CreatorTrustSupportPage(),
       const CreatorAiOperationsPage(),
+      const CreatorErpOperationsPage(),
     ];
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -209,6 +213,11 @@ class _CreatorRail extends StatelessWidget {
         selectedIcon: Icon(Icons.smart_toy),
         label: Text('حوكمة الذكاء'),
       ),
+      NavigationRailDestination(
+        icon: Icon(Icons.account_balance_outlined),
+        selectedIcon: Icon(Icons.account_balance),
+        label: Text('ERP'),
+      ),
     ],
   );
 }
@@ -251,6 +260,10 @@ class _CreatorBottomBar extends StatelessWidget {
       NavigationDestination(
         icon: Icon(Icons.smart_toy_outlined),
         label: 'حوكمة الذكاء',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.account_balance_outlined),
+        label: 'ERP',
       ),
     ],
   );
@@ -2959,5 +2972,645 @@ class _CreatorAiOperationsPageState extends State<CreatorAiOperationsPage> {
         ],
       );
     },
+  );
+}
+
+class CreatorErpOperationsPage extends StatefulWidget {
+  const CreatorErpOperationsPage({super.key});
+
+  @override
+  State<CreatorErpOperationsPage> createState() =>
+      _CreatorErpOperationsPageState();
+}
+
+class _CreatorErpOperationsPageState extends State<CreatorErpOperationsPage> {
+  final repository = CreatorRepository();
+  late Future<List<Map<String, dynamic>>> features;
+  final organizationController = TextEditingController();
+  Future<Map<String, dynamic>?>? dashboard;
+
+  @override
+  void initState() {
+    super.initState();
+    features = repository.erpFeatureRegistry();
+  }
+
+  @override
+  void dispose() {
+    organizationController.dispose();
+    super.dispose();
+  }
+
+  void loadDashboard() {
+    final organizationId = organizationController.text.trim();
+    if (organizationId.isEmpty) return;
+    setState(() {
+      dashboard = repository.erpOrganizationDashboard(organizationId);
+    });
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) => FutureBuilder<List<Map<String, dynamic>>>(
+    future: features,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const _LoadingPage();
+      }
+      if (snapshot.hasError) {
+        return const _FailurePage(
+          message: 'تعذر تحميل سجل وحدات ERP. تحقق من صلاحية حساب المنشئ.',
+        );
+      }
+      final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+      final enabledCount = rows.where((row) => row['enabled'] == true).length;
+      final providerCount = rows
+          .where((row) => row['provider_required'] == true)
+          .length;
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'مركز ERP المؤسسي',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'هذه الصفحة تعرض الوحدات المؤسسية ومراحل جاهزيتها. التفعيل لا ينشئ صلاحية مالية ولا يسمح بحيازة أموال التجار. كل الترحيلات والكتابات المحاسبية تمر عبر Supabase وRPCs المدققة.',
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _ErpMetric(label: 'الوحدات المسجلة', value: '${rows.length}'),
+              _ErpMetric(label: 'المفعّل حالياً', value: '$enabledCount'),
+              _ErpMetric(label: 'يحتاج مزوداً', value: '$providerCount'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'لوحة منظمة اختيارية',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'أدخل UUID منظمة تملكها للوصول إلى مؤشرات bounded فقط. لا تعرض اللوحة هويات العملاء أو أدلة الدفع.',
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: organizationController,
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'معرّف المنظمة',
+                      hintText: 'UUID',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: FilledButton.icon(
+                      onPressed: loadDashboard,
+                      icon: const Icon(Icons.analytics_outlined),
+                      label: const Text('تحميل المؤشرات'),
+                    ),
+                  ),
+                  if (dashboard != null)
+                    FutureBuilder<Map<String, dynamic>?>(
+                      future: dashboard,
+                      builder: (context, result) {
+                        if (result.connectionState == ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 12),
+                            child: LinearProgressIndicator(),
+                          );
+                        }
+                        if (result.hasError || result.data == null) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 12),
+                            child: Text(
+                              'لا توجد منظمة مرئية بهذا المعرّف أو لا تملك الصلاحية.',
+                            ),
+                          );
+                        }
+                        final item = result.data!;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
+                            children: [
+                              Text('المنظمة: ${item['name_ar'] ?? '-'}'),
+                              Text(
+                                'الكيانات: ${item['legal_entity_count'] ?? 0}',
+                              ),
+                              Text(
+                                'الدفاتر النشطة: ${item['active_book_count'] ?? 0}',
+                              ),
+                              Text(
+                                'قيود مسودة: ${item['draft_journal_count'] ?? 0}',
+                              ),
+                              Text(
+                                'فواتير مفتوحة: ${item['open_bill_count'] ?? 0}',
+                              ),
+                              Text(
+                                'أحداث معلقة: ${item['open_event_count'] ?? 0}',
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _ErpAuthoringPanel(
+            repository: repository,
+            onChanged: () {
+              setState(() {
+                features = repository.erpFeatureRegistry();
+                if (organizationController.text.trim().isNotEmpty) {
+                  dashboard = repository.erpOrganizationDashboard(
+                    organizationController.text.trim(),
+                  );
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'خريطة القدرات المؤسسية',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  ...rows.map(
+                    (row) => ListTile(
+                      dense: true,
+                      leading: Icon(
+                        row['provider_required'] == true
+                            ? Icons.extension_outlined
+                            : Icons.checklist_outlined,
+                      ),
+                      title: Text(
+                        '${row['name_ar'] ?? row['feature_key']} · ${row['name_en'] ?? ''}',
+                      ),
+                      subtitle: Text(
+                        '${row['module_key'] ?? '-'} · ${row['implementation_status'] ?? '-'} · ${row['description'] ?? ''}',
+                      ),
+                      trailing: Chip(
+                        label: Text(row['enabled'] == true ? 'مفعّل' : 'معطّل'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Text(
+                'حالة المزودات: OCR والضرائب وكشوف الحساب والرسائل والتوقيع وتحسين المسارات ممثلة بعقود آمنة لكنها معطلة افتراضياً. تفعيل أي مزود يتطلب مراجعة المالك، إعداد أسرار على الخادم فقط، فحص الخصوصية والامتثال، واختبارات معزولة.',
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _ErpAuthoringPanel extends StatefulWidget {
+  const _ErpAuthoringPanel({required this.repository, required this.onChanged});
+
+  final CreatorRepository repository;
+  final VoidCallback onChanged;
+
+  @override
+  State<_ErpAuthoringPanel> createState() => _ErpAuthoringPanelState();
+}
+
+class _ErpAuthoringPanelState extends State<_ErpAuthoringPanel> {
+  bool busy = false;
+
+  String _label(String field) => switch (field) {
+    'marketId' => 'معرّف السوق (UUID)',
+    'organizationId' => 'معرّف المنظمة (UUID)',
+    'legalEntityId' => 'معرّف الكيان القانوني (UUID)',
+    'bookId' => 'معرّف الدفتر (UUID)',
+    'debitAccountId' => 'حساب المدين (UUID)',
+    'creditAccountId' => 'حساب الدائن (UUID)',
+    'parentAccountId' => 'الحساب الأب (اختياري، UUID)',
+    'merchantId' => 'معرّف التاجر (اختياري، UUID)',
+    'code' => 'الرمز',
+    'nameAr' => 'الاسم بالعربية',
+    'legalName' => 'الاسم القانوني (اختياري)',
+    'registrationReference' => 'مرجع التسجيل (اختياري)',
+    'taxReference' => 'المرجع الضريبي (اختياري)',
+    'basis' => 'أساس المحاسبة (مثل management)',
+    'currency' => 'العملة (مثل YER)',
+    'type' => 'نوع الحساب (مثل asset)',
+    'balance' => 'الرصيد الطبيعي (debit أو credit)',
+    'amountMinor' => 'المبلغ بوحدات العملة الصغرى',
+    'descriptionAr' => 'وصف القيد بالعربية (اختياري)',
+    'reason' => 'سبب العملية (مطلوب)',
+    _ => field,
+  };
+
+  Future<Map<String, String>?> _formDialog({
+    required String title,
+    required List<String> fields,
+    required Map<String, String> initial,
+  }) async {
+    final controllers = <String, TextEditingController>{
+      for (final field in fields)
+        field: TextEditingController(text: initial[field] ?? ''),
+    };
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...fields.map(
+                  (field) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: controllers[field],
+                      textDirection:
+                          field.contains('id') ||
+                              field.contains('code') ||
+                              field == 'currency' ||
+                              field == 'type' ||
+                              field == 'balance' ||
+                              field == 'basis'
+                          ? TextDirection.ltr
+                          : TextDirection.rtl,
+                      minLines: field == 'reason' ? 2 : 1,
+                      maxLines: field == 'reason' ? 4 : 1,
+                      decoration: InputDecoration(labelText: _label(field)),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'كل كتابة تمر عبر RPC مصرح بها وتُسجل في سجل التدقيق. اترك المزودات الخارجية معطلة.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final values = <String, String>{
+                for (final field in fields)
+                  field: controllers[field]!.text.trim(),
+              };
+              if (fields.any(
+                (field) => field == 'reason' && values[field]!.length < 3,
+              )) {
+                return;
+              }
+              Navigator.pop(dialogContext, values);
+            },
+            child: const Text('حفظ عبر Supabase'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    return result;
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      await action();
+      if (mounted) {
+        widget.onChanged();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم حفظ العملية وتسجيلها.')),
+        );
+      }
+    } on PostgrestException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('رفض Supabase العملية: ${error.message}')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تعذر تنفيذ العملية. تحقق من المعرفات والصلاحية.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _createOrganization() async {
+    final values = await _formDialog(
+      title: 'إنشاء منظمة ERP',
+      fields: const [
+        'marketId',
+        'code',
+        'nameAr',
+        'legalName',
+        'merchantId',
+        'reason',
+      ],
+      initial: const {},
+    );
+    if (values == null) return;
+    if (values['marketId']!.isEmpty ||
+        values['code']!.length < 2 ||
+        values['nameAr']!.length < 2) {
+      return;
+    }
+    await _run(() async {
+      await widget.repository.erpCreateOrganization(
+        marketId: values['marketId']!,
+        code: values['code']!,
+        nameAr: values['nameAr']!,
+        legalName: values['legalName'],
+        merchantId: values['merchantId'],
+        reason: values['reason']!,
+      );
+    });
+  }
+
+  Future<void> _createLegalEntity() async {
+    final values = await _formDialog(
+      title: 'إضافة كيان قانوني',
+      fields: const [
+        'organizationId',
+        'code',
+        'nameAr',
+        'registrationReference',
+        'taxReference',
+        'reason',
+      ],
+      initial: const {},
+    );
+    if (values == null ||
+        values['organizationId']!.isEmpty ||
+        values['code']!.length < 2 ||
+        values['nameAr']!.length < 2) {
+      return;
+    }
+    await _run(() async {
+      await widget.repository.erpCreateLegalEntity(
+        organizationId: values['organizationId']!,
+        code: values['code']!,
+        nameAr: values['nameAr']!,
+        registrationReference: values['registrationReference'],
+        taxReference: values['taxReference'],
+        reason: values['reason']!,
+      );
+    });
+  }
+
+  Future<void> _createBook() async {
+    final values = await _formDialog(
+      title: 'إضافة دفتر محاسبي',
+      fields: const [
+        'legalEntityId',
+        'code',
+        'nameAr',
+        'basis',
+        'currency',
+        'reason',
+      ],
+      initial: const {'basis': 'management', 'currency': 'YER'},
+    );
+    if (values == null ||
+        values['legalEntityId']!.isEmpty ||
+        values['code']!.length < 2 ||
+        values['nameAr']!.length < 2) {
+      return;
+    }
+    await _run(() async {
+      await widget.repository.erpCreateBook(
+        legalEntityId: values['legalEntityId']!,
+        code: values['code']!,
+        nameAr: values['nameAr']!,
+        accountingBasis: values['basis']!,
+        currency: values['currency']!.isEmpty ? 'YER' : values['currency']!,
+        reason: values['reason']!,
+      );
+    });
+  }
+
+  Future<void> _createAccount() async {
+    final values = await _formDialog(
+      title: 'إضافة حساب إلى الدليل',
+      fields: const [
+        'bookId',
+        'parentAccountId',
+        'code',
+        'nameAr',
+        'type',
+        'balance',
+        'reason',
+      ],
+      initial: const {'type': 'asset', 'balance': 'debit'},
+    );
+    if (values == null ||
+        values['bookId']!.isEmpty ||
+        values['code']!.length < 2 ||
+        values['nameAr']!.length < 2) {
+      return;
+    }
+    await _run(() async {
+      await widget.repository.erpCreateAccount(
+        bookId: values['bookId']!,
+        parentAccountId: values['parentAccountId']!.isEmpty
+            ? null
+            : values['parentAccountId'],
+        code: values['code']!,
+        nameAr: values['nameAr']!,
+        accountType: values['type']!,
+        normalBalance: values['balance']!,
+        reason: values['reason']!,
+      );
+    });
+  }
+
+  Future<void> _draftAndPostJournal() async {
+    final values = await _formDialog(
+      title: 'مسودة قيد متوازن من سطرين',
+      fields: const [
+        'organizationId',
+        'bookId',
+        'debitAccountId',
+        'creditAccountId',
+        'amountMinor',
+        'descriptionAr',
+        'reason',
+      ],
+      initial: const {},
+    );
+    if (values == null ||
+        values['organizationId']!.isEmpty ||
+        values['bookId']!.isEmpty ||
+        values['debitAccountId']!.isEmpty ||
+        values['creditAccountId']!.isEmpty ||
+        int.tryParse(values['amountMinor']!) == null ||
+        int.parse(values['amountMinor']!) <= 0) {
+      return;
+    }
+    String? batchId;
+    await _run(() async {
+      final batch = await widget.repository.erpCreateJournalBatch(
+        organizationId: values['organizationId']!,
+        bookId: values['bookId']!,
+        sourceType: 'creator_console',
+        idempotencyKey:
+            'creator-${DateTime.now().toUtc().microsecondsSinceEpoch}',
+        descriptionAr: values['descriptionAr'],
+        reason: values['reason']!,
+      );
+      batchId = batch['journal_batch_id']?.toString();
+      if (batchId == null || batchId!.isEmpty) {
+        throw StateError('missing batch id');
+      }
+      final amount = int.parse(values['amountMinor']!);
+      await widget.repository.erpAddJournalLine(
+        batchId: batchId!,
+        accountId: values['debitAccountId']!,
+        lineNumber: 1,
+        debitMinor: amount,
+        creditMinor: 0,
+        descriptionAr: values['descriptionAr'],
+      );
+      await widget.repository.erpAddJournalLine(
+        batchId: batchId!,
+        accountId: values['creditAccountId']!,
+        lineNumber: 2,
+        debitMinor: 0,
+        creditMinor: amount,
+        descriptionAr: values['descriptionAr'],
+      );
+    });
+    if (batchId == null || !mounted) return;
+    final postReason = await _askReason(
+      context,
+      title: 'سبب ترحيل القيد بعد مراجعة السطرين',
+    );
+    if (postReason == null || !mounted) return;
+    await _run(() async {
+      await widget.repository.erpPostJournalBatch(
+        batchId: batchId!,
+        reason: postReason,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'تأليف ERP الآمن',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'واجهة أولية للمنشئ: إنشاء الهيكل المحاسبي ثم إنشاء قيد مسودة متوازن ومراجعته قبل الترحيل. كل نموذج يتطلب سبباً لا يقل عن ثلاثة أحرف؛ $creatorErpAuthoringSafetyMessage',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: busy ? null : _createOrganization,
+                icon: const Icon(Icons.account_tree_outlined),
+                label: const Text('منظمة'),
+              ),
+              OutlinedButton.icon(
+                onPressed: busy ? null : _createLegalEntity,
+                icon: const Icon(Icons.domain_outlined),
+                label: const Text('كيان قانوني'),
+              ),
+              OutlinedButton.icon(
+                onPressed: busy ? null : _createBook,
+                icon: const Icon(Icons.menu_book_outlined),
+                label: const Text('دفتر'),
+              ),
+              OutlinedButton.icon(
+                onPressed: busy ? null : _createAccount,
+                icon: const Icon(Icons.account_balance_outlined),
+                label: const Text('حساب'),
+              ),
+              FilledButton.icon(
+                onPressed: busy ? null : _draftAndPostJournal,
+                icon: const Icon(Icons.post_add_outlined),
+                label: const Text('قيد من سطرين ثم ترحيل'),
+              ),
+            ],
+          ),
+          if (busy)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: LinearProgressIndicator(),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ErpMetric extends StatelessWidget {
+  const _ErpMetric({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label),
+          const SizedBox(height: 4),
+          Text(value, style: Theme.of(context).textTheme.headlineSmall),
+        ],
+      ),
+    ),
   );
 }

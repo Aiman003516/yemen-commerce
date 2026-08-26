@@ -2023,6 +2023,34 @@ class MarketplaceApiClient {
     );
   }
 
+  Future<List<Map<String, dynamic>>> erpFeatureCatalog() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب خريطة ERP اتصال Supabase.');
+    }
+    try {
+      return await supabase.erpFeatureCatalog();
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل خريطة ERP.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> erpMyOrganizationDashboard() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مؤشرات ERP اتصال Supabase.');
+    }
+    try {
+      return await supabase.erpMyOrganizationDashboard();
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل مؤشرات ERP.'),
+      );
+    }
+  }
+
   Future<void> submitPaymentReference({
     required String merchantOrderId,
     required String reference,

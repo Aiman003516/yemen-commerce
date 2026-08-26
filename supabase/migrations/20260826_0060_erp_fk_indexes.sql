@@ -1,0 +1,44 @@
+-- ERP foreign-key index remediation generated from the post-0059 Performance Advisor review.
+-- All indexes are additive and idempotent; no data or authority semantics change.
+
+create index if not exists advisor_fk_erp_accounts_parent_account_id_idx on public.erp_accounts(parent_account_id);
+create index if not exists advisor_fk_erp_allocation_rules_created_by_user_id_idx on public.erp_allocation_rules(created_by_user_id);
+create index if not exists advisor_fk_erp_allocation_rules_source_account_id_idx on public.erp_allocation_rules(source_account_id);
+create index if not exists advisor_fk_erp_allocation_runs_created_by_user_id_idx on public.erp_allocation_runs(created_by_user_id);
+create index if not exists advisor_fk_erp_allocation_runs_journal_batch_id_idx on public.erp_allocation_runs(journal_batch_id);
+create index if not exists advisor_fk_erp_anomaly_findings_reviewed_by_user_id_idx on public.erp_anomaly_findings(reviewed_by_user_id);
+create index if not exists advisor_fk_erp_bill_matches_purchase_order_id_idx on public.erp_bill_matches(purchase_order_id);
+create index if not exists advisor_fk_erp_bill_matches_reviewed_by_user_id_idx on public.erp_bill_matches(reviewed_by_user_id);
+create index if not exists advisor_fk_erp_bills_created_by_user_id_idx on public.erp_bills(created_by_user_id);
+create index if not exists advisor_fk_erp_bills_purchase_order_id_idx on public.erp_bills(purchase_order_id);
+create index if not exists advisor_fk_erp_bills_vendor_id_idx on public.erp_bills(vendor_id);
+create index if not exists advisor_fk_erp_capitalization_proposals_created_by_user_id_idx on public.erp_capitalization_proposals(created_by_user_id);
+create index if not exists advisor_fk_erp_capitalization_proposals_journal_batch_id_idx on public.erp_capitalization_proposals(journal_batch_id);
+create index if not exists advisor_fk_erp_consolidation_runs_approved_by_user_id_idx on public.erp_consolidation_runs(approved_by_user_id);
+create index if not exists advisor_fk_erp_consolidation_runs_created_by_user_id_idx on public.erp_consolidation_runs(created_by_user_id);
+create index if not exists advisor_fk_erp_contract_versions_created_by_user_id_idx on public.erp_contract_versions(created_by_user_id);
+create index if not exists advisor_fk_erp_contracts_created_by_user_id_idx on public.erp_contracts(created_by_user_id);
+create index if not exists advisor_fk_erp_contracts_crm_account_id_idx on public.erp_contracts(crm_account_id);
+create index if not exists advisor_fk_erp_crm_accounts_customer_user_id_idx on public.erp_crm_accounts(customer_user_id);
+create index if not exists advisor_fk_erp_dunning_plans_created_by_user_id_idx on public.erp_dunning_plans(created_by_user_id);
+create index if not exists advisor_fk_erp_field_work_orders_created_by_user_id_idx on public.erp_field_work_orders(created_by_user_id);
+create index if not exists advisor_fk_erp_field_work_orders_crm_account_id_idx on public.erp_field_work_orders(crm_account_id);
+create index if not exists advisor_fk_erp_journal_batches_book_id_idx on public.erp_journal_batches(book_id);
+create index if not exists advisor_fk_erp_journal_batches_created_by_user_id_idx on public.erp_journal_batches(created_by_user_id);
+create index if not exists advisor_fk_erp_journal_batches_posted_by_user_id_idx on public.erp_journal_batches(posted_by_user_id);
+create index if not exists advisor_fk_erp_projects_created_by_user_id_idx on public.erp_projects(created_by_user_id);
+create index if not exists advisor_fk_erp_provider_adapters_updated_by_user_id_idx on public.erp_provider_adapters(updated_by_user_id);
+create index if not exists advisor_fk_erp_purchase_order_lines_product_id_idx on public.erp_purchase_order_lines(product_id);
+create index if not exists advisor_fk_erp_purchase_orders_created_by_user_id_idx on public.erp_purchase_orders(created_by_user_id);
+create index if not exists advisor_fk_erp_reconciliation_candidates_reviewed_by_user_id_idx on public.erp_reconciliation_candidates(reviewed_by_user_id);
+create index if not exists advisor_fk_erp_revenue_contracts_created_by_user_id_idx on public.erp_revenue_contracts(created_by_user_id);
+create index if not exists advisor_fk_erp_revenue_contracts_customer_user_id_idx on public.erp_revenue_contracts(customer_user_id);
+create index if not exists advisor_fk_erp_revenue_contracts_merchant_order_id_idx on public.erp_revenue_contracts(merchant_order_id);
+create index if not exists advisor_fk_erp_revenue_schedules_journal_batch_id_idx on public.erp_revenue_schedules(journal_batch_id);
+create index if not exists advisor_fk_erp_subscriptions_crm_account_id_idx on public.erp_subscriptions(crm_account_id);
+create index if not exists advisor_fk_erp_tax_rules_created_by_user_id_idx on public.erp_tax_rules(created_by_user_id);
+create index if not exists advisor_fk_erp_ticket_routes_created_by_user_id_idx on public.erp_ticket_routes(created_by_user_id);
+create index if not exists advisor_fk_erp_webhook_deliveries_outbox_event_id_idx on public.erp_webhook_deliveries(outbox_event_id);
+create index if not exists advisor_fk_erp_webhook_subscriptions_created_by_user_id_idx on public.erp_webhook_subscriptions(created_by_user_id);
+create index if not exists advisor_fk_erp_workflow_rules_created_by_user_id_idx on public.erp_workflow_rules(created_by_user_id);
+create index if not exists advisor_fk_erp_workflow_runs_event_id_idx on public.erp_workflow_runs(event_id);

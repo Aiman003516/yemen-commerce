@@ -4365,6 +4365,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             const SizedBox(height: 20),
             MerchantAiReviewCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),
+            const _MerchantErpCard(),
+            const SizedBox(height: 20),
             _MerchantInsightsCard(
               shopId: workspace.shops.first.id,
               onAddPromotion: () => _createPromotion(workspace.shops.first.id),
@@ -7606,4 +7608,136 @@ class _Destination {
   final String label;
   final IconData outlined;
   final IconData filled;
+}
+
+class _MerchantErpCard extends StatefulWidget {
+  const _MerchantErpCard();
+
+  @override
+  State<_MerchantErpCard> createState() => _MerchantErpCardState();
+}
+
+class _MerchantErpCardState extends State<_MerchantErpCard> {
+  late Future<List<dynamic>> _load = Future.wait<dynamic>([
+    MarketplaceApiClient().erpFeatureCatalog(),
+    MarketplaceApiClient().erpMyOrganizationDashboard(),
+  ]);
+
+  void _reload() {
+    setState(() {
+      _load = Future.wait<dynamic>([
+        MarketplaceApiClient().erpFeatureCatalog(),
+        MarketplaceApiClient().erpMyOrganizationDashboard(),
+      ]);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<List<dynamic>>(
+        future: _load,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return Row(
+              children: [
+                const Expanded(
+                  child: Text('تعذر تحميل مركز ERP لهذا الحساب حالياً.'),
+                ),
+                IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
+              ],
+            );
+          }
+          final rows = (snapshot.data![0] as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+          final dashboard = snapshot.data![1] as Map<String, dynamic>?;
+          final foundation = rows
+              .where((row) => row['implementation_status'] == 'foundation')
+              .length;
+          final providerFeatures = rows
+              .where((row) => row['provider_required'] == true)
+              .length;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'مركز ERP للتاجر',
+                      subtitle: 'محاسبة، مشتريات، CRM، عقود، مخزون، تحليلات وسير عمل ضمن حدود الحساب.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _reload,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _MetricChip(label: 'وحدات الأساس', value: '$foundation'),
+                  _MetricChip(
+                    label: 'مزودات اختيارية',
+                    value: '$providerFeatures',
+                  ),
+                  _MetricChip(
+                    label: 'قيود مسودة',
+                    value: '${dashboard?['draft_journal_count'] ?? 0}',
+                  ),
+                  _MetricChip(
+                    label: 'فواتير مفتوحة',
+                    value: '${dashboard?['open_bill_count'] ?? 0}',
+                  ),
+                  _MetricChip(
+                    label: 'أحداث معلقة',
+                    value: '${dashboard?['open_event_count'] ?? 0}',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'الوحدات المؤسسية تبدأ بحالة مراجعة ولا تُفعل تلقائياً. لا يملك النظام أموال التاجر، ولا يحول إثبات الدفع إلى حالة دفع مؤكدة.',
+              ),
+              const SizedBox(height: 8),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('عرض خريطة القدرات'),
+                children: rows
+                    .take(32)
+                    .map(
+                      (row) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          row['provider_required'] == true
+                              ? Icons.extension_outlined
+                              : Icons.check_circle_outline,
+                        ),
+                        title: Text(
+                          '${row['name_ar'] ?? row['feature_key']} · ${row['name_en'] ?? ''}',
+                        ),
+                        subtitle: Text(
+                          '${row['module_key'] ?? '-'} · ${row['implementation_status'] ?? '-'}',
+                        ),
+                        trailing: Text(
+                          row['enabled'] == true ? 'مفعل' : 'مراجعة',
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
 }

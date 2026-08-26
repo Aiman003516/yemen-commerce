@@ -117,6 +117,17 @@ assert_anon_denied refresh_merchant_daily_rollup '{"p_shop_id":"00000000-0000-00
 assert_anon_denied register_product_asset_variant '{"p_product_id":"00000000-0000-0000-0000-000000000000","p_source_storage_key":"anonymous/source","p_format":"jpeg","p_width":640,"p_height":480,"p_byte_size":100}'
 assert_anon_denied complete_product_asset_variant '{"p_asset_variant_id":"00000000-0000-0000-0000-000000000000","p_optimized_storage_key":"anonymous/optimized.jpg"}'
 assert_anon_denied provider_adapter_operations '{}'
+assert_anon_denied ai_start_run '{"p_app_surface":"customer","p_scope_type":"customer","p_scope_id":"00000000-0000-0000-0000-000000000000","p_intent_key":"general","p_request_hash":"anonymous-request-hash-123456","p_requested_locale":"ar","p_idempotency_key":"anonymous-ai-run","p_metadata":{}}'
+assert_anon_denied ai_propose_tool_call '{"p_run_id":"00000000-0000-0000-0000-000000000000","p_sequence_no":1,"p_tool_name":"catalog.search","p_action_class":"read","p_arguments_hash":"anonymous-arguments-hash-123456","p_arguments_redacted":{},"p_required_capability":null,"p_approval_required":false,"p_policy_decision":"allow","p_idempotency_key":"anonymous-ai-tool"}'
+assert_anon_denied ai_request_approval '{"p_tool_call_id":"00000000-0000-0000-0000-000000000000","p_expires_in_seconds":900}'
+assert_anon_denied ai_decide_approval '{"p_approval_id":"00000000-0000-0000-0000-000000000000","p_decision":"rejected","p_reason":"anonymous rejection"}'
+assert_anon_denied ai_transition_tool_call '{"p_tool_call_id":"00000000-0000-0000-0000-000000000000","p_status":"failed","p_result_summary":{},"p_error_code":"anonymous"}'
+assert_anon_denied ai_finish_run '{"p_run_id":"00000000-0000-0000-0000-000000000000","p_status":"failed","p_output_hash":null}'
+assert_anon_denied ai_publish_policy '{"p_policy_key":"anonymous","p_app_surface":"customer","p_principal_role":"customer","p_tool_name":"*","p_version":null,"p_status":"draft","p_rules":{},"p_reason":"anonymous policy"}'
+assert_anon_denied ai_list_effective_policies '{"p_app_surface":"customer"}'
+assert_anon_denied ai_get_run '{"p_run_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied ai_list_run_tool_calls '{"p_run_id":"00000000-0000-0000-0000-000000000000"}'
+assert_anon_denied ai_list_my_approvals '{"p_status":"pending"}'
 
 for table in user_access_controls user_capabilities creator_operator_assignments; do
   status="$(curl -sS -o /tmp/yemen_commerce_auth_test_response.json -w '%{http_code}' "$base_url/rest/v1/$table?select=*&limit=1" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")"

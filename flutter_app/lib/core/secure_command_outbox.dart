@@ -39,6 +39,20 @@ class SecureCommandOutbox implements CommandOutbox {
   }
 
   @override
+  Future<void> retry(String idempotencyKey) async {
+    final commands = await _read();
+    final command = commands[idempotencyKey];
+    if (command == null) return;
+    commands[idempotencyKey] = QueuedCommand(
+      idempotencyKey: command.idempotencyKey,
+      kind: command.kind,
+      payload: command.payload,
+      createdAt: command.createdAt,
+    );
+    await _write(commands);
+  }
+
+  @override
   Future<void> markFailed(String idempotencyKey, String error) async {
     final commands = await _read();
     final command = commands[idempotencyKey];

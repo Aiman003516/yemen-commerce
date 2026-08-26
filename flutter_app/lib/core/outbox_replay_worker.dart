@@ -2,16 +2,27 @@ import 'package:commerce_core/commerce_core.dart';
 
 import 'api_client.dart';
 
+class OutboxDiagnostic {
+  const OutboxDiagnostic({required this.command, required this.state});
+
+  final QueuedCommand command;
+  final String state;
+}
+
 class OutboxReplaySummary {
   const OutboxReplaySummary({
     this.completed = 0,
     this.failed = 0,
     this.skipped = 0,
+    this.pendingBefore = 0,
+    this.pendingAfter = 0,
   });
 
   final int completed;
   final int failed;
   final int skipped;
+  final int pendingBefore;
+  final int pendingAfter;
 }
 
 /// Replays only safe, authenticated, non-financial commands.
@@ -26,11 +37,33 @@ class OutboxReplayWorker {
 
   static const _maxAttempts = 5;
 
+  Future<List<OutboxDiagnostic>> diagnostics() async {
+    final commands = await outbox.pending();
+    return commands
+        .map(
+          (command) => OutboxDiagnostic(
+            command: command,
+            state: command.attempts >= _maxAttempts
+                ? 'blocked'
+                : command.attempts > 0
+                ? 'failed'
+                : 'pending',
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> retry(String idempotencyKey) => outbox.retry(idempotencyKey);
+
+  Future<void> discard(String idempotencyKey) =>
+      outbox.markCompleted(idempotencyKey);
+
   Future<OutboxReplaySummary> replay() async {
     var completed = 0;
     var failed = 0;
     var skipped = 0;
     final commands = await outbox.pending();
+    final pendingBefore = commands.length;
     for (final command in commands) {
       if (command.attempts >= _maxAttempts) {
         skipped++;
@@ -45,10 +78,13 @@ class OutboxReplayWorker {
         failed++;
       }
     }
+    final pendingAfter = (await outbox.pending()).length;
     return OutboxReplaySummary(
       completed: completed,
       failed: failed,
       skipped: skipped,
+      pendingBefore: pendingBefore,
+      pendingAfter: pendingAfter,
     );
   }
 

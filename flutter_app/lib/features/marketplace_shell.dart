@@ -10,6 +10,8 @@ import '../core/api_client.dart';
 import '../core/contracts.dart';
 import '../core/supabase_config.dart';
 import '../core/supabase_marketplace_client.dart';
+import '../core/outbox_replay_worker.dart';
+import '../core/secure_command_outbox.dart';
 
 class MarketplaceShell extends StatefulWidget {
   const MarketplaceShell({
@@ -40,6 +42,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
       Icons.store_mall_directory,
     ),
     _Destination('الخدمات', Icons.auto_awesome_outlined, Icons.auto_awesome),
+    _Destination('المزامنة', Icons.sync_outlined, Icons.sync),
     _Destination(
       'الإدارة',
       Icons.admin_panel_settings_outlined,
@@ -158,6 +161,7 @@ class _MarketplaceShellState extends State<MarketplaceShell> {
     2 => _OrdersPage(user: widget.user),
     3 => _MerchantPage(user: widget.user),
     4 => const _ServicesPage(),
+    5 => const _SyncCenterPage(),
     _ => _AdminPage(user: widget.user),
   };
 
@@ -1239,11 +1243,13 @@ class _CartPageState extends State<_CartPage> {
     );
     if (confirmed != true) return;
     setState(() => _checkingOut = true);
+    final commandKey = 'checkout-${DateTime.now().microsecondsSinceEpoch}';
     try {
-      await MarketplaceApiClient().checkoutCart(
+      await MarketplaceApiClient().checkoutCartIdempotent(
         fulfilmentByShop: fulfilment,
         paymentMethodByMerchant: payments,
         deliveryByShop: delivery,
+        commandKey: commandKey,
       );
       if (mounted) setState(() => _cart = MarketplaceApiClient().cartGroups());
       if (mounted) {
@@ -1256,9 +1262,27 @@ class _CartPageState extends State<_CartPage> {
         );
       }
     } on ApiException catch (error) {
+      await SecureCommandOutbox().enqueue(
+        QueuedCommand(
+          idempotencyKey: commandKey,
+          kind: 'checkout_create_orders',
+          payload: {
+            'fulfilmentByShop': fulfilment,
+            'paymentByMerchant': payments,
+            'deliveryByShop': delivery,
+          },
+          createdAt: DateTime.now(),
+          lastError: error.message,
+        ),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تعذر الاتصال. حُفظ الطلب في مركز المزامنة لإعادة المحاولة.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _checkingOut = false);
@@ -3965,6 +3989,153 @@ class _OperationsCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _SyncCenterPage extends StatefulWidget {
+  const _SyncCenterPage();
+
+  @override
+  State<_SyncCenterPage> createState() => _SyncCenterPageState();
+}
+
+class _SyncCenterPageState extends State<_SyncCenterPage> {
+  final worker = OutboxReplayWorker(outbox: SecureCommandOutbox());
+  late Future<List<OutboxDiagnostic>> diagnostics = worker.diagnostics();
+  OutboxReplaySummary? lastSummary;
+  bool busy = false;
+
+  void refresh() {
+    setState(() => diagnostics = worker.diagnostics());
+  }
+
+  Future<void> replay() async {
+    setState(() => busy = true);
+    try {
+      final summary = await worker.replay();
+      if (mounted) {
+        setState(() => lastSummary = summary);
+        refresh();
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(24),
+    children: [
+      Row(
+        children: [
+          const Expanded(
+            child: _SectionHeader(
+              title: 'مركز المزامنة الآمنة',
+              subtitle: 'أوامر غير مالية محفوظة محلياً بشكل مشفر. راقب المحاولات وأعد المحاولة عند توفر الاتصال.',
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: busy ? null : replay,
+            icon: busy
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            label: const Text('مزامنة الآن'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      if (lastSummary != null)
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.check_circle_outline),
+            title: Text(
+              'آخر مزامنة: ${lastSummary!.completed} اكتمل · ${lastSummary!.failed} فشل · ${lastSummary!.skipped} محجوب',
+            ),
+            subtitle: Text(
+              'قبل: ${lastSummary!.pendingBefore} · بعد: ${lastSummary!.pendingAfter}',
+            ),
+          ),
+        ),
+      const SizedBox(height: 8),
+      FutureBuilder<List<OutboxDiagnostic>>(
+        future: diagnostics,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError) {
+            return const _InlineWarning('تعذر قراءة قائمة المزامنة المشفرة.');
+          }
+          final rows = snapshot.data ?? const <OutboxDiagnostic>[];
+          if (rows.isEmpty) {
+            return const _CatalogNotice(
+              icon: Icons.cloud_done_outlined,
+              title: 'لا توجد أوامر معلقة',
+              detail: 'ستظهر هنا أوامر checkout والعروض غير المالية إذا انقطع الاتصال أثناء الحفظ.',
+            );
+          }
+          return Column(
+            children: rows
+                .map(
+                  (item) => Card(
+                    child: ListTile(
+                      leading: Icon(
+                        item.state == 'blocked'
+                            ? Icons.block
+                            : item.state == 'failed'
+                            ? Icons.warning_amber_outlined
+                            : Icons.schedule,
+                      ),
+                      title: Text(_kindLabel(item.command.kind)),
+                      subtitle: Text(
+                        'الحالة: ${_stateLabel(item.state)} · محاولات: ${item.command.attempts}\nالمعرف: ${item.command.idempotencyKey}${item.command.lastError == null ? '' : '\nآخر خطأ: ${item.command.lastError}'}',
+                      ),
+                      isThreeLine: item.command.lastError != null,
+                      trailing: Wrap(
+                        spacing: 4,
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              await worker.retry(item.command.idempotencyKey);
+                              refresh();
+                            },
+                            icon: const Icon(Icons.replay),
+                            tooltip: 'إعادة المحاولة',
+                          ),
+                          IconButton(
+                            onPressed: () async {
+                              await worker.discard(item.command.idempotencyKey);
+                              refresh();
+                            },
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'حذف الأمر',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        },
+      ),
+    ],
+  );
+
+  static String _kindLabel(String kind) => switch (kind) {
+    'checkout_create_orders' => 'إنشاء طلبات منفصلة',
+    'apply_order_promotion' => 'تطبيق عرض',
+    _ => kind,
+  };
+
+  static String _stateLabel(String state) => switch (state) {
+    'pending' => 'قيد الانتظار',
+    'failed' => 'يحتاج إعادة محاولة',
+    'blocked' => 'محجوب بعد محاولات متعددة',
+    _ => state,
+  };
 }
 
 class _ServicesPage extends StatelessWidget {

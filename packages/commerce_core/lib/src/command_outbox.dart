@@ -53,6 +53,7 @@ abstract interface class CommandOutbox {
   Future<List<QueuedCommand>> pending();
   Future<void> markCompleted(String idempotencyKey);
   Future<void> markFailed(String idempotencyKey, String error);
+  Future<void> retry(String idempotencyKey);
 }
 
 /// Deterministic reference implementation for tests and non-persistent use.
@@ -73,6 +74,18 @@ class InMemoryCommandOutbox implements CommandOutbox {
   @override
   Future<void> markCompleted(String idempotencyKey) async {
     _commands.remove(idempotencyKey);
+  }
+
+  @override
+  Future<void> retry(String idempotencyKey) async {
+    final command = _commands[idempotencyKey];
+    if (command == null) return;
+    _commands[idempotencyKey] = QueuedCommand(
+      idempotencyKey: command.idempotencyKey,
+      kind: command.kind,
+      payload: command.payload,
+      createdAt: command.createdAt,
+    );
   }
 
   @override

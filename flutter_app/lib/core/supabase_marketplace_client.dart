@@ -1794,6 +1794,92 @@ class SupabaseMarketplaceClient {
         .toList(growable: false);
   }
 
+  Future<Map<String, dynamic>?> merchantShipmentPlanForOrder(
+    String merchantOrderId,
+  ) async {
+    final row = await _client
+        .from('shipment_plans')
+        .select(
+          'id,merchant_order_id,carrier_key,service_level,status,dispatch_eligible,tracking_reference,customer_message,created_at,updated_at',
+        )
+        .eq('merchant_order_id', merchantOrderId)
+        .maybeSingle();
+    return row == null ? null : Map<String, dynamic>.from(row);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantShipmentEvents(
+    String shipmentPlanId,
+  ) async {
+    final rows = await _client
+        .from('shipment_events')
+        .select('id,shipment_plan_id,status,customer_message,created_at')
+        .eq('shipment_plan_id', shipmentPlanId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantDeliveryExceptions(
+    String shipmentPlanId,
+  ) async {
+    final rows = await _client
+        .from('delivery_exceptions')
+        .select(
+          'id,shipment_plan_id,code,severity,status,customer_message,created_at,updated_at,resolved_at',
+        )
+        .eq('shipment_plan_id', shipmentPlanId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantOrderCases(
+    String merchantOrderId,
+  ) async {
+    final rows = await _client
+        .from('order_cases')
+        .select(
+          'id,merchant_order_id,case_type,status,reason,merchant_note,resolution_note,created_at,updated_at',
+        )
+        .eq('merchant_order_id', merchantOrderId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>?> merchantReturnLogisticsForCase(
+    String orderCaseId,
+  ) async {
+    final row = await _client
+        .from('return_logistics')
+        .select(
+          'id,order_case_id,method,status,customer_message,created_at,updated_at',
+        )
+        .eq('order_case_id', orderCaseId)
+        .maybeSingle();
+    return row == null ? null : Map<String, dynamic>.from(row);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantReturnEvents(
+    String returnLogisticsId,
+  ) async {
+    final rows = await _client
+        .from('return_logistics_events')
+        .select('id,return_logistics_id,status,customer_message,created_at')
+        .eq('return_logistics_id', returnLogisticsId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>> upsertMerchantChannel({
     required String shopId,
     required String channelKey,

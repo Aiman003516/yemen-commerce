@@ -21,6 +21,7 @@ import '../core/secure_command_outbox.dart';
 import 'edge_rules_assistant_card.dart';
 import 'merchant_ai_copilot.dart';
 import 'merchant_ai_review.dart';
+import 'merchant_operational_actions_dialog.dart';
 
 class MarketplaceShell extends StatefulWidget {
   const MarketplaceShell({
@@ -5769,6 +5770,21 @@ class _MerchantOrderWorkbenchCardState
               if (order.hasActiveCourierAssignment)
                 const Text('يوجد إسناد توصيل نشط.'),
               const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => MerchantOperationalActionsDialog(
+                      order: order,
+                      onChanged: _reload,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.local_shipping_outlined),
+                label: const Text('فتح عمليات التوصيل والمرتجعات'),
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: selectedStatus,
                 decoration: const InputDecoration(labelText: 'الحالة التالية'),

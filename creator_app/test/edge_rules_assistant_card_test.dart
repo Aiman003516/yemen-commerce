@@ -12,6 +12,9 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'اعرض حالة جاهزية المزودات');
     await tester.tap(find.text('تحقق من الطلب'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 25)),
+    );
     await tester.pump();
 
     expect(find.text('الاقتراح: جاهزية المزودات'), findsOneWidget);

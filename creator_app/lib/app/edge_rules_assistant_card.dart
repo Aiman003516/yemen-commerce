@@ -12,10 +12,11 @@ class CreatorEdgeRulesAssistantCard extends StatefulWidget {
 class _CreatorEdgeRulesAssistantCardState
     extends State<CreatorEdgeRulesAssistantCard> {
   final _prompt = TextEditingController();
-  final _assistant = const EdgeRulesOnlyAssistant();
+  final _coordinator = EdgeAssistantCoordinator(runtime: EdgeRuntimeChannel());
   EdgeProposal? _proposal;
   EdgeValidationResult? _validation;
   String? _status;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -23,7 +24,7 @@ class _CreatorEdgeRulesAssistantCardState
     super.dispose();
   }
 
-  void _interpret() {
+  Future<void> _interpret() async {
     final prompt = _prompt.text.trim();
     if (prompt.isEmpty) {
       setState(() {
@@ -33,7 +34,11 @@ class _CreatorEdgeRulesAssistantCardState
       });
       return;
     }
-    final proposal = _assistant.interpret(
+    setState(() {
+      _busy = true;
+      _status = null;
+    });
+    final proposal = await _coordinator.propose(
       EdgeAssistantRequest(
         requestId:
             'creator-edge-${DateTime.now().toUtc().microsecondsSinceEpoch}',
@@ -43,7 +48,9 @@ class _CreatorEdgeRulesAssistantCardState
         createdAt: DateTime.now().toUtc(),
       ),
     );
+    if (!mounted) return;
     setState(() {
+      _busy = false;
       _proposal = proposal;
       _validation = EdgeProposalValidator.validate(proposal);
       _status = null;
@@ -104,9 +111,14 @@ class _CreatorEdgeRulesAssistantCardState
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: FilledButton.icon(
-                onPressed: _interpret,
-                icon: const Icon(Icons.fact_check_outlined),
-                label: const Text('تحقق من الطلب'),
+                onPressed: _busy ? null : _interpret,
+                icon: _busy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.fact_check_outlined),
+                label: Text(_busy ? 'يتم التحقق…' : 'تحقق من الطلب'),
               ),
             ),
             if (_status != null) ...[

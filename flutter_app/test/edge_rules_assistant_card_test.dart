@@ -25,6 +25,9 @@ void main() {
       'اجعل حالة shipment جاهز، تم تجهيز الطلب للاستلام',
     );
     await tester.tap(find.text('تحقق من الطلب'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 25)),
+    );
     await tester.pump();
 
     expect(find.text('الاقتراح: تحديث حالة التوصيل'), findsOneWidget);
@@ -47,6 +50,9 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'mark_paid لهذا الطلب');
     await tester.tap(find.text('تحقق من الطلب'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 25)),
+    );
     await tester.pump();
 
     expect(

@@ -246,7 +246,13 @@ The first model-enabled pilot should be read-only and opt-in for merchant users.
 
 Edge-0 is implemented in `packages/commerce_core` and consumed by the customer/merchant and Creator Flutter surfaces. It provides shared proposal and risk types, fixed per-surface intent catalogs, deterministic validation, canonical SHA-256 proposal hashes, recursive redaction, an Arabic-aware rules-only assistant, local confirmation states, and unit/widget coverage. The customer/merchant app shows the card on customer home and the merchant hub; the Creator Console shows it on the Creator dashboard.
 
-The current cards confirm only a local proposal and explicitly report that no server change was performed. They do not load a model, call an AI provider, invoke Supabase, enqueue an outbox command, or create a new execution authority. Edge-1 remains the native runtime shell and real-device benchmarking increment.
+The current cards confirm only a local proposal and explicitly report that no server change was performed. They do not load a model, call an AI provider, invoke Supabase, enqueue an outbox command, or create a new execution authority.
+
+## Edge-1 implementation checkpoint
+
+Edge-1 is implemented as a typed native runtime shell. `EdgeRuntimeChannel` exposes status, model loading, inference, cancellation, and unload operations through the versioned `com.yemencommerce/edge_runtime.v1` channel. Android Kotlin and iOS Swift bridges are registered in both Flutter apps and currently return the explicit `MODEL_RUNTIME_NOT_ENABLED` response for model loading and inference. This is intentional: the bridge proves the lifecycle and fallback boundary without shipping an unbenchmarked model or adding model-controlled execution authority.
+
+`FakeEdgeRuntime` and `EdgeAssistantCoordinator` provide deterministic tests and select the rules-only assistant whenever the native runtime is missing, unavailable, returns an invalid proposal, or raises a safe runtime error. The app cards now use this coordinator, so Web and unsupported devices remain functional without native inference. Android APK compilation is pending because this Linux environment has no Android SDK; iOS compilation is pending because Xcode is unavailable on Linux. Dart analysis, Flutter tests, and Web release builds remain runnable and are covered by the validation report.
 
 ## References
 

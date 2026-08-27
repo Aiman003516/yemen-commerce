@@ -2065,6 +2065,360 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> merchantOperationsSummary() async {
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب مؤشرات العمليات اتصال Supabase.');
+    }
+    try {
+      return await supabase.merchantOperationsSummary();
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل مؤشرات القنوات والتوصيل.'),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> merchantChannels(String shopId) async {
+    if (shopId.trim().isEmpty) {
+      throw ApiException('معرّف متجر قنوات البيع غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب قنوات البيع اتصال Supabase.');
+    }
+    try {
+      return await supabase.merchantChannels(shopId.trim());
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل قنوات البيع.'),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> channelListings(String channelId) async {
+    if (channelId.trim().isEmpty) {
+      throw ApiException('معرّف قناة البيع غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب قوائم القناة اتصال Supabase.');
+    }
+    try {
+      return await supabase.channelListings(channelId.trim());
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل منتجات القناة.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> upsertMerchantChannel({
+    required String shopId,
+    required String channelKey,
+    required String displayName,
+    required String channelKind,
+    required String status,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (shopId.trim().isEmpty ||
+        channelKey.trim().isEmpty ||
+        displayName.trim().length < 2 ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات قناة البيع أو سبب التعديل غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إدارة قنوات البيع اتصال Supabase.');
+    }
+    try {
+      return await supabase.upsertMerchantChannel(
+        shopId: shopId.trim(),
+        channelKey: channelKey.trim(),
+        displayName: displayName.trim(),
+        channelKind: channelKind,
+        status: status,
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر حفظ قناة البيع.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> upsertChannelListing({
+    required String channelId,
+    required String productId,
+    required String listingStatus,
+    String? channelTitle,
+    String? channelDescription,
+    int? priceOverrideMinor,
+    String? currencyOverride,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (channelId.trim().isEmpty ||
+        productId.trim().isEmpty ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات عرض المنتج أو سبب التعديل غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب إدارة عروض القنوات اتصال Supabase.');
+    }
+    try {
+      return await supabase.upsertChannelListing(
+        channelId: channelId.trim(),
+        productId: productId.trim(),
+        listingStatus: listingStatus,
+        channelTitle: channelTitle?.trim().isEmpty == true
+            ? null
+            : channelTitle?.trim(),
+        channelDescription: channelDescription?.trim().isEmpty == true
+            ? null
+            : channelDescription?.trim(),
+        priceOverrideMinor: priceOverrideMinor,
+        currencyOverride: currencyOverride,
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر حفظ عرض المنتج في القناة.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> createShipmentPlan({
+    required String merchantOrderId,
+    required String carrierKey,
+    String? serviceLevel,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (merchantOrderId.trim().isEmpty ||
+        carrierKey.trim().length < 2 ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات خطة التوصيل أو سببها غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب خطة التوصيل اتصال Supabase.');
+    }
+    try {
+      return await supabase.createShipmentPlan(
+        merchantOrderId: merchantOrderId.trim(),
+        carrierKey: carrierKey.trim(),
+        serviceLevel: serviceLevel?.trim().isEmpty == true
+            ? null
+            : serviceLevel?.trim(),
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر إنشاء خطة التوصيل.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> recordShipmentEvent({
+    required String shipmentPlanId,
+    required String status,
+    String? customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (shipmentPlanId.trim().isEmpty ||
+        status.trim().isEmpty ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات حالة التوصيل أو سببها غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب حالات التوصيل اتصال Supabase.');
+    }
+    try {
+      return await supabase.recordShipmentEvent(
+        shipmentPlanId: shipmentPlanId.trim(),
+        status: status,
+        customerMessage: customerMessage?.trim().isEmpty == true
+            ? null
+            : customerMessage?.trim(),
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحديث حالة التوصيل.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> openDeliveryException({
+    required String shipmentPlanId,
+    required String code,
+    required String severity,
+    required String customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (shipmentPlanId.trim().isEmpty ||
+        code.trim().isEmpty ||
+        customerMessage.trim().length < 3 ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات استثناء التوصيل أو سببه غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب استثناءات التوصيل اتصال Supabase.');
+    }
+    try {
+      return await supabase.openDeliveryException(
+        shipmentPlanId: shipmentPlanId.trim(),
+        code: code.trim(),
+        severity: severity,
+        customerMessage: customerMessage.trim(),
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تسجيل استثناء التوصيل.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> resolveDeliveryException({
+    required String exceptionId,
+    required String status,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (exceptionId.trim().isEmpty ||
+        status.trim().isEmpty ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات معالجة الاستثناء أو سببها غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب معالجة الاستثناء اتصال Supabase.');
+    }
+    try {
+      return await supabase.resolveDeliveryException(
+        exceptionId: exceptionId.trim(),
+        status: status,
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر معالجة استثناء التوصيل.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> startReturnLogistics({
+    required String orderCaseId,
+    required String method,
+    String? customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (orderCaseId.trim().isEmpty ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات لوجستيات المرتجع أو سببها غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب لوجستيات المرتجعات اتصال Supabase.');
+    }
+    try {
+      return await supabase.startReturnLogistics(
+        orderCaseId: orderCaseId.trim(),
+        method: method,
+        customerMessage: customerMessage?.trim().isEmpty == true
+            ? null
+            : customerMessage?.trim(),
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر بدء لوجستيات المرتجع.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> recordReturnEvent({
+    required String returnLogisticsId,
+    required String status,
+    String? customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    if (returnLogisticsId.trim().isEmpty ||
+        status.trim().isEmpty ||
+        reason.trim().length < 5 ||
+        idempotencyKey.trim().length < 16) {
+      throw ApiException('بيانات حالة المرتجع أو سببها غير صالحة.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب حالات المرتجعات اتصال Supabase.');
+    }
+    try {
+      return await supabase.recordReturnEvent(
+        returnLogisticsId: returnLogisticsId.trim(),
+        status: status,
+        customerMessage: customerMessage?.trim().isEmpty == true
+            ? null
+            : customerMessage?.trim(),
+        reason: reason.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحديث حالة المرتجع.'),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> publishedChannelCatalog({
+    required String channelId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    if (channelId.trim().isEmpty) {
+      throw ApiException('معرّف قناة البيع غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب قائمة قناة البيع اتصال Supabase.');
+    }
+    try {
+      return await supabase.publishedChannelCatalog(
+        channelId: channelId.trim(),
+        limit: limit,
+        offset: offset,
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل منتجات قناة البيع.'),
+      );
+    }
+  }
+
   Future<void> submitPaymentReference({
     required String merchantOrderId,
     required String reference,
@@ -2138,6 +2492,49 @@ String _localizedSupabaseError(PostgrestException error, String fallback) {
   }
   if (signal.contains('SHOP_NOT_OWNED') || signal.contains('ORDER_NOT_FOUND')) {
     return 'لا يمكن الوصول إلى هذا الطلب أو المتجر بهذه الجلسة.';
+  }
+  if (signal.contains('CHANNEL_NOT_OWNED') ||
+      signal.contains('PRODUCT_NOT_IN_CHANNEL_SHOP') ||
+      signal.contains('SHIPMENT_PLAN_NOT_FOUND') ||
+      signal.contains('DELIVERY_EXCEPTION_NOT_FOUND') ||
+      signal.contains('RETURN_LOGISTICS_NOT_FOUND')) {
+    return 'لا يمكن الوصول إلى هذا السجل أو المتجر بهذه الجلسة.';
+  }
+  if (signal.contains('AUDIT_REASON_REQUIRED')) {
+    return 'اكتب سبباً واضحاً لا يقل عن خمس خانات قبل الحفظ.';
+  }
+  if (signal.contains('INVALID_COMMAND_KEY') ||
+      signal.contains('COMMAND_KEY_NOT_FOUND')) {
+    return 'تعذر التحقق من مفتاح إعادة المحاولة. أعد تنفيذ العملية من الشاشة الحالية.';
+  }
+  if (signal.contains('COMMAND_KEY_REUSE')) {
+    return 'مفتاح إعادة المحاولة مستخدم لبيانات مختلفة. أنشئ محاولة جديدة.';
+  }
+  if (signal.contains('INVALID_CHANNEL') ||
+      signal.contains('INVALID_CHANNEL_LISTING') ||
+      signal.contains('CHANNEL_LISTING_REQUIRES_ACTIVE_RECORDS')) {
+    return 'بيانات القناة أو قائمة المنتج غير صالحة. تحقق من الحالة والحقول المطلوبة.';
+  }
+  if (signal.contains('SHIPMENT_PLAN_NOT_ALLOWED') ||
+      signal.contains('CARRIER_KEY_REQUIRED')) {
+    return 'لا يمكن إنشاء خطة توصيل لهذا الطلب أو بدون تحديد مسار التوصيل.';
+  }
+  if (signal.contains('INVALID_SHIPMENT_STATUS') ||
+      signal.contains('INVALID_SHIPMENT_TRANSITION')) {
+    return 'انتقال حالة التوصيل غير مسموح. حدّث الشاشة ثم اختر الحالة التالية.';
+  }
+  if (signal.contains('PAYMENT_CONFIRMATION_REQUIRED')) {
+    return 'لا يمكن بدء التوصيل قبل تأكيد الدفع من التاجر. إثبات الدفع وحده لا يكفي.';
+  }
+  if (signal.contains('INVALID_DELIVERY_EXCEPTION') ||
+      signal.contains('DELIVERY_EXCEPTION_FINAL')) {
+    return 'استثناء التوصيل غير صالح أو أُغلق نهائياً.';
+  }
+  if (signal.contains('RETURN_CASE_NOT_READY') ||
+      signal.contains('INVALID_RETURN_METHOD') ||
+      signal.contains('INVALID_RETURN_STATUS') ||
+      signal.contains('INVALID_RETURN_TRANSITION')) {
+    return 'لوجستيات المرتجع غير متاحة بهذه الحالة. راجع اعتماد طلب المرتجع وتسلسل حالته.';
   }
   if (signal.contains('INVALID_ORDER_WORKBENCH_PAGINATION') ||
       signal.contains('INVALID_COD_PAGINATION')) {

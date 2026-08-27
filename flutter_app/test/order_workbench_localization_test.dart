@@ -119,6 +119,29 @@ void main() {
     },
   );
 
+  test('maps channel, delivery, and return errors to Arabic guidance', () {
+    final cases = <String, String>{
+      'CHANNEL_NOT_OWNED': 'الوصول',
+      'INVALID_CHANNEL': 'بيانات القناة',
+      'AUDIT_REASON_REQUIRED': 'سبباً واضحاً',
+      'INVALID_COMMAND_KEY': 'مفتاح إعادة المحاولة',
+      'COMMAND_KEY_REUSE': 'مفتاح إعادة المحاولة',
+      'INVALID_SHIPMENT_TRANSITION': 'انتقال حالة التوصيل',
+      'PAYMENT_CONFIRMATION_REQUIRED': 'تأكيد الدفع',
+      'INVALID_DELIVERY_EXCEPTION': 'استثناء التوصيل',
+      'RETURN_CASE_NOT_READY': 'لوجستيات المرتجع',
+      'INVALID_RETURN_TRANSITION': 'لوجستيات المرتجع',
+    };
+    for (final entry in cases.entries) {
+      final message = localizedSupabaseErrorForTest(
+        error(entry.key),
+        'fallback',
+      );
+      expect(message, contains(entry.value), reason: entry.key);
+      expect(message, isNot(contains(entry.key)), reason: entry.key);
+    }
+  });
+
   test('uses a safe Arabic fallback for unknown database errors', () {
     const fallback = 'تعذر تنفيذ العملية. حاول مجدداً.';
     final message = localizedSupabaseErrorForTest(

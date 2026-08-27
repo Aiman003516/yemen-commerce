@@ -1763,6 +1763,227 @@ class SupabaseMarketplaceClient {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<Map<String, dynamic>> merchantOperationsSummary() async {
+    final result = await _client.rpc('merchant_get_operations_summary');
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> merchantChannels(String shopId) async {
+    final rows = await _client
+        .from('commerce_channels')
+        .select(
+          'id,shop_id,channel_key,display_name,channel_kind,status,public_slug,updated_at',
+        )
+        .eq('shop_id', shopId)
+        .order('updated_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> channelListings(String channelId) async {
+    final rows = await _client
+        .from('channel_listings')
+        .select(
+          'id,channel_id,product_id,listing_status,channel_title,price_override_minor,currency_override,updated_at',
+        )
+        .eq('channel_id', channelId)
+        .order('updated_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> upsertMerchantChannel({
+    required String shopId,
+    required String channelKey,
+    required String displayName,
+    required String channelKind,
+    required String status,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_upsert_channel',
+      params: {
+        'p_shop_id': shopId,
+        'p_channel_key': channelKey,
+        'p_display_name': displayName,
+        'p_channel_kind': channelKind,
+        'p_status': status,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> upsertChannelListing({
+    required String channelId,
+    required String productId,
+    required String listingStatus,
+    String? channelTitle,
+    String? channelDescription,
+    int? priceOverrideMinor,
+    String? currencyOverride,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_upsert_channel_listing',
+      params: {
+        'p_channel_id': channelId,
+        'p_product_id': productId,
+        'p_listing_status': listingStatus,
+        'p_channel_title': channelTitle,
+        'p_channel_description': channelDescription,
+        'p_price_override_minor': priceOverrideMinor,
+        'p_currency_override': currencyOverride,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> createShipmentPlan({
+    required String merchantOrderId,
+    required String carrierKey,
+    String? serviceLevel,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_create_shipment_plan',
+      params: {
+        'p_merchant_order_id': merchantOrderId,
+        'p_carrier_key': carrierKey,
+        'p_service_level': serviceLevel,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordShipmentEvent({
+    required String shipmentPlanId,
+    required String status,
+    String? customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_record_shipment_event',
+      params: {
+        'p_shipment_plan_id': shipmentPlanId,
+        'p_status': status,
+        'p_customer_message': customerMessage,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> openDeliveryException({
+    required String shipmentPlanId,
+    required String code,
+    required String severity,
+    required String customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_open_delivery_exception',
+      params: {
+        'p_shipment_plan_id': shipmentPlanId,
+        'p_code': code,
+        'p_severity': severity,
+        'p_customer_message': customerMessage,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> resolveDeliveryException({
+    required String exceptionId,
+    required String status,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_resolve_delivery_exception',
+      params: {
+        'p_exception_id': exceptionId,
+        'p_status': status,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> startReturnLogistics({
+    required String orderCaseId,
+    required String method,
+    String? customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_start_return_logistics',
+      params: {
+        'p_order_case_id': orderCaseId,
+        'p_method': method,
+        'p_customer_message': customerMessage,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<Map<String, dynamic>> recordReturnEvent({
+    required String returnLogisticsId,
+    required String status,
+    String? customerMessage,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final result = await _client.rpc(
+      'merchant_record_return_event',
+      params: {
+        'p_return_logistics_id': returnLogisticsId,
+        'p_status': status,
+        'p_customer_message': customerMessage,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> publishedChannelCatalog({
+    required String channelId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'get_published_channel_catalog',
+      params: {
+        'p_channel_id': channelId,
+        'p_limit': limit.clamp(1, 100),
+        'p_offset': offset.clamp(0, 10000),
+      },
+    );
+    return (rows as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>> recordCodCollection({
     required String merchantOrderId,
     required int collectedMinor,

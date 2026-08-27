@@ -4367,6 +4367,8 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             const SizedBox(height: 20),
             const _MerchantErpCard(),
             const SizedBox(height: 20),
+            _MerchantChannelsCard(shopId: workspace.shops.first.id),
+            const SizedBox(height: 20),
             _MerchantInsightsCard(
               shopId: workspace.shops.first.id,
               onAddPromotion: () => _createPromotion(workspace.shops.first.id),
@@ -7618,10 +7620,16 @@ class _MerchantErpCard extends StatefulWidget {
 }
 
 class _MerchantErpCardState extends State<_MerchantErpCard> {
+  static Map<String, dynamic> _summaryMap(dynamic value) {
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return const <String, dynamic>{};
+  }
+
   late Future<List<dynamic>> _load = Future.wait<dynamic>([
     MarketplaceApiClient().erpFeatureCatalog(),
     MarketplaceApiClient().erpMyOrganizationDashboard(),
     MarketplaceApiClient().erpComposableModules(),
+    MarketplaceApiClient().merchantOperationsSummary(),
   ]);
 
   void _reload() {
@@ -7659,6 +7667,11 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
           final dashboard = snapshot.data![1] as Map<String, dynamic>?;
           final modules = (snapshot.data![2] as List<dynamic>)
               .cast<Map<String, dynamic>>();
+          final operations = snapshot.data![3] as Map<String, dynamic>;
+          final channels = _summaryMap(operations['channels']);
+          final shipments = _summaryMap(operations['shipments']);
+          final exceptions = _summaryMap(operations['delivery_exceptions']);
+          final returns = _summaryMap(operations['returns']);
           final foundation = rows
               .where((row) => row['implementation_status'] == 'foundation')
               .length;
@@ -7703,6 +7716,22 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
                   _MetricChip(
                     label: 'أحداث معلقة',
                     value: '${dashboard?['open_event_count'] ?? 0}',
+                  ),
+                  _MetricChip(
+                    label: 'قنوات نشطة',
+                    value: '${channels['active_count'] ?? 0}',
+                  ),
+                  _MetricChip(
+                    label: 'شحنات قيد الحركة',
+                    value: '${shipments['in_flight_count'] ?? 0}',
+                  ),
+                  _MetricChip(
+                    label: 'استثناءات التوصيل',
+                    value: '${exceptions['open_count'] ?? 0}',
+                  ),
+                  _MetricChip(
+                    label: 'مرتجعات نشطة',
+                    value: '${returns['active_count'] ?? 0}',
                   ),
                 ],
               ),
@@ -7767,6 +7796,242 @@ class _MerchantErpCardState extends State<_MerchantErpCard> {
                     )
                     .toList(growable: false),
               ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _MerchantChannelsCard extends StatefulWidget {
+  const _MerchantChannelsCard({required this.shopId});
+
+  final String shopId;
+
+  @override
+  State<_MerchantChannelsCard> createState() => _MerchantChannelsCardState();
+}
+
+class _MerchantChannelsCardState extends State<_MerchantChannelsCard> {
+  late Future<List<Map<String, dynamic>>> _channels = MarketplaceApiClient()
+      .merchantChannels(widget.shopId);
+
+  void _reload() {
+    setState(() {
+      _channels = MarketplaceApiClient().merchantChannels(widget.shopId);
+    });
+  }
+
+  Future<void> _createChannel() async {
+    final keyController = TextEditingController();
+    final nameController = TextEditingController();
+    final reasonController = TextEditingController();
+    var kind = 'web';
+    var status = 'draft';
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('إضافة قناة بيع'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: keyController,
+                  decoration: const InputDecoration(
+                    labelText: 'المفتاح البرمجي للقناة',
+                    helperText: 'أحرف إنجليزية صغيرة وأرقام وشرطة سفلية فقط.',
+                  ),
+                  textDirection: TextDirection.ltr,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'اسم القناة'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: kind,
+                  decoration: const InputDecoration(labelText: 'نوع القناة'),
+                  items: const [
+                    DropdownMenuItem(value: 'web', child: Text('متجر ويب')),
+                    DropdownMenuItem(value: 'social', child: Text('اجتماعية')),
+                    DropdownMenuItem(value: 'pos', child: Text('نقطة بيع')),
+                    DropdownMenuItem(value: 'b2b', child: Text('جملة B2B')),
+                    DropdownMenuItem(
+                      value: 'marketplace',
+                      child: Text('سوق خارجي'),
+                    ),
+                    DropdownMenuItem(value: 'service', child: Text('خدمات')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => kind = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(
+                    labelText: 'الحالة الأولية',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                    DropdownMenuItem(value: 'active', child: Text('نشطة')),
+                    DropdownMenuItem(
+                      value: 'paused',
+                      child: Text('متوقفة مؤقتاً'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => status = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'سبب التدقيق (إلزامي)',
+                    hintText: 'لماذا تُنشئ أو تُفعّل هذه القناة؟',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'القناة لا تمنح أي مزود خارجي مفاتيح أو وصولاً تلقائياً. الدفع يظل مملوكاً للتاجر، وإثبات الدفع ليس تأكيداً للدفع.',
+                  style: TextStyle(height: 1.45),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (keyController.text.trim().isEmpty ||
+                    nameController.text.trim().length < 2 ||
+                    reasonController.text.trim().length < 5) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('أدخل اسم القناة ومفتاحها وسبباً واضحاً.'),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  final idempotencyKey =
+                      'channel_${DateTime.now().microsecondsSinceEpoch}';
+                  await MarketplaceApiClient().upsertMerchantChannel(
+                    shopId: widget.shopId,
+                    channelKey: keyController.text.trim(),
+                    displayName: nameController.text.trim(),
+                    channelKind: kind,
+                    status: status,
+                    reason: reasonController.text.trim(),
+                    idempotencyKey: idempotencyKey,
+                  );
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                } on ApiException catch (error) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error.message)));
+                  }
+                }
+              },
+              child: const Text('حفظ القناة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    keyController.dispose();
+    nameController.dispose();
+    reasonController.dispose();
+    if (result == true && mounted) {
+      _reload();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ قناة البيع بسجل تدقيق.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _channels,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          if (snapshot.hasError) {
+            return Row(
+              children: [
+                const Expanded(child: Text('تعذر تحميل قنوات البيع حالياً.')),
+                IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
+              ],
+            );
+          }
+          final channels = snapshot.data ?? const <Map<String, dynamic>>[];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: _SectionHeader(
+                      title: 'قنوات البيع والمتاجر المتعددة',
+                      subtitle: 'أنشئ قنوات مستقلة للويب وB2B ونقاط البيع والخدمات دون خلط بيانات التجار.',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _reload,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _createChannel,
+                    icon: const Icon(Icons.add),
+                    label: const Text('إضافة'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'تبدأ القنوات كمسودات. لا يتم نشر منتج إلا عبر قائمة قناة نشطة وبعد اعتماد المتجر، ولا توجد مزامنة خارجية مفعلة تلقائياً.',
+                style: TextStyle(height: 1.45),
+              ),
+              const SizedBox(height: 12),
+              if (channels.isEmpty)
+                const Text('لا توجد قنوات بيع بعد. أضف قناة مسودة للبدء.')
+              else
+                ...channels
+                    .take(8)
+                    .map(
+                      (channel) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.hub_outlined),
+                        title: Text('${channel['display_name'] ?? '-'}'),
+                        subtitle: Text(
+                          '${channel['channel_key'] ?? '-'} · ${channel['channel_kind'] ?? '-'}',
+                        ),
+                        trailing: Chip(
+                          label: Text(
+                            channel['status'] == 'active'
+                                ? 'نشطة'
+                                : channel['status'] == 'paused'
+                                ? 'متوقفة'
+                                : 'مسودة',
+                          ),
+                        ),
+                      ),
+                    ),
             ],
           );
         },

@@ -50,9 +50,28 @@ enum EdgeProposalState {
 /// catalog: the edge model may propose only these safe, user-facing intents.
 abstract final class EdgeIntentCatalog {
   static const clarify = 'assistant.clarify';
+  static const navigationOpen = 'navigation.open';
+  static const knowledgeExplain = 'knowledge.explain';
+  static const statusExplain = 'status.explain';
+
+  static const readOnlyIntents = <String>{
+    navigationOpen,
+    knowledgeExplain,
+    statusExplain,
+    'catalog.search',
+    'order.explain',
+    'delivery.explain',
+    'merchant.summary',
+    'erp.summary',
+    'provider.readiness',
+    'ai.evaluation_summary',
+  };
 
   static const customerIntents = <String>{
     clarify,
+    navigationOpen,
+    knowledgeExplain,
+    statusExplain,
     'catalog.search',
     'order.explain',
     'delivery.explain',
@@ -62,6 +81,9 @@ abstract final class EdgeIntentCatalog {
 
   static const merchantIntents = <String>{
     clarify,
+    navigationOpen,
+    knowledgeExplain,
+    statusExplain,
     'catalog.search',
     'catalog.draft_description',
     'order.explain',
@@ -78,6 +100,9 @@ abstract final class EdgeIntentCatalog {
 
   static const creatorIntents = <String>{
     clarify,
+    navigationOpen,
+    knowledgeExplain,
+    statusExplain,
     'erp.summary',
     'provider.readiness',
     'ai.evaluation_summary',
@@ -120,6 +145,9 @@ abstract final class EdgeIntentCatalog {
     }
   }
 
+  static bool isReadOnly(String intent) =>
+      readOnlyIntents.contains(intent) || intent == clarify;
+
   static EdgeRiskClass expectedRiskFor(String intent) {
     if (prohibitedIntents.contains(intent)) return EdgeRiskClass.prohibited;
     if (highImpactIntents.contains(intent)) return EdgeRiskClass.highImpact;
@@ -131,6 +159,107 @@ abstract final class EdgeIntentCatalog {
     }
     return EdgeRiskClass.readOnly;
   }
+}
+
+/// A fixed route identifier, never an arbitrary Flutter path, URL, callback,
+/// or deep link. Consumers map it to locally compiled screens.
+abstract final class EdgeRouteCatalog {
+  static const customerOrders = 'customer.orders';
+  static const customerDelivery = 'customer.delivery';
+  static const customerReturns = 'customer.returns';
+  static const customerSupport = 'customer.support';
+  static const merchantOrders = 'merchant.orders';
+  static const merchantCatalog = 'merchant.catalog';
+  static const merchantInventory = 'merchant.inventory';
+  static const merchantShipments = 'merchant.shipments';
+  static const merchantReturns = 'merchant.returns';
+  static const merchantSync = 'merchant.sync';
+  static const creatorGovernance = 'creator.governance';
+  static const creatorProviders = 'creator.providers';
+  static const creatorEvaluations = 'creator.evaluations';
+
+  static const _routesBySurface = <EdgeAppSurface, Set<String>>{
+    EdgeAppSurface.customer: {
+      customerOrders,
+      customerDelivery,
+      customerReturns,
+      customerSupport,
+    },
+    EdgeAppSurface.merchant: {
+      merchantOrders,
+      merchantCatalog,
+      merchantInventory,
+      merchantShipments,
+      merchantReturns,
+      merchantSync,
+    },
+    EdgeAppSurface.creator: {
+      creatorGovernance,
+      creatorProviders,
+      creatorEvaluations,
+    },
+  };
+
+  static bool isAllowed(EdgeAppSurface surface, String? routeId) =>
+      routeId != null && _routesBySurface[surface]!.contains(routeId);
+
+  static Set<String> forSurface(EdgeAppSurface surface) =>
+      Set.unmodifiable(_routesBySurface[surface]!);
+}
+
+abstract final class EdgeKnowledgeTopicCatalog {
+  static const topics = <String>{
+    'catalog',
+    'orders',
+    'delivery',
+    'returns',
+    'inventory',
+    'pos',
+    'cod',
+    'b2b',
+    'channels',
+    'payments_explanation',
+    'creator_governance',
+    'offline_sync',
+  };
+
+  static bool contains(String? topic) =>
+      topic != null && topics.contains(topic);
+}
+
+class EdgeProposalProvenance {
+  const EdgeProposalProvenance({
+    required this.source,
+    required this.retrievedAt,
+    this.packId,
+    this.packVersion,
+    this.expiresAt,
+  });
+
+  final String source;
+  final DateTime retrievedAt;
+  final String? packId;
+  final String? packVersion;
+  final DateTime? expiresAt;
+
+  Map<String, dynamic> toJson() => {
+    'source': source,
+    'retrieved_at': retrievedAt.toUtc().toIso8601String(),
+    if (packId != null) 'pack_id': packId,
+    if (packVersion != null) 'pack_version': packVersion,
+    if (expiresAt != null) 'expires_at': expiresAt!.toUtc().toIso8601String(),
+  };
+
+  factory EdgeProposalProvenance.fromJson(Map<String, dynamic> json) =>
+      EdgeProposalProvenance(
+        source: json['source']?.toString() ?? '',
+        retrievedAt:
+            DateTime.tryParse(json['retrieved_at']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        packId: json['pack_id']?.toString(),
+        packVersion: json['pack_version']?.toString(),
+        expiresAt: DateTime.tryParse(json['expires_at']?.toString() ?? ''),
+      );
 }
 
 class EdgeAssistantRequest {
@@ -178,6 +307,7 @@ class EdgeProposal {
     required this.createdAt,
     this.modelVersion = 'rules-0',
     this.state = EdgeProposalState.proposalReady,
+    this.provenance,
   });
 
   final String schemaVersion;
@@ -193,6 +323,7 @@ class EdgeProposal {
   final DateTime createdAt;
   final String modelVersion;
   final EdgeProposalState state;
+  final EdgeProposalProvenance? provenance;
 
   bool get isExecutableCandidate =>
       state == EdgeProposalState.proposalReady &&
@@ -211,6 +342,7 @@ class EdgeProposal {
     'requires_confirmation': requiresConfirmation,
     'model_version': modelVersion,
     'state': state.value,
+    if (provenance != null) 'provenance': provenance!.toJson(),
   };
 
   String get proposalHash =>
@@ -248,6 +380,11 @@ class EdgeProposal {
       (item) => item.value == json['state']?.toString(),
       orElse: () => EdgeProposalState.proposalReady,
     ),
+    provenance: json['provenance'] is Map
+        ? EdgeProposalProvenance.fromJson(
+            Map<String, dynamic>.from(json['provenance'] as Map),
+          )
+        : null,
   );
 }
 
@@ -354,6 +491,75 @@ abstract final class EdgeProposalValidator {
         ),
       );
     }
+    final current = now ?? DateTime.now().toUtc();
+    if (proposal.intent == EdgeIntentCatalog.navigationOpen &&
+        !EdgeRouteCatalog.isAllowed(
+          proposal.surface,
+          proposal.entities['route_id']?.toString(),
+        )) {
+      issues.add(
+        const EdgeValidationIssue(
+          'INVALID_ROUTE',
+          'مسار الشاشة غير مسموح لهذا التطبيق أو الدور.',
+        ),
+      );
+    }
+    if (proposal.intent == EdgeIntentCatalog.knowledgeExplain &&
+        !EdgeKnowledgeTopicCatalog.contains(
+          proposal.entities['topic_key']?.toString(),
+        )) {
+      issues.add(
+        const EdgeValidationIssue(
+          'INVALID_KNOWLEDGE_TOPIC',
+          'موضوع المعرفة غير موجود في الحزمة الموثوقة.',
+        ),
+      );
+    }
+    if (proposal.intent == EdgeIntentCatalog.statusExplain &&
+        !_safeStatusKey.hasMatch(
+          proposal.entities['status_key']?.toString() ?? '',
+        )) {
+      issues.add(
+        const EdgeValidationIssue(
+          'INVALID_STATUS_KEY',
+          'مفتاح الحالة المطلوب شرحه غير صالح.',
+        ),
+      );
+    }
+    final provenance = proposal.provenance;
+    if (proposal.intent == EdgeIntentCatalog.knowledgeExplain &&
+        provenance == null) {
+      issues.add(
+        const EdgeValidationIssue(
+          'PROVENANCE_REQUIRED',
+          'لا يمكن عرض المعرفة المحلية دون مصدر موثق.',
+        ),
+      );
+    }
+    if (provenance != null) {
+      if (!_allowedProvenanceSources.contains(provenance.source) ||
+          provenance.source.length > 80 ||
+          provenance.packId != null &&
+              !_safeIdentifier.hasMatch(provenance.packId!) ||
+          provenance.packVersion != null &&
+              !_safeIdentifier.hasMatch(provenance.packVersion!)) {
+        issues.add(
+          const EdgeValidationIssue(
+            'INVALID_PROVENANCE',
+            'مصدر الاقتراح غير موثق أو غير صالح.',
+          ),
+        );
+      }
+      if (provenance.expiresAt != null &&
+          !provenance.expiresAt!.toUtc().isAfter(current)) {
+        issues.add(
+          const EdgeValidationIssue(
+            'STALE_PROVENANCE',
+            'مصدر المعرفة المحلي منتهي الصلاحية.',
+          ),
+        );
+      }
+    }
     final expectedRisk = EdgeIntentCatalog.expectedRiskFor(proposal.intent);
     if (proposal.riskClass != expectedRisk) {
       issues.add(
@@ -397,7 +603,6 @@ abstract final class EdgeProposalValidator {
         ),
       );
     }
-    final current = now ?? DateTime.now().toUtc();
     if (proposal.createdAt.toUtc().isAfter(
       current.add(const Duration(minutes: 2)),
     )) {
@@ -423,6 +628,13 @@ abstract final class EdgeProposalValidator {
   }
 
   static final _safeFieldName = RegExp(r'^[a-zA-Z][a-zA-Z0-9_]{0,79}$');
+  static final _safeStatusKey = RegExp(r'^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$');
+  static final _safeIdentifier = RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$');
+  static const _allowedProvenanceSources = {
+    'rules',
+    'local_knowledge_pack',
+    'server_read',
+  };
 
   static bool _validEntityTree(dynamic value, int depth) {
     if (depth > _maxEntityDepth) return false;
@@ -549,6 +761,18 @@ class EdgeRulesOnlyAssistant {
       }
       if (entities['reason'] == null) missingFields.add('reason');
     }
+    if (intent == EdgeIntentCatalog.navigationOpen &&
+        entities['route_id'] == null) {
+      missingFields.add('route_id');
+    }
+    if (intent == EdgeIntentCatalog.knowledgeExplain &&
+        entities['topic_key'] == null) {
+      missingFields.add('topic_key');
+    }
+    if (intent == EdgeIntentCatalog.statusExplain &&
+        entities['status_key'] == null) {
+      missingFields.add('status_key');
+    }
     final needsClarification =
         intent == EdgeIntentCatalog.clarify || missingFields.isNotEmpty;
     final effectiveIntent =
@@ -573,6 +797,12 @@ class EdgeRulesOnlyAssistant {
       state: needsClarification
           ? EdgeProposalState.needsClarification
           : EdgeProposalState.proposalReady,
+      provenance: intent == EdgeIntentCatalog.knowledgeExplain
+          ? EdgeProposalProvenance(
+              source: 'rules',
+              retrievedAt: request.createdAt,
+            )
+          : null,
     );
   }
 
@@ -599,6 +829,16 @@ class EdgeRulesOnlyAssistant {
       if (lower.contains(entry.key)) {
         return (entry.value, const <String, dynamic>{});
       }
+    }
+    if (lower.contains('افتح') ||
+        lower.contains('open') ||
+        lower.contains('navigate') ||
+        prompt.contains('اذهب')) {
+      final route = _routeFromPrompt(surface, prompt, lower);
+      return (
+        EdgeIntentCatalog.navigationOpen,
+        <String, dynamic>{'route_id': route},
+      );
     }
     if (surface == EdgeAppSurface.merchant &&
         (lower.contains('shipment') || prompt.contains('توصيل')) &&
@@ -637,7 +877,136 @@ class EdgeRulesOnlyAssistant {
         (prompt.contains('مزود') || lower.contains('provider'))) {
       return ('provider.readiness', const <String, dynamic>{});
     }
+    if (prompt.contains('اشرح') ||
+        prompt.contains('ما معنى') ||
+        lower.contains('explain') ||
+        lower.contains('how does')) {
+      final topic = _topicFromPrompt(prompt, lower);
+      if (topic != null) {
+        return (
+          EdgeIntentCatalog.knowledgeExplain,
+          <String, dynamic>{'topic_key': topic},
+        );
+      }
+      final statusKey = _statusKeyFromPrompt(prompt, lower);
+      if (statusKey != null) {
+        return (
+          EdgeIntentCatalog.statusExplain,
+          <String, dynamic>{'status_key': statusKey},
+        );
+      }
+    }
     return (EdgeIntentCatalog.clarify, const <String, dynamic>{});
+  }
+
+  String? _routeFromPrompt(
+    EdgeAppSurface surface,
+    String prompt,
+    String lower,
+  ) {
+    if (surface == EdgeAppSurface.customer) {
+      if (prompt.contains('طلب') || lower.contains('order')) {
+        return EdgeRouteCatalog.customerOrders;
+      }
+      if (prompt.contains('توصيل') || lower.contains('delivery')) {
+        return EdgeRouteCatalog.customerDelivery;
+      }
+      if (prompt.contains('مرتجع') || lower.contains('return')) {
+        return EdgeRouteCatalog.customerReturns;
+      }
+      if (prompt.contains('دعم') || lower.contains('support')) {
+        return EdgeRouteCatalog.customerSupport;
+      }
+    }
+    if (surface == EdgeAppSurface.merchant) {
+      if (prompt.contains('طلب') || lower.contains('order')) {
+        return EdgeRouteCatalog.merchantOrders;
+      }
+      if (prompt.contains('منتج') || lower.contains('catalog')) {
+        return EdgeRouteCatalog.merchantCatalog;
+      }
+      if (prompt.contains('مخزون') || lower.contains('inventory')) {
+        return EdgeRouteCatalog.merchantInventory;
+      }
+      if (prompt.contains('شحن') || lower.contains('shipment')) {
+        return EdgeRouteCatalog.merchantShipments;
+      }
+      if (prompt.contains('مرتجع') || lower.contains('return')) {
+        return EdgeRouteCatalog.merchantReturns;
+      }
+      if (prompt.contains('مزامنة') || lower.contains('sync')) {
+        return EdgeRouteCatalog.merchantSync;
+      }
+    }
+    if (surface == EdgeAppSurface.creator) {
+      if (prompt.contains('حوكمة') || lower.contains('governance')) {
+        return EdgeRouteCatalog.creatorGovernance;
+      }
+      if (prompt.contains('مزود') || lower.contains('provider')) {
+        return EdgeRouteCatalog.creatorProviders;
+      }
+      if (prompt.contains('تقييم') || lower.contains('evaluation')) {
+        return EdgeRouteCatalog.creatorEvaluations;
+      }
+    }
+    return null;
+  }
+
+  String? _topicFromPrompt(String prompt, String lower) {
+    final aliases = <String, String>{
+      'منتج': 'catalog',
+      'كتالوج': 'catalog',
+      'طلب': 'orders',
+      'توصيل': 'delivery',
+      'شحن': 'delivery',
+      'مرتجع': 'returns',
+      'مخزون': 'inventory',
+      'نقطة البيع': 'pos',
+      'دفع عند الاستلام': 'cod',
+      'جملة': 'b2b',
+      'قناة': 'channels',
+      'دفع': 'payments_explanation',
+      'مزامنة': 'offline_sync',
+      'catalog': 'catalog',
+      'order': 'orders',
+      'delivery': 'delivery',
+      'return': 'returns',
+      'inventory': 'inventory',
+      'pos': 'pos',
+      'cod': 'cod',
+      'b2b': 'b2b',
+      'channel': 'channels',
+      'payment': 'payments_explanation',
+      'sync': 'offline_sync',
+    };
+    for (final entry in aliases.entries) {
+      if (prompt.contains(entry.key) || lower.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
+  String? _statusKeyFromPrompt(String prompt, String lower) {
+    final aliases = <String, String>{
+      'قيد المراجعة': 'payment.pending_review',
+      'بانتظار الدفع': 'payment.awaiting_payment',
+      'جاهز': 'shipment.ready',
+      'في الطريق': 'shipment.in_transit',
+      'تم التسليم': 'shipment.delivered',
+      'استثناء': 'delivery_exception.open',
+      'pending': 'payment.pending_review',
+      'ready': 'shipment.ready',
+      'in transit': 'shipment.in_transit',
+      'delivered': 'shipment.delivered',
+      'exception': 'delivery_exception.open',
+    };
+    for (final entry in aliases.entries) {
+      if (prompt.contains(entry.key) || lower.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+    return null;
   }
 
   String _explanation(String intent, bool clarification) {
@@ -653,6 +1022,12 @@ class EdgeRulesOnlyAssistant {
         return 'سأشرح آخر بيانات الطلب المسموح بعرضها لهذه الجلسة.';
       case 'return.prepare':
         return 'سأجهز خطوات طلب المرتجع دون إنشاء استرداد أو تسوية مالية.';
+      case EdgeIntentCatalog.navigationOpen:
+        return 'سأفتح شاشة مسموحة فقط دون تغيير أي بيانات.';
+      case EdgeIntentCatalog.knowledgeExplain:
+        return 'سأعرض شرحاً من المعرفة المحلية الموثقة دون الوصول إلى بيانات خاصة.';
+      case EdgeIntentCatalog.statusExplain:
+        return 'سأشرح معنى الحالة كما هي، دون تغييرها أو إثبات حالة الدفع.';
       case 'provider.readiness':
         return 'سأعرض حالة جاهزية المزود من البيانات المسموح بها فقط.';
       case 'payment.mark_paid':

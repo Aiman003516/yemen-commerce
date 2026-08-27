@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'edge_artifact_store.dart';
 import 'edge_assistant.dart';
 import 'edge_runtime.dart';
 
@@ -172,6 +173,8 @@ class EdgeModelManifest {
     this.disallowLowPowerMode = true,
     this.enabled = true,
     this.readOnlyOnly = true,
+    this.artifactByteLength,
+    this.artifactContentType,
   });
 
   final String manifestId;
@@ -190,6 +193,8 @@ class EdgeModelManifest {
   final bool disallowLowPowerMode;
   final bool enabled;
   final bool readOnlyOnly;
+  final int? artifactByteLength;
+  final String? artifactContentType;
 
   Map<String, dynamic> get canonicalPayload => EdgeCanonicalJson.normalize({
     'manifest_id': manifestId,
@@ -206,6 +211,9 @@ class EdgeModelManifest {
     'disallow_low_power_mode': disallowLowPowerMode,
     'enabled': enabled,
     'read_only_only': readOnlyOnly,
+    if (artifactByteLength != null) 'artifact_byte_length': artifactByteLength,
+    if (artifactContentType != null)
+      'artifact_content_type': artifactContentType,
   }) as Map<String, dynamic>;
 
   String get canonicalJson => EdgeCanonicalJson.encode(canonicalPayload);
@@ -238,6 +246,8 @@ class EdgeModelManifest {
         disallowLowPowerMode: json['disallow_low_power_mode'] != false,
         enabled: json['enabled'] != false,
         readOnlyOnly: json['read_only_only'] != false,
+        artifactByteLength: (json['artifact_byte_length'] as num?)?.toInt(),
+        artifactContentType: json['artifact_content_type']?.toString(),
       );
 }
 
@@ -344,6 +354,12 @@ class EdgeEd25519ManifestVerifier implements EdgeManifestVerifier {
       );
     }
     if (!hashPattern.hasMatch(manifest.artifactSha256) ||
+        manifest.artifactByteLength != null &&
+            (manifest.artifactByteLength! <= 0 ||
+                manifest.artifactByteLength! > EdgeArtifactPolicy.maxBytes) ||
+        manifest.artifactContentType != null &&
+            (manifest.artifactContentType!.length > 120 ||
+                !manifest.artifactContentType!.startsWith('application/')) ||
         manifest.minMemoryMb < 512 ||
         manifest.minMemoryMb > 65536 ||
         manifest.requiredLocales.isEmpty ||
@@ -441,11 +457,13 @@ class EdgePilotController {
     required this.runtime,
     required this.verifier,
     required this.preferences,
+    this.artifactStore,
   });
 
   final EdgeRuntime runtime;
   final EdgeManifestVerifier verifier;
   final EdgePilotPreferences preferences;
+  final EdgeArtifactStore? artifactStore;
 
   Future<EdgePilotDecision> evaluate({
     required EdgeModelManifest manifest,
@@ -499,19 +517,65 @@ class EdgePilotController {
     );
   }
 
-  Future<EdgeRuntimeStatus> loadIfEligible(EdgePilotDecision decision) async {
+  Future<EdgeArtifactCacheEntry> prepareArtifactIfEligible(
+    EdgePilotDecision decision, {
+    required EdgeArtifactDownloader downloader,
+    EdgeArtifactCancellationToken? cancellation,
+    void Function(EdgeArtifactProgress progress)? onProgress,
+  }) async {
+    if (!decision.isEligible || decision.manifest == null) {
+      throw const EdgeArtifactException(
+        code: 'PILOT_NOT_ELIGIBLE',
+        messageAr: 'لا يمكن تنزيل النموذج قبل اجتياز opt-in والتحقق من manifest والجهاز.',
+      );
+    }
+    final store = artifactStore;
+    if (store == null) {
+      throw const EdgeArtifactException(
+        code: 'ARTIFACT_STORAGE_UNAVAILABLE',
+        messageAr: 'التخزين المحلي للنموذج غير متاح لهذا التطبيق.',
+      );
+    }
+    final manifest = decision.manifest!;
+    final cached = await store.findVerified(manifest);
+    if (cached != null) return cached;
+    return store.download(
+      manifest,
+      downloader: downloader,
+      cancellation: cancellation,
+      onProgress: onProgress,
+    );
+  }
+
+  Future<EdgeRuntimeStatus> loadIfEligible(
+    EdgePilotDecision decision, {
+    EdgeArtifactCacheEntry? verifiedArtifact,
+  }) async {
     if (!decision.isEligible || decision.manifest == null) {
       throw const EdgeRuntimeException(
         code: 'PILOT_NOT_ELIGIBLE',
         messageAr: 'لا يمكن تحميل النموذج قبل اجتياز opt-in والتحقق من manifest والجهاز.',
       );
     }
+    final artifact = verifiedArtifact;
+    final manifest = decision.manifest!;
+    if (artifact == null ||
+        artifact.manifestId != manifest.manifestId ||
+        artifact.modelVersion != manifest.modelVersion ||
+        artifact.sha256.toLowerCase() !=
+            manifest.artifactSha256.toLowerCase() ||
+        artifact.localPath.trim().isEmpty) {
+      throw const EdgeRuntimeException(
+        code: 'PILOT_ARTIFACT_REQUIRED',
+        messageAr: 'يجب التحقق من ملف النموذج محلياً قبل تحميله.',
+      );
+    }
     return runtime.loadModel(
       EdgeRuntimeModelSpec(
-        modelId: decision.manifest!.modelId,
-        modelVersion: decision.manifest!.modelVersion,
-        artifactUri: decision.manifest!.artifactUri,
-        sha256: decision.manifest!.artifactSha256,
+        modelId: manifest.modelId,
+        modelVersion: manifest.modelVersion,
+        artifactUri: artifact.localPath,
+        sha256: artifact.sha256,
       ),
     );
   }

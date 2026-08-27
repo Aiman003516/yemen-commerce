@@ -10,5 +10,8 @@ export 'src/edge_pilot_config.dart';
 export 'src/edge_device_tiers.dart';
 export 'src/edge_evaluation.dart';
 export 'src/edge_pilot_widget.dart';
+export 'src/edge_artifact_store.dart';
+export 'src/edge_artifact_store_stub.dart'
+    if (dart.library.io) 'src/edge_artifact_store_io.dart';
 export 'src/payment_providers.dart';
 export 'src/supabase_runtime.dart';

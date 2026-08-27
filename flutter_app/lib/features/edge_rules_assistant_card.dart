@@ -168,6 +168,9 @@ class _ProposalPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final labels = <String, String>{
       'assistant.clarify': 'توضيح مطلوب',
+      'navigation.open': 'فتح شاشة مسموحة',
+      'knowledge.explain': 'شرح من المعرفة الموثقة',
+      'status.explain': 'شرح الحالة',
       'shipment.record_status': 'تحديث حالة التوصيل',
       'channel.save': 'حفظ قناة بيع',
       'order.explain': 'شرح الطلب',
@@ -214,6 +217,13 @@ class _ProposalPreview extends StatelessWidget {
             textDirection: TextDirection.ltr,
           ),
         ],
+        if (proposal.provenance != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'المصدر: ${_provenanceLabel(proposal.provenance!)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         if (proposal.missingFields.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text('المطلوب: ${proposal.missingFields.join('، ')}'),
@@ -226,6 +236,17 @@ class _ProposalPreview extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _provenanceLabel(EdgeProposalProvenance provenance) {
+    final source = switch (provenance.source) {
+      'rules' => 'قواعد محلية',
+      'local_knowledge_pack' => 'حزمة معرفة محلية موقعة',
+      'server_read' => 'قراءة مسموحة من الخادم',
+      _ => 'مصدر غير معروف',
+    };
+    if (provenance.packVersion == null) return source;
+    return '$source — الإصدار ${provenance.packVersion}';
   }
 }
 

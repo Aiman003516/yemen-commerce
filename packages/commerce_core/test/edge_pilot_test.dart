@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:commerce_core/commerce_core.dart';
+import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -114,10 +115,12 @@ void main() {
   test('requires opt-in before evaluating or loading a model', () async {
     final preferences = InMemoryEdgePilotPreferences();
     final runtime = FakeEdgeRuntime();
+    final artifactBytes = <int>[1, 2, 3, 4];
     final controller = EdgePilotController(
       runtime: runtime,
       verifier: const _AlwaysValidManifestVerifier(),
       preferences: preferences,
+      artifactStore: EdgeArtifactStore(cache: InMemoryEdgeArtifactCache()),
     );
     final manifest = _manifest();
     const capabilities = EdgeDeviceCapabilities(
@@ -142,7 +145,14 @@ void main() {
       capabilities: capabilities,
     );
     expect(enabled.isEligible, isTrue);
-    final status = await controller.loadIfEligible(enabled);
+    final prepared = await controller.prepareArtifactIfEligible(
+      enabled,
+      downloader: MemoryEdgeArtifactDownloader(artifactBytes),
+    );
+    final status = await controller.loadIfEligible(
+      enabled,
+      verifiedArtifact: prepared,
+    );
     expect(status.state, EdgeRuntimeState.ready);
   });
 
@@ -156,14 +166,14 @@ void main() {
   });
 }
 
-EdgeModelManifest _manifest() => const EdgeModelManifest(
+EdgeModelManifest _manifest() => EdgeModelManifest(
   manifestId: 'edge-test-manifest',
   modelId: 'edge-test-model',
   modelVersion: '0.1.0',
   platform: 'fake',
   artifactUri: 'asset://edge-test-model.bin',
-  artifactSha256:
-      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  artifactSha256: sha256.convert([1, 2, 3, 4]).toString(),
+  artifactByteLength: 4,
   signerKeyId: 'test-key',
   signatureBase64: 'signature',
 );

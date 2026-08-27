@@ -133,6 +133,13 @@ class _CreatorEdgeRulesAssistantCardState
               ),
               const SizedBox(height: 6),
               Text(proposal.explanationAr),
+              if (proposal.provenance != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'المصدر: ${_provenanceLabel(proposal.provenance!)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               const SizedBox(height: 6),
               Text(
                 'بصمة الاقتراح: ${proposal.proposalHash.substring(0, 16)}…',
@@ -162,6 +169,9 @@ class _CreatorEdgeRulesAssistantCardState
   }
 
   String _creatorIntentLabel(String intent) => switch (intent) {
+    'navigation.open' => 'فتح شاشة مسموحة',
+    'knowledge.explain' => 'شرح من المعرفة الموثقة',
+    'status.explain' => 'شرح الحالة',
     'provider.readiness' => 'جاهزية المزودات',
     'erp.summary' => 'ملخص ERP',
     'ai.evaluation_summary' => 'ملخص تقييم الذكاء الاصطناعي',
@@ -169,6 +179,17 @@ class _CreatorEdgeRulesAssistantCardState
     'policy.propose' => 'اقتراح سياسة',
     _ => 'توضيح مطلوب',
   };
+
+  String _provenanceLabel(EdgeProposalProvenance provenance) {
+    final source = switch (provenance.source) {
+      'rules' => 'قواعد محلية',
+      'local_knowledge_pack' => 'حزمة معرفة محلية موقعة',
+      'server_read' => 'قراءة مسموحة من الخادم',
+      _ => 'مصدر غير معروف',
+    };
+    if (provenance.packVersion == null) return source;
+    return '$source — الإصدار ${provenance.packVersion}';
+  }
 }
 
 class _CreatorValidationIssues extends StatelessWidget {

@@ -254,6 +254,14 @@ Edge-1 is implemented as a typed native runtime shell. `EdgeRuntimeChannel` expo
 
 `FakeEdgeRuntime` and `EdgeAssistantCoordinator` provide deterministic tests and select the rules-only assistant whenever the native runtime is missing, unavailable, returns an invalid proposal, or raises a safe runtime error. The app cards now use this coordinator, so Web and unsupported devices remain functional without native inference. Android APK compilation is pending because this Linux environment has no Android SDK; iOS compilation is pending because Xcode is unavailable on Linux. Dart analysis, Flutter tests, and Web release builds remain runnable and are covered by the validation report.
 
+## Edge-2 implementation checkpoint
+
+Edge-2 is implemented as a **gated model-pilot foundation**, not an active model deployment. `EdgeModelManifest` defines the model identity, version, platform, artifact URI, artifact SHA-256, signer key ID, Ed25519 signature, minimum OS and memory, required locales, hardware requirements, low-power policy, and read-only-only policy. `EdgeEd25519ManifestVerifier` rejects malformed, disabled, unsigned, untrusted, non-read-only, or policy-invalid manifests before any model-loading call.
+
+`EdgePilotController` requires device-local opt-in, a verified manifest, an installed native runtime, and passing device-capability checks before calling `loadModel`. `EdgePilotPreferences` scopes the opt-in locally by app surface. `EdgePilotBuildConfig` accepts only public build-time values: `EDGE_MODEL_MANIFEST_B64` or `EDGE_MODEL_MANIFEST_JSON`, `EDGE_MODEL_TRUSTED_KEY_ID`, and `EDGE_MODEL_TRUSTED_PUBLIC_KEY_B64`. Default builds contain none of these values and therefore cannot activate a model.
+
+The Android and iOS bridge shells now expose a capability query with platform, OS version, model, memory, hardware-acceleration, low-power, and metered-network fields. The native runtime remains intentionally disabled in this increment, so the production decision is still rules-only. The baseline synthetic Arabic/Yemeni corpus and deterministic scorer are in `docs/EDGE2_ARABIC_YEMEN_EVALUATION.md` and `packages/commerce_core/lib/src/edge_evaluation.dart`; activation requires zero unsafe proposals, complete case passing, and an average score of at least `0.85`.
+
 ## References
 
 [1]: https://machinelearning.apple.com/research/core-ml-on-device-llama "Apple Machine Learning Research — On Device Llama 3.1 with Core ML"

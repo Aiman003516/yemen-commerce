@@ -1,6 +1,8 @@
 package com.yemencommerce.flutter_app
 
-import android.os.Bundle
+import android.app.ActivityManager
+import android.content.Context
+import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -17,6 +19,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call: MethodCall, result: MethodChannel.Result ->
                 when (call.method) {
                     "status" -> result.success(statusPayload())
+                    "capabilities" -> result.success(capabilityPayload())
                     "loadModel", "infer" -> result.error(
                         unavailableCode,
                         unavailableMessage,
@@ -27,6 +30,22 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private fun capabilityPayload(): Map<String, Any> {
+        val memoryInfo = ActivityManager.MemoryInfo()
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        activityManager.getMemoryInfo(memoryInfo)
+        return mapOf(
+            "platform" to "android",
+            "os_version" to Build.VERSION.RELEASE,
+            "device_model" to Build.MODEL,
+            "memory_mb" to (memoryInfo.totalMem / (1024 * 1024)).toInt(),
+            "supports_native_runtime" to false,
+            "supports_hardware_acceleration" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP),
+            "is_low_power_mode" to false,
+            "is_metered_network" to false,
+        )
     }
 
     private fun statusPayload(): Map<String, Any> = mapOf(

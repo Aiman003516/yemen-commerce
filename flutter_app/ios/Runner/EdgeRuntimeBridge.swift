@@ -1,5 +1,6 @@
 import Flutter
 import Foundation
+import Metal
 
 final class EdgeRuntimeBridge {
   static let channelName = "com.yemencommerce/edge_runtime.v1"
@@ -19,6 +20,8 @@ final class EdgeRuntimeBridge {
           "message_ar": unavailableMessage,
           "error_code": unavailableCode,
         ])
+      case "capabilities":
+        result(capabilityPayload())
       case "loadModel", "infer":
         result(FlutterError(
           code: unavailableCode,
@@ -33,5 +36,19 @@ final class EdgeRuntimeBridge {
         result(FlutterMethodNotImplemented)
       }
     }
+  }
+
+  private static func capabilityPayload() -> [String: Any] {
+    let memoryMb = Int(ProcessInfo.processInfo.physicalMemory / (1024 * 1024))
+    return [
+      "platform": "ios",
+      "os_version": UIDevice.current.systemVersion,
+      "device_model": UIDevice.current.model,
+      "memory_mb": memoryMb,
+      "supports_native_runtime": false,
+      "supports_hardware_acceleration": MTLCreateSystemDefaultDevice() != nil,
+      "is_low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
+      "is_metered_network": false,
+    ]
   }
 }

@@ -45,6 +45,9 @@ class EdgeRuntimeStatus {
   bool get isAvailable =>
       state == EdgeRuntimeState.ready || state == EdgeRuntimeState.running;
 
+  bool get isInstalled =>
+      state != EdgeRuntimeState.unavailable && state != EdgeRuntimeState.failed;
+
   Map<String, dynamic> toJson() => {
     'platform': platform,
     'state': state.value,

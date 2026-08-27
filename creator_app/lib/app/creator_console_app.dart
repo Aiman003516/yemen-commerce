@@ -334,6 +334,13 @@ class CreatorDashboardPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           const CreatorEdgeRulesAssistantCard(),
+          const SizedBox(height: 20),
+          EdgePilotGateCard(
+            surface: EdgeAppSurface.creator,
+            titleAr: 'تجربة الذكاء المحلي للمنشئ',
+            manifest: EdgePilotBuildConfig.manifest,
+            trustedPublicKeys: EdgePilotBuildConfig.trustedPublicKeys,
+          ),
           const SizedBox(height: 24),
           GridView.count(
             crossAxisCount: MediaQuery.sizeOf(context).width >= 1100 ? 3 : 2,

@@ -284,6 +284,13 @@ class _HomePage extends StatelessWidget {
               const EdgeRulesOnlyAssistantCard(
                 surface: EdgeAppSurface.customer,
               ),
+              const SizedBox(height: 20),
+              EdgePilotGateCard(
+                surface: EdgeAppSurface.customer,
+                titleAr: 'تجربة الذكاء المحلي الاختيارية',
+                manifest: EdgePilotBuildConfig.manifest,
+                trustedPublicKeys: EdgePilotBuildConfig.trustedPublicKeys,
+              ),
               const SizedBox(height: 30),
               const _SectionHeader(
                 title: 'كيف يعمل السوق؟',
@@ -4369,6 +4376,13 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             EdgeRulesOnlyAssistantCard(
               surface: EdgeAppSurface.merchant,
               context: {'shop_id': workspace.shops.first.id},
+            ),
+            const SizedBox(height: 20),
+            EdgePilotGateCard(
+              surface: EdgeAppSurface.merchant,
+              titleAr: 'تجربة المساعد المحلي للتاجر',
+              manifest: EdgePilotBuildConfig.manifest,
+              trustedPublicKeys: EdgePilotBuildConfig.trustedPublicKeys,
             ),
             const SizedBox(height: 20),
             MerchantAiCopilotCard(shopId: workspace.shops.first.id),

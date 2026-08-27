@@ -12,7 +12,7 @@ class CreatorEdgeRulesAssistantCard extends StatefulWidget {
 class _CreatorEdgeRulesAssistantCardState
     extends State<CreatorEdgeRulesAssistantCard> {
   final _prompt = TextEditingController();
-  final _coordinator = EdgeAssistantCoordinator(runtime: EdgeRuntimeChannel());
+  final _orchestrator = EdgeAssistantOrchestrator();
   EdgeProposal? _proposal;
   EdgeValidationResult? _validation;
   String? _status;
@@ -38,7 +38,7 @@ class _CreatorEdgeRulesAssistantCardState
       _busy = true;
       _status = null;
     });
-    final proposal = await _coordinator.propose(
+    final orchestration = await _orchestrator.propose(
       EdgeAssistantRequest(
         requestId:
             'creator-edge-${DateTime.now().toUtc().microsecondsSinceEpoch}',
@@ -49,6 +49,7 @@ class _CreatorEdgeRulesAssistantCardState
       ),
     );
     if (!mounted) return;
+    final proposal = orchestration.proposal;
     setState(() {
       _busy = false;
       _proposal = proposal;
@@ -133,6 +134,7 @@ class _CreatorEdgeRulesAssistantCardState
               ),
               const SizedBox(height: 6),
               Text(proposal.explanationAr),
+              ..._draftPreview(context, proposal),
               if (proposal.provenance != null) ...[
                 const SizedBox(height: 6),
                 Text(
@@ -179,6 +181,24 @@ class _CreatorEdgeRulesAssistantCardState
     'policy.propose' => 'اقتراح سياسة',
     _ => 'توضيح مطلوب',
   };
+
+  List<Widget> _draftPreview(BuildContext context, EdgeProposal proposal) {
+    final draft = const EdgeDraftComposer().compose(proposal);
+    if (draft == null || draft.fields.isEmpty) return const <Widget>[];
+    return [
+      const SizedBox(height: 8),
+      Text(
+        'مسودة غير محفوظة — راجعها قبل النسخ أو الحفظ',
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+      ...draft.fields.map(
+        (field) => Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text('${field.labelAr}: ${field.value}'),
+        ),
+      ),
+    ];
+  }
 
   String _provenanceLabel(EdgeProposalProvenance provenance) {
     final source = switch (provenance.source) {

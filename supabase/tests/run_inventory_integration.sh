@@ -55,8 +55,10 @@ transfer_body="$(jq -cn \
 
 transfer_first="$(rpc complete_inventory_transfer "$transfer_body")"
 transfer_second="$(rpc complete_inventory_transfer "$transfer_body")"
-if [[ "$(jq -cS . <<<"$transfer_first")" != "$(jq -cS . <<<"$transfer_second")" ]]; then
-  printf 'FAIL transfer idempotency response changed\n' >&2
+first_transfer_id="$(jq -er '.transfer_id' <<<"$transfer_first")"
+second_transfer_id="$(jq -er '.transfer_id' <<<"$transfer_second")"
+if [[ "$first_transfer_id" != "$second_transfer_id" ]] || [[ "$(jq -r '.status' <<<"$transfer_first")" != "completed" ]] || [[ "$(jq -r '.status' <<<"$transfer_second")" != "completed" ]] || [[ "$(jq -r '.idempotent' <<<"$transfer_second")" != "true" ]]; then
+  printf 'FAIL transfer idempotency contract changed\n' >&2
   exit 1
 fi
 printf 'PASS authenticated multi-line transfer RPC and idempotency\n'
@@ -70,8 +72,10 @@ count_body="$(jq -cn \
 
 count_first="$(rpc apply_inventory_count "$count_body")"
 count_second="$(rpc apply_inventory_count "$count_body")"
-if [[ "$(jq -cS . <<<"$count_first")" != "$(jq -cS . <<<"$count_second")" ]]; then
-  printf 'FAIL inventory count idempotency response changed\n' >&2
+first_count_id="$(jq -er '.count_id' <<<"$count_first")"
+second_count_id="$(jq -er '.count_id' <<<"$count_second")"
+if [[ "$first_count_id" != "$second_count_id" ]] || [[ "$(jq -r '.status' <<<"$count_first")" != "completed" ]] || [[ "$(jq -r '.status' <<<"$count_second")" != "completed" ]] || [[ "$(jq -r '.idempotent' <<<"$count_second")" != "true" ]]; then
+  printf 'FAIL inventory count idempotency contract changed\n' >&2
   exit 1
 fi
 printf 'PASS authenticated inventory count RPC and idempotency\n'

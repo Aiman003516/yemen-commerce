@@ -236,7 +236,8 @@ class CreatorRepository {
           'id,market_id,name_ar,name_en,area_code,status,delivery_enabled,pickup_enabled',
         )
         .eq('market_id', marketId)
-        .order('name_ar');
+        .order('name_ar')
+        .limit(200);
     return (rows as List<dynamic>)
         .map(
           (row) => CreatorServiceArea.fromJson(
@@ -253,7 +254,8 @@ class CreatorRepository {
           'id,market_id,service_area_id,name_ar,name_en,address_details,contact_phone,operating_hours,status',
         )
         .eq('market_id', marketId)
-        .order('name_ar');
+        .order('name_ar')
+        .limit(200);
     return (rows as List<dynamic>)
         .map(
           (row) => CreatorPickupPoint.fromJson(

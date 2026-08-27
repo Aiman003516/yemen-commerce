@@ -1,12 +1,10 @@
 -- Yemen Commerce disposable debug seed
 --
--- RUN ONLY in a separate Supabase debug/test project through the SQL Editor.
--- This script creates synthetic example.invalid identities and records. It does
--- not contact email providers, upload evidence, or create real financial data.
--- The fixed IDs make browser and RPC test instructions reproducible.
---
--- Temporary debug password for these synthetic accounts is intentionally
--- supplied as a SQL variable below. Change it before running if desired.
+-- RUN ONLY in the explicitly authorized Yemen Commerce mock/debug project through the SQL Editor.
+-- This script creates the deterministic synthetic business graph only. It never writes
+-- auth.users and never stores or hashes passwords. Create the six auto-confirmed debug
+-- accounts through supported Supabase Auth UI/API first, then run this script.
+-- The fixed business IDs make browser and RPC test instructions reproducible.
 
 begin;
 
@@ -15,13 +13,31 @@ create temporary table debug_seed_ids (
   id uuid not null
 ) on commit drop;
 
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count
+  from public.profiles
+  where email in (
+    'creator.auth.debug@mock.yemencommerce.dev',
+    'merchant.auth.debug@mock.yemencommerce.dev',
+    'customer.auth.debug@mock.yemencommerce.dev',
+    'customer2.auth.debug@mock.yemencommerce.dev',
+    'reviewer.auth.debug@mock.yemencommerce.dev',
+    'support.auth.debug@mock.yemencommerce.dev'
+  );
+  if v_count <> 6 then
+    raise exception using errcode = 'P0001', message = 'SUPPORTED_DEBUG_ACCOUNTS_INCOMPLETE';
+  end if;
+end $$;
+
 insert into debug_seed_ids(key, id) values
-  ('creator', '10000000-0000-0000-0000-000000000001'),
-  ('merchant_user', '10000000-0000-0000-0000-000000000002'),
-  ('customer', '10000000-0000-0000-0000-000000000003'),
-  ('customer_two', '10000000-0000-0000-0000-000000000004'),
-  ('reviewer', '10000000-0000-0000-0000-000000000005'),
-  ('support', '10000000-0000-0000-0000-000000000006'),
+  ('creator', (select id from public.profiles where email = 'creator.auth.debug@mock.yemencommerce.dev' limit 1)),
+  ('merchant_user', (select id from public.profiles where email = 'merchant.auth.debug@mock.yemencommerce.dev' limit 1)),
+  ('customer', (select id from public.profiles where email = 'customer.auth.debug@mock.yemencommerce.dev' limit 1)),
+  ('customer_two', (select id from public.profiles where email = 'customer2.auth.debug@mock.yemencommerce.dev' limit 1)),
+  ('reviewer', (select id from public.profiles where email = 'reviewer.auth.debug@mock.yemencommerce.dev' limit 1)),
+  ('support', (select id from public.profiles where email = 'support.auth.debug@mock.yemencommerce.dev' limit 1)),
   ('market', '20000000-0000-0000-0000-000000000001'),
   ('service_area', '30000000-0000-0000-0000-000000000001'),
   ('pickup_point', '30000000-0000-0000-0000-000000000002'),
@@ -60,40 +76,6 @@ insert into debug_seed_ids(key, id) values
   ('ai_tool_call', 'b1000000-0000-0000-0000-000000000001'),
   ('ai_approval', 'b2000000-0000-0000-0000-000000000001'),
   ('ai_policy', 'b3000000-0000-0000-0000-000000000001');
-
--- Auth users are synthetic and email-confirmed only for local testing. The
--- trigger from the migrations creates profiles and a default customer role.
-insert into auth.users(
-  id, aud, role, email, encrypted_password, email_confirmed_at,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
-)
-select id, 'authenticated', 'authenticated', email,
-       crypt('DebugOnly-ChangeMe-2026!', gen_salt('bf')),
-       now(), '{"provider":"email","providers":["email"]}'::jsonb,
-       jsonb_build_object('full_name', full_name), now(), now()
-from (
-  values
-    ((select id from debug_seed_ids where key = 'creator'), 'creator.debug@example.invalid', 'مالك النظام التجريبي'),
-    ((select id from debug_seed_ids where key = 'merchant_user'), 'merchant.debug@example.invalid', 'تاجر إب التجريبي'),
-    ((select id from debug_seed_ids where key = 'customer'), 'customer.debug@example.invalid', 'عميل إب التجريبي'),
-    ((select id from debug_seed_ids where key = 'customer_two'), 'customer2.debug@example.invalid', 'عميل ثان تجريبي'),
-    ((select id from debug_seed_ids where key = 'reviewer'), 'reviewer.debug@example.invalid', 'مراجع تجريبي'),
-    ((select id from debug_seed_ids where key = 'support'), 'support.debug@example.invalid', 'دعم تجريبي')
-) as users(id, email, full_name)
-on conflict (id) do update set email = excluded.email, raw_user_meta_data = excluded.raw_user_meta_data, updated_at = now();
-
-insert into public.profiles(id, display_name, email, phone)
-select id, display_name, email, phone
-from (
-  values
-    ((select id from debug_seed_ids where key = 'creator'), 'مالك النظام التجريبي', 'creator.debug@example.invalid', '+967700000001'),
-    ((select id from debug_seed_ids where key = 'merchant_user'), 'تاجر إب التجريبي', 'merchant.debug@example.invalid', '+967700000002'),
-    ((select id from debug_seed_ids where key = 'customer'), 'عميل إب التجريبي', 'customer.debug@example.invalid', '+967700000003'),
-    ((select id from debug_seed_ids where key = 'customer_two'), 'عميل ثان تجريبي', 'customer2.debug@example.invalid', '+967700000004'),
-    ((select id from debug_seed_ids where key = 'reviewer'), 'مراجع تجريبي', 'reviewer.debug@example.invalid', '+967700000005'),
-    ((select id from debug_seed_ids where key = 'support'), 'دعم تجريبي', 'support.debug@example.invalid', '+967700000006')
-) as users(id, display_name, email, phone)
-on conflict (id) do update set display_name = excluded.display_name, email = excluded.email, phone = excluded.phone;
 
 insert into public.markets(id, governorate, city, district, service_area, status, currency, is_pilot)
 values ((select id from debug_seed_ids where key = 'market'), 'إب', 'إب', 'الظهار', 'debug-yemen', 'active', 'YER', true)
@@ -265,7 +247,7 @@ on conflict (id) do nothing;
 
 insert into public.audit_events(actor_user_id, action, resource_type, resource_id, metadata)
 values
-  ((select id from debug_seed_ids where key = 'creator'), 'debug.seed_created', 'debug_fixture', 'yemen-commerce-debug', '{"synthetic":true,"email_domain":"example.invalid"}'::jsonb),
+  ((select id from debug_seed_ids where key = 'creator'), 'debug.seed_created', 'debug_fixture', 'yemen-commerce-debug', '{"synthetic":true,"email_domain":"mock.yemencommerce.dev"}'::jsonb),
   ((select id from debug_seed_ids where key = 'merchant_user'), 'debug.paid_order_fixture_created', 'merchant_order', (select id::text from debug_seed_ids where key = 'order_paid'), '{"payment_status":"paid","no_real_funds":true}'::jsonb)
 on conflict do nothing;
 

@@ -63,7 +63,8 @@ class SupabaseMarketplaceClient {
         )
         .eq('market_id', marketId)
         .eq('status', 'active')
-        .order('name_ar');
+        .order('name_ar')
+        .limit(200);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -77,7 +78,8 @@ class SupabaseMarketplaceClient {
         )
         .eq('market_id', marketId)
         .eq('status', 'active')
-        .order('name_ar');
+        .order('name_ar')
+        .limit(200);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -93,7 +95,8 @@ class SupabaseMarketplaceClient {
         )
         .eq('shop_id', shopId)
         .eq('is_active', true)
-        .order('name');
+        .order('name')
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -111,7 +114,8 @@ class SupabaseMarketplaceClient {
         .eq('market_id', marketId)
         .eq('is_active', true)
         .order('is_default', ascending: false)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(50);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -164,7 +168,7 @@ class SupabaseMarketplaceClient {
     if (query != null && query.trim().isNotEmpty) {
       request = request.ilike('name', '%${query.trim()}%');
     }
-    final rows = await request.order('created_at', ascending: false);
+    final rows = await request.order('created_at', ascending: false).limit(100);
     return (rows as List<dynamic>)
         .map((row) => SupabaseProduct.fromJson(row as Map<String, dynamic>))
         .toList(growable: false);
@@ -202,7 +206,8 @@ class SupabaseMarketplaceClient {
           'id,shop_id,order_reference,total_minor,currency,payment_status,fulfilment_status,account_holder_name,receiving_identifier,payment_instructions,payment_provider_code',
         )
         .eq('customer_user_id', user.id)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map<String, dynamic>))
         .toList(growable: false);
@@ -258,7 +263,8 @@ class SupabaseMarketplaceClient {
         .from('merchant_promotions')
         .select('id,merchant_id,shop_id,code,kind,value_minor,status')
         .eq('shop_id', shopId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -325,7 +331,8 @@ class SupabaseMarketplaceClient {
         .from('order_cases')
         .select('id,merchant_order_id,case_type,status,reason,resolution_note')
         .eq('opened_by_user_id', user.id)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -497,7 +504,8 @@ class SupabaseMarketplaceClient {
         )
         .eq('active', true)
         .order('category')
-        .order('display_name_ar');
+        .order('display_name_ar')
+        .limit(200);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -1053,7 +1061,8 @@ class SupabaseMarketplaceClient {
         .select('id,shop_id,name,area_label,status,is_default')
         .eq('shop_id', shopId)
         .order('is_default', ascending: false)
-        .order('name');
+        .order('name')
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -1068,7 +1077,8 @@ class SupabaseMarketplaceClient {
           'id,shop_id,name,description,price_minor,currency,stock_quantity,status,barcode,shops!inner(name,merchant_id)',
         )
         .eq('shops.merchant_id', merchant['id'])
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -1280,21 +1290,24 @@ class SupabaseMarketplaceClient {
         .from('shops')
         .select('id,name,status,area_label')
         .eq('merchant_id', merchantId)
-        .order('created_at');
+        .order('created_at')
+        .limit(100);
     final paymentMethods = await _client
         .from('payment_methods')
         .select(
           'id,name,account_holder_name,receiving_identifier,customer_instructions,proof_requirement,is_active,provider_code,provider_metadata',
         )
         .eq('merchant_id', merchantId)
-        .order('created_at');
+        .order('created_at')
+        .limit(100);
     final orders = await _client
         .from('merchant_orders')
         .select(
           'id,total_minor,payment_status,fulfilment_status,payment_provider_code,delivery_fee_minor,cod_expected_minor,cod_collected_minor,cod_status',
         )
         .eq('merchant_id', merchantId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return {
       'merchant': merchant,
       'shops': shops,
@@ -1396,7 +1409,8 @@ class SupabaseMarketplaceClient {
         .from('product_variants')
         .select('id,product_id,name,sku,price_minor,stock_quantity,status')
         .eq('product_id', productId)
-        .order('created_at');
+        .order('created_at')
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -1588,7 +1602,8 @@ class SupabaseMarketplaceClient {
         .from('identity_verification_cases')
         .select('id,merchant_id,status')
         .inFilter('status', ['submitted', 'under_review'])
-        .order('created_at');
+        .order('created_at')
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -1775,7 +1790,8 @@ class SupabaseMarketplaceClient {
           'id,shop_id,channel_key,display_name,channel_kind,status,public_slug,updated_at',
         )
         .eq('shop_id', shopId)
-        .order('updated_at', ascending: false);
+        .order('updated_at', ascending: false)
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
@@ -1788,7 +1804,8 @@ class SupabaseMarketplaceClient {
           'id,channel_id,product_id,listing_status,channel_title,price_override_minor,currency_override,updated_at',
         )
         .eq('channel_id', channelId)
-        .order('updated_at', ascending: false);
+        .order('updated_at', ascending: false)
+        .limit(100);
     return (rows as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);

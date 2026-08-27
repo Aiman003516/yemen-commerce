@@ -2,7 +2,7 @@
 
 **Author:** Manus AI
 **Reference date:** 27 August 2026
-**Status:** Architecture proposal; no on-device model or new execution authority is enabled by this document.
+**Status:** Edge-0 rules-only foundation implemented; no on-device model or new execution authority is enabled by this document.
 
 ## Executive recommendation
 
@@ -241,6 +241,12 @@ Google’s and Microsoft’s mobile runtime guidance both emphasize device-speci
 I would not begin by embedding a chat window everywhere. The first production slice should be **Edge-0 and Edge-1**, followed by a rules-only Merchant Assistant on the existing channel and logistics UI. This gives the system the important behavior—structured proposals, exact confirmation, localized explanations, stale-state handling, and server-authoritative execution—before introducing model variability.
 
 The first model-enabled pilot should be read-only and opt-in for merchant users. It should compare a compact function-oriented model with a compact multilingual model on the same evaluation set. If the model does not improve task completion without increasing unsafe proposals, the rules-only assistant remains the correct production default. The system should be able to remove or update the model without changing the commerce authority layer.
+
+## Edge-0 implementation checkpoint
+
+Edge-0 is implemented in `packages/commerce_core` and consumed by the customer/merchant and Creator Flutter surfaces. It provides shared proposal and risk types, fixed per-surface intent catalogs, deterministic validation, canonical SHA-256 proposal hashes, recursive redaction, an Arabic-aware rules-only assistant, local confirmation states, and unit/widget coverage. The customer/merchant app shows the card on customer home and the merchant hub; the Creator Console shows it on the Creator dashboard.
+
+The current cards confirm only a local proposal and explicitly report that no server change was performed. They do not load a model, call an AI provider, invoke Supabase, enqueue an outbox command, or create a new execution authority. Edge-1 remains the native runtime shell and real-device benchmarking increment.
 
 ## References
 

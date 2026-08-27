@@ -6,6 +6,8 @@ import 'package:commerce_core/commerce_core.dart';
 import 'package:commerce_data/commerce_data.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'edge_rules_assistant_card.dart';
+
 const creatorErpAuthoringSafetyMessage =
     'لا يتم تحديد الدفع أو حيازة أموال عبر هذه الشاشة.';
 const creatorErpComposableSafetyMessage =
@@ -330,6 +332,8 @@ class CreatorDashboardPage extends StatelessWidget {
           const Text(
             'ملخص آمن للعمليات التي تحتاج إلى قرار من منشئ النظام أو المشغل المخوّل.',
           ),
+          const SizedBox(height: 24),
+          const CreatorEdgeRulesAssistantCard(),
           const SizedBox(height: 24),
           GridView.count(
             crossAxisCount: MediaQuery.sizeOf(context).width >= 1100 ? 3 : 2,

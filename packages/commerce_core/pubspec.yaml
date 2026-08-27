@@ -8,6 +8,11 @@ environment:
   flutter: '>=3.35.0'
 
 dependencies:
+  crypto: ^3.0.7
   flutter:
     sdk: flutter
   supabase_flutter: ^2.17.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

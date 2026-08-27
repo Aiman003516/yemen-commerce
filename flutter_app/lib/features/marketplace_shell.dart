@@ -18,6 +18,7 @@ import '../core/supabase_marketplace_client.dart';
 import '../core/outbox_background_scheduler.dart';
 import '../core/outbox_replay_worker.dart';
 import '../core/secure_command_outbox.dart';
+import 'edge_rules_assistant_card.dart';
 import 'merchant_ai_copilot.dart';
 import 'merchant_ai_review.dart';
 
@@ -279,6 +280,10 @@ class _HomePage extends StatelessWidget {
                   padding: EdgeInsets.only(top: 10),
                   child: LinearProgressIndicator(minHeight: 2),
                 ),
+              const SizedBox(height: 20),
+              const EdgeRulesOnlyAssistantCard(
+                surface: EdgeAppSurface.customer,
+              ),
               const SizedBox(height: 30),
               const _SectionHeader(
                 title: 'كيف يعمل السوق؟',
@@ -4360,6 +4365,11 @@ class _MerchantOperationsPanelState extends State<_MerchantOperationsPanel> {
             },
           ),
           if (workspace.shops.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            EdgeRulesOnlyAssistantCard(
+              surface: EdgeAppSurface.merchant,
+              context: {'shop_id': workspace.shops.first.id},
+            ),
             const SizedBox(height: 20),
             MerchantAiCopilotCard(shopId: workspace.shops.first.id),
             const SizedBox(height: 20),

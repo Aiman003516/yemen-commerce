@@ -1880,6 +1880,26 @@ class SupabaseMarketplaceClient {
         .toList(growable: false);
   }
 
+  Future<Map<String, dynamic>?> customerShipmentPlanForOrder(
+    String merchantOrderId,
+  ) => merchantShipmentPlanForOrder(merchantOrderId);
+
+  Future<List<Map<String, dynamic>>> customerShipmentEvents(
+    String shipmentPlanId,
+  ) => merchantShipmentEvents(shipmentPlanId);
+
+  Future<List<Map<String, dynamic>>> customerOrderCases(
+    String merchantOrderId,
+  ) => merchantOrderCases(merchantOrderId);
+
+  Future<Map<String, dynamic>?> customerReturnLogisticsForCase(
+    String orderCaseId,
+  ) => merchantReturnLogisticsForCase(orderCaseId);
+
+  Future<List<Map<String, dynamic>>> customerReturnEvents(
+    String returnLogisticsId,
+  ) => merchantReturnEvents(returnLogisticsId);
+
   Future<Map<String, dynamic>> upsertMerchantChannel({
     required String shopId,
     required String channelKey,

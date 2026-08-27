@@ -270,3 +270,9 @@ The Android and iOS bridge shells now expose a capability query with platform, O
 [4]: https://developers.google.com/edge/mediapipe/solutions/genai/llm_inference/ios "Google AI Edge — LLM Inference guide for iOS"
 [5]: https://docs.flutter.dev/platform-integration/platform-channels "Flutter Documentation — Writing custom platform-specific code"
 [6]: https://onnxruntime.ai/docs/tutorials/mobile/ "ONNX Runtime — How to develop a mobile application"
+
+## Edge-4 and Edge-5 implementation checkpoint
+
+Edge-4 now includes a customer-owned delivery/return timeline dialog that reads only the authenticated customer’s RLS-visible shipment, shipment-event, order-case, return-logistics, and return-event records. It provides Arabic status explanations, freshness/error states, payment-proof versus confirmed-payment language, and no-custody/no-automatic-refund guidance. Creator Console now includes a bounded governance/readiness summary for AI settings, evaluation health, ERP module readiness, and provider/background gates without exposing credentials, evidence, or raw customer data.
+
+Edge-5 now includes deterministic device-tier selection, conservative CPU-first recommendations, an explicit disabled WebGPU/JavaScript seam, an offline Ed25519 manifest-signing helper, and a real-device benchmark-report evaluator. The helper reads private signing material only from an operator-supplied path outside the repository; the app receives only signed public configuration. No real model artifact, production private key, active manifest, or real-device measurement is claimed or enabled in default builds. Android SDK and macOS/Xcode validation remain external release gates.

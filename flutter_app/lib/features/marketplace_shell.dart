@@ -22,6 +22,7 @@ import 'edge_rules_assistant_card.dart';
 import 'merchant_ai_copilot.dart';
 import 'merchant_ai_review.dart';
 import 'merchant_operational_actions_dialog.dart';
+import 'customer_delivery_timeline.dart';
 
 class MarketplaceShell extends StatefulWidget {
   const MarketplaceShell({
@@ -1514,6 +1515,14 @@ class _OrdersPageState extends State<_OrdersPage> {
                           onPressed: () => _openCase(order),
                           child: const Text('طلب إلغاء أو مساعدة'),
                         ),
+                      TextButton(
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) =>
+                              CustomerDeliveryTimelineDialog(order: order),
+                        ),
+                        child: const Text('متابعة التوصيل والمرتجع'),
+                      ),
                     ],
                   ),
                 ),

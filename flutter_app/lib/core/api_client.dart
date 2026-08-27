@@ -2229,6 +2229,103 @@ class MarketplaceApiClient {
     }
   }
 
+  Future<Map<String, dynamic>?> customerShipmentPlanForOrder(
+    String merchantOrderId,
+  ) async {
+    if (merchantOrderId.trim().isEmpty) {
+      throw ApiException('معرّف طلب التوصيل غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متابعة التوصيل اتصال Supabase.');
+    }
+    try {
+      return await supabase.customerShipmentPlanForOrder(
+        merchantOrderId.trim(),
+      );
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل متابعة التوصيل.'),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> customerShipmentEvents(
+    String shipmentPlanId,
+  ) async {
+    if (shipmentPlanId.trim().isEmpty) {
+      throw ApiException('معرّف سجل التوصيل غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متابعة التوصيل اتصال Supabase.');
+    }
+    try {
+      return await supabase.customerShipmentEvents(shipmentPlanId.trim());
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل سجل التوصيل.'),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> customerOrderCases(
+    String merchantOrderId,
+  ) async {
+    if (merchantOrderId.trim().isEmpty) {
+      throw ApiException('معرّف حالات الطلب غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متابعة المرتجع اتصال Supabase.');
+    }
+    try {
+      return await supabase.customerOrderCases(merchantOrderId.trim());
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل حالات طلبك.'),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> customerReturnLogisticsForCase(
+    String orderCaseId,
+  ) async {
+    if (orderCaseId.trim().isEmpty) {
+      throw ApiException('معرّف متابعة المرتجع غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متابعة المرتجع اتصال Supabase.');
+    }
+    try {
+      return await supabase.customerReturnLogisticsForCase(orderCaseId.trim());
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل متابعة المرتجع.'),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> customerReturnEvents(
+    String returnLogisticsId,
+  ) async {
+    if (returnLogisticsId.trim().isEmpty) {
+      throw ApiException('معرّف سجل المرتجع غير صالح.');
+    }
+    final supabase = _supabase;
+    if (supabase == null) {
+      throw ApiException('تتطلب متابعة المرتجع اتصال Supabase.');
+    }
+    try {
+      return await supabase.customerReturnEvents(returnLogisticsId.trim());
+    } on PostgrestException catch (error) {
+      throw ApiException(
+        _localizedSupabaseError(error, 'تعذر تحميل سجل المرتجع.'),
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> upsertMerchantChannel({
     required String shopId,
     required String channelKey,

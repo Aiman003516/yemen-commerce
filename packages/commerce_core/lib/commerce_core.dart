@@ -7,6 +7,7 @@ export 'src/edge_assistant.dart';
 export 'src/edge_runtime.dart';
 export 'src/edge_pilot.dart';
 export 'src/edge_pilot_config.dart';
+export 'src/edge_device_tiers.dart';
 export 'src/edge_evaluation.dart';
 export 'src/edge_pilot_widget.dart';
 export 'src/payment_providers.dart';

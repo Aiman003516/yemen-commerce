@@ -7,6 +7,7 @@ import 'package:commerce_data/commerce_data.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'edge_rules_assistant_card.dart';
+import 'creator_governance_readiness_card.dart';
 
 const creatorErpAuthoringSafetyMessage =
     'لا يتم تحديد الدفع أو حيازة أموال عبر هذه الشاشة.';
@@ -341,6 +342,8 @@ class CreatorDashboardPage extends StatelessWidget {
             manifest: EdgePilotBuildConfig.manifest,
             trustedPublicKeys: EdgePilotBuildConfig.trustedPublicKeys,
           ),
+          const SizedBox(height: 20),
+          const CreatorGovernanceReadinessCard(),
           const SizedBox(height: 24),
           GridView.count(
             crossAxisCount: MediaQuery.sizeOf(context).width >= 1100 ? 3 : 2,

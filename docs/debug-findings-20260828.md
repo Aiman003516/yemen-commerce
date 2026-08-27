@@ -68,3 +68,7 @@ The Supabase Security Advisor reported one external configuration warning: leake
 ## Release-Web smoke observations after hardening
 
 The customer release bundle at `http://127.0.0.1:4183/` mounted successfully and displayed the Arabic Yemen Commerce shell, RTL sidebar, local-market hero, rules-only assistant card, and feature cards. The Creator release bundle at `http://127.0.0.1:4184/` mounted successfully and displayed the Arabic RTL Creator login card with email input and magic-link action. No authenticated browser mutation was submitted, and no raw token or private evidence was exposed. The browser adapter did not enumerate Flutter canvas controls, so authenticated UI journeys remain covered by RPC harnesses rather than claimed as completed browser interactions.
+
+## Cleanup verification
+
+After all authenticated and release-Web testing, the revised cleanup transaction succeeded. Bounded verification returned `remaining_debug_orders = 0`, `remaining_debug_merchant = 0`, `remaining_supported_profiles = 0`, and `remaining_legacy_profiles = 0`. All seven immutable protections were present again: shipment events, return-logistics events, COD collection records, AI runs, AI tool calls, AI approvals, and AI policies.
